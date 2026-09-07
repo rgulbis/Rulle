@@ -1,0 +1,11 @@
+{
+    "version": "0.0.1",
+    "configurations": [
+        {
+            "name": "skatepark",
+            "runtimeExecutable": "php",
+            "runtimeArgs": ["artisan", "dev"],
+            "port": 8000
+        }
+    ]
+}
