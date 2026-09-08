@@ -1,9 +1,20 @@
 import { useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
-import { InputError, Label, PrimaryButton, TextInput } from '@/components/form-controls';
+import {
+    InputError,
+    Label,
+    PrimaryButton,
+    TextInput,
+} from '@/components/form-controls';
 import AuthLayout from '@/layouts/auth-layout';
 
-export default function ResetPassword({ token, email }: { token: string; email: string }) {
+export default function ResetPassword({
+    token,
+    email,
+}: {
+    token: string;
+    email: string;
+}) {
     const { data, setData, post, processing, errors, reset } = useForm({
         token,
         email,
@@ -19,7 +30,10 @@ export default function ResetPassword({ token, email }: { token: string; email: 
     };
 
     return (
-        <AuthLayout title="Reset password" description="Enter your new password below.">
+        <AuthLayout
+            title="Reset password"
+            description="Enter your new password below."
+        >
             <form onSubmit={submit} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
                     <Label htmlFor="email">Email</Label>
@@ -47,18 +61,26 @@ export default function ResetPassword({ token, email }: { token: string; email: 
                 </div>
 
                 <div className="flex flex-col gap-1">
-                    <Label htmlFor="password_confirmation">Confirm new password</Label>
+                    <Label htmlFor="password_confirmation">
+                        Confirm new password
+                    </Label>
                     <TextInput
                         id="password_confirmation"
                         type="password"
                         autoComplete="new-password"
                         value={data.password_confirmation}
-                        onChange={(e) => setData('password_confirmation', e.target.value)}
+                        onChange={(e) =>
+                            setData('password_confirmation', e.target.value)
+                        }
                     />
                     <InputError message={errors.password_confirmation} />
                 </div>
 
-                <PrimaryButton type="submit" disabled={processing} className="mt-2">
+                <PrimaryButton
+                    type="submit"
+                    disabled={processing}
+                    className="mt-2"
+                >
                     Reset password
                 </PrimaryButton>
             </form>

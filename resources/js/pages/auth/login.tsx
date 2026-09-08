@@ -1,6 +1,13 @@
 import { useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
-import { AuthLink, InputError, Label, PrimaryButton, StatusMessage, TextInput } from '@/components/form-controls';
+import {
+    AuthLink,
+    InputError,
+    Label,
+    PrimaryButton,
+    StatusMessage,
+    TextInput,
+} from '@/components/form-controls';
 import AuthLayout from '@/layouts/auth-layout';
 
 export default function Login({ status }: { status?: string }) {
@@ -18,7 +25,10 @@ export default function Login({ status }: { status?: string }) {
     };
 
     return (
-        <AuthLayout title="Log in" description="Enter your email and password to sign in.">
+        <AuthLayout
+            title="Log in"
+            description="Enter your email and password to sign in."
+        >
             <StatusMessage status={status} />
 
             <form onSubmit={submit} className="flex flex-col gap-4">
@@ -38,7 +48,9 @@ export default function Login({ status }: { status?: string }) {
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
                         <Label htmlFor="password">Password</Label>
-                        <AuthLink href="/forgot-password">Forgot password?</AuthLink>
+                        <AuthLink href="/forgot-password">
+                            Forgot password?
+                        </AuthLink>
                     </div>
                     <TextInput
                         id="password"
@@ -51,17 +63,26 @@ export default function Login({ status }: { status?: string }) {
                 </div>
 
                 <label className="flex items-center gap-2 text-sm text-[#706f6c] dark:text-[#A1A09A]">
-                    <input type="checkbox" checked={data.remember} onChange={(e) => setData('remember', e.target.checked)} />
+                    <input
+                        type="checkbox"
+                        checked={data.remember}
+                        onChange={(e) => setData('remember', e.target.checked)}
+                    />
                     Remember me
                 </label>
 
-                <PrimaryButton type="submit" disabled={processing} className="mt-2">
+                <PrimaryButton
+                    type="submit"
+                    disabled={processing}
+                    className="mt-2"
+                >
                     Log in
                 </PrimaryButton>
             </form>
 
             <p className="mt-6 text-sm text-[#706f6c] dark:text-[#A1A09A]">
-                Don't have an account? <AuthLink href="/register">Sign up</AuthLink>
+                Don't have an account?{' '}
+                <AuthLink href="/register">Sign up</AuthLink>
             </p>
         </AuthLayout>
     );

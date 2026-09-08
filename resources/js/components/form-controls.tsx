@@ -1,11 +1,26 @@
 import { Link } from '@inertiajs/react';
-import { ButtonHTMLAttributes, InputHTMLAttributes, LabelHTMLAttributes } from 'react';
+import {
+    ButtonHTMLAttributes,
+    InputHTMLAttributes,
+    LabelHTMLAttributes,
+} from 'react';
 
-export function Label({ className = '', ...props }: LabelHTMLAttributes<HTMLLabelElement>) {
-    return <label {...props} className={`text-sm text-[#706f6c] dark:text-[#A1A09A] ${className}`} />;
+export function Label({
+    className = '',
+    ...props
+}: LabelHTMLAttributes<HTMLLabelElement>) {
+    return (
+        <label
+            {...props}
+            className={`text-sm text-[#706f6c] dark:text-[#A1A09A] ${className}`}
+        />
+    );
 }
 
-export function TextInput({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
+export function TextInput({
+    className = '',
+    ...props
+}: InputHTMLAttributes<HTMLInputElement>) {
     return (
         <input
             {...props}
@@ -19,7 +34,9 @@ export function InputError({ message }: { message?: string }) {
         return null;
     }
 
-    return <p className="text-sm text-[#f53003] dark:text-[#FF4433]">{message}</p>;
+    return (
+        <p className="text-sm text-[#f53003] dark:text-[#FF4433]">{message}</p>
+    );
 }
 
 export function StatusMessage({ status }: { status?: string | null }) {
@@ -27,10 +44,17 @@ export function StatusMessage({ status }: { status?: string | null }) {
         return null;
     }
 
-    return <p className="mb-4 text-sm font-medium text-green-600 dark:text-green-500">{status}</p>;
+    return (
+        <p className="mb-4 text-sm font-medium text-green-600 dark:text-green-500">
+            {status}
+        </p>
+    );
 }
 
-export function PrimaryButton({ className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
+export function PrimaryButton({
+    className = '',
+    ...props
+}: ButtonHTMLAttributes<HTMLButtonElement>) {
     return (
         <button
             {...props}
@@ -40,5 +64,10 @@ export function PrimaryButton({ className = '', ...props }: ButtonHTMLAttributes
 }
 
 export function AuthLink(props: React.ComponentProps<typeof Link>) {
-    return <Link {...props} className={`text-sm font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433] ${props.className ?? ''}`} />;
+    return (
+        <Link
+            {...props}
+            className={`text-sm font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433] ${props.className ?? ''}`}
+        />
+    );
 }

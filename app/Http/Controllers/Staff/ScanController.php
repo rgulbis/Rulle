@@ -31,11 +31,33 @@ class ScanController extends Controller
             ], 404);
         }
 
-        $user->checked_in = ! $user->checked_in;
+        $entering = ! $user->checked_in;
+
+        if ($entering) {
+            if (! $user->hasActiveAccess()) {
+                return response()->json([
+                    'found' => true,
+                    'allowed' => false,
+                    'name' => $user->name,
+                    'message' => 'No active subscription.',
+                ], 403);
+            }
+
+            if (! $user->subscribed('default') && $purchase = $user->activeOneTimePurchase()) {
+                $purchase->decrement('visits_remaining');
+
+                if ($purchase->visits_remaining <= 0) {
+                    $purchase->update(['status' => 'used_up']);
+                }
+            }
+        }
+
+        $user->checked_in = $entering;
         $user->save();
 
         return response()->json([
             'found' => true,
+            'allowed' => true,
             'name' => $user->name,
             'checked_in' => $user->checked_in,
         ]);

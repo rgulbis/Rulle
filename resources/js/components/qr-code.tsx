@@ -1,7 +1,13 @@
 import QRCode from 'qrcode';
 import { useEffect, useRef } from 'react';
 
-export default function QrCode({ value, size = 220 }: { value: string; size?: number }) {
+export default function QrCode({
+    value,
+    size = 220,
+}: {
+    value: string;
+    size?: number;
+}) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -9,7 +15,10 @@ export default function QrCode({ value, size = 220 }: { value: string; size?: nu
             return;
         }
 
-        QRCode.toCanvas(canvasRef.current, value, { width: size, margin: 1 });
+        void QRCode.toCanvas(canvasRef.current, value, {
+            width: size,
+            margin: 1,
+        });
     }, [value, size]);
 
     return <canvas ref={canvasRef} className="rounded-md" />;

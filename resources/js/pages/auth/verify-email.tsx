@@ -32,7 +32,10 @@ export default function VerifyEmail({ status }: { status?: string }) {
             </form>
 
             <form onSubmit={logout} className="mt-6">
-                <button type="submit" className="text-sm font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]">
+                <button
+                    type="submit"
+                    className="text-sm font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
+                >
                     Log out
                 </button>
             </form>

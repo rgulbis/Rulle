@@ -1,6 +1,19 @@
 <?php
 
+use App\Models\Purchase;
+use App\Models\SubscriptionType;
 use App\Models\User;
+
+function makeSubscriptionType(array $attributes = []): SubscriptionType
+{
+    // Avoid the model's `saved` hook making a real Stripe API call in tests.
+    return SubscriptionType::withoutEvents(fn () => SubscriptionType::create(array_merge([
+        'name' => 'Day pass',
+        'price_cents' => 500,
+        'billing_interval' => 'one_time',
+        'visit_limit' => 1,
+    ], $attributes)));
+}
 
 test('non-staff users cannot access the scanner', function () {
     $client = User::factory()->create(['role' => 'client']);
@@ -18,9 +31,17 @@ test('staff users can access the scanner', function () {
     $response->assertOk();
 });
 
-test('scanning a valid qr code toggles check-in status', function () {
+test('scanning a client with an active purchase toggles check-in and consumes a visit', function () {
     $staff = User::factory()->create(['role' => 'staff']);
     $client = User::factory()->create(['role' => 'client', 'checked_in' => false]);
+    $type = makeSubscriptionType(['visit_limit' => 2]);
+    Purchase::create([
+        'user_id' => $client->id,
+        'subscription_type_id' => $type->id,
+        'stripe_checkout_session_id' => 'cs_test_1',
+        'status' => 'active',
+        'visits_remaining' => 2,
+    ]);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
@@ -28,10 +49,12 @@ test('scanning a valid qr code toggles check-in status', function () {
 
     $response->assertOk()->assertJson([
         'found' => true,
+        'allowed' => true,
         'name' => $client->name,
         'checked_in' => true,
     ]);
     expect($client->fresh()->checked_in)->toBeTrue();
+    expect($client->activeOneTimePurchase()->visits_remaining)->toBe(1);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
@@ -39,6 +62,34 @@ test('scanning a valid qr code toggles check-in status', function () {
 
     $response->assertOk()->assertJson(['checked_in' => false]);
     expect($client->fresh()->checked_in)->toBeFalse();
+    expect($client->activeOneTimePurchase()->visits_remaining)->toBe(1);
+});
+
+test('scanning a client with no active subscription denies entry', function () {
+    $staff = User::factory()->create(['role' => 'staff']);
+    $client = User::factory()->create(['role' => 'client', 'checked_in' => false]);
+
+    $response = $this->actingAs($staff)->postJson('/staff/scan', [
+        'code' => $client->qr_code,
+    ]);
+
+    $response->assertForbidden()->assertJson([
+        'found' => true,
+        'allowed' => false,
+        'name' => $client->name,
+    ]);
+    expect($client->fresh()->checked_in)->toBeFalse();
+});
+
+test('checking out does not require an active subscription', function () {
+    $staff = User::factory()->create(['role' => 'staff']);
+    $client = User::factory()->create(['role' => 'client', 'checked_in' => true]);
+
+    $response = $this->actingAs($staff)->postJson('/staff/scan', [
+        'code' => $client->qr_code,
+    ]);
+
+    $response->assertOk()->assertJson(['allowed' => true, 'checked_in' => false]);
 });
 
 test('scanning an unknown code returns not found', function () {

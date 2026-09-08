@@ -1,7 +1,13 @@
-import { useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
-import { AuthLink, InputError, Label, PrimaryButton, StatusMessage, TextInput } from '@/components/form-controls';
-import AuthLayout from '@/layouts/auth-layout';
+import {
+    InputError,
+    Label,
+    PrimaryButton,
+    StatusMessage,
+    TextInput,
+} from '@/components/form-controls';
+import AppLayout from '@/layouts/app-layout';
 
 export default function UpdatePassword({ status }: { status?: string }) {
     const { data, setData, put, processing, errors, reset } = useForm({
@@ -15,60 +21,91 @@ export default function UpdatePassword({ status }: { status?: string }) {
         put('/settings/password', {
             preserveScroll: true,
             onSuccess: () => reset(),
-            onError: () => reset('current_password', 'password', 'password_confirmation'),
+            onError: () =>
+                reset('current_password', 'password', 'password_confirmation'),
         });
     };
 
     return (
-        <AuthLayout title="Change password" description="Ensure your account is using a long, random password to stay secure.">
-            {status === 'password-updated' && <StatusMessage status="Your password has been updated." />}
+        <AppLayout>
+            <Head title="Change password" />
+            <div className="flex justify-center p-6">
+                <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] dark:bg-[#161615] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]">
+                    <div className="mb-6">
+                        <h1 className="text-lg font-medium">Change password</h1>
+                        <p className="mt-1 text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                            Ensure your account is using a long, random password
+                            to stay secure.
+                        </p>
+                    </div>
 
-            <form onSubmit={submit} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                    <Label htmlFor="current_password">Current password</Label>
-                    <TextInput
-                        id="current_password"
-                        type="password"
-                        autoFocus
-                        autoComplete="current-password"
-                        value={data.current_password}
-                        onChange={(e) => setData('current_password', e.target.value)}
-                    />
-                    <InputError message={errors.current_password} />
+                    {status === 'password-updated' && (
+                        <StatusMessage status="Your password has been updated." />
+                    )}
+
+                    <form onSubmit={submit} className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-1">
+                            <Label htmlFor="current_password">
+                                Current password
+                            </Label>
+                            <TextInput
+                                id="current_password"
+                                type="password"
+                                autoFocus
+                                autoComplete="current-password"
+                                value={data.current_password}
+                                onChange={(e) =>
+                                    setData('current_password', e.target.value)
+                                }
+                            />
+                            <InputError message={errors.current_password} />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <Label htmlFor="password">New password</Label>
+                            <TextInput
+                                id="password"
+                                type="password"
+                                autoComplete="new-password"
+                                value={data.password}
+                                onChange={(e) =>
+                                    setData('password', e.target.value)
+                                }
+                            />
+                            <InputError message={errors.password} />
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <Label htmlFor="password_confirmation">
+                                Confirm new password
+                            </Label>
+                            <TextInput
+                                id="password_confirmation"
+                                type="password"
+                                autoComplete="new-password"
+                                value={data.password_confirmation}
+                                onChange={(e) =>
+                                    setData(
+                                        'password_confirmation',
+                                        e.target.value,
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={errors.password_confirmation}
+                            />
+                        </div>
+
+                        <PrimaryButton
+                            type="submit"
+                            disabled={processing}
+                            className="mt-2"
+                        >
+                            Update password
+                        </PrimaryButton>
+                    </form>
                 </div>
-
-                <div className="flex flex-col gap-1">
-                    <Label htmlFor="password">New password</Label>
-                    <TextInput
-                        id="password"
-                        type="password"
-                        autoComplete="new-password"
-                        value={data.password}
-                        onChange={(e) => setData('password', e.target.value)}
-                    />
-                    <InputError message={errors.password} />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                    <Label htmlFor="password_confirmation">Confirm new password</Label>
-                    <TextInput
-                        id="password_confirmation"
-                        type="password"
-                        autoComplete="new-password"
-                        value={data.password_confirmation}
-                        onChange={(e) => setData('password_confirmation', e.target.value)}
-                    />
-                    <InputError message={errors.password_confirmation} />
-                </div>
-
-                <PrimaryButton type="submit" disabled={processing} className="mt-2">
-                    Update password
-                </PrimaryButton>
-            </form>
-
-            <p className="mt-6 text-sm text-[#706f6c] dark:text-[#A1A09A]">
-                <AuthLink href="/dashboard">Back to dashboard</AuthLink>
-            </p>
-        </AuthLayout>
+            </div>
+        </AppLayout>
     );
 }

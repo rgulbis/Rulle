@@ -1,6 +1,12 @@
 import { useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
-import { AuthLink, InputError, Label, PrimaryButton, TextInput } from '@/components/form-controls';
+import {
+    AuthLink,
+    InputError,
+    Label,
+    PrimaryButton,
+    TextInput,
+} from '@/components/form-controls';
 import AuthLayout from '@/layouts/auth-layout';
 
 export default function Register() {
@@ -17,9 +23,12 @@ export default function Register() {
             onFinish: () => reset('password', 'password_confirmation'),
         });
     };
-~
-    re/turn (
-        <AuthLayout title="Create an account" description="Enter your details below to sign up.">
+
+    return (
+        <AuthLayout
+            title="Create an account"
+            description="Enter your details below to sign up."
+        >
             <form onSubmit={submit} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
                     <Label htmlFor="name">Name</Label>
@@ -58,24 +67,33 @@ export default function Register() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                    <Label htmlFor="password_confirmation">Confirm password</Label>
+                    <Label htmlFor="password_confirmation">
+                        Confirm password
+                    </Label>
                     <TextInput
                         id="password_confirmation"
                         type="password"
                         autoComplete="new-password"
                         value={data.password_confirmation}
-                        onChange={(e) => setData('password_confirmation', e.target.value)}
+                        onChange={(e) =>
+                            setData('password_confirmation', e.target.value)
+                        }
                     />
                     <InputError message={errors.password_confirmation} />
                 </div>
 
-                <PrimaryButton type="submit" disabled={processing} className="mt-2">
+                <PrimaryButton
+                    type="submit"
+                    disabled={processing}
+                    className="mt-2"
+                >
                     Sign up
                 </PrimaryButton>
             </form>
 
             <p className="mt-6 text-sm text-[#706f6c] dark:text-[#A1A09A]">
-                Already have an account? <AuthLink href="/login">Log in</AuthLink>
+                Already have an account?{' '}
+                <AuthLink href="/login">Log in</AuthLink>
             </p>
         </AuthLayout>
     );
