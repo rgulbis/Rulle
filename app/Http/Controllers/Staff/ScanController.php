@@ -43,7 +43,7 @@ class ScanController extends Controller
                 ], 403);
             }
 
-            if (! $user->subscribed('default') && $purchase = $user->activeOneTimePurchase()) {
+            if (! $user->subscribed('default') && ($purchase = $user->activeOneTimePurchase()) && ! $purchase->subscriptionType->unlimited_entries) {
                 $purchase->decrement('visits_remaining');
 
                 if ($purchase->visits_remaining <= 0) {

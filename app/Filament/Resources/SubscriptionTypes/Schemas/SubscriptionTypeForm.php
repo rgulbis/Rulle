@@ -38,10 +38,16 @@ class SubscriptionTypeForm
                         'year' => 'Yearly',
                     ]),
 
+                Toggle::make('unlimited_entries')
+                    ->label('Unlimited entries on the day of purchase')
+                    ->helperText('For one-time plans: usable any number of times, but only on the day it was bought.')
+                    ->live(),
+
                 TextInput::make('visit_limit')
-                    ->label('Visit limit (one-time plans only)')
+                    ->label('Visit limit')
                     ->numeric()
-                    ->helperText('Number of visits granted. Leave blank for unlimited/recurring plans.'),
+                    ->helperText('Number of visits granted. Ignored for unlimited-entry or recurring plans.')
+                    ->hidden(fn ($get) => $get('unlimited_entries')),
 
                 Toggle::make('active')
                     ->default(true),

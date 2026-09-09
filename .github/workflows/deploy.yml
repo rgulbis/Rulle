@@ -1,0 +1,30 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+
+      - name: Create .env
+        run: |
+          cp .env.example .env
+          sed -i "s|^APP_ENV=.*|APP_ENV=production|" .env
+          sed -i "s|^APP_DEBUG=.*|APP_DEBUG=false|" .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${{ secrets.APP_KEY }}|" .env
+          sed -i "s|^APP_URL=.*|APP_URL=https://www.xn--rull-eva.lv|" .env
+          echo "DB_DATABASE=/var/www/html/storage/app/database.sqlite" >> .env
+          echo "STRIPE_KEY=${{ secrets.STRIPE_KEY }}" >> .env
+          echo "STRIPE_SECRET=${{ secrets.STRIPE_SECRET }}" >> .env
+
+      - name: Build image
+        run: docker compose build
+
+      - name: Deploy
+        run: docker compose up -d --force-recreate

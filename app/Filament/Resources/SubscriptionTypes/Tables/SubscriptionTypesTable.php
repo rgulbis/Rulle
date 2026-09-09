@@ -27,7 +27,12 @@ class SubscriptionTypesTable
                     ->badge(),
 
                 TextColumn::make('visit_limit')
-                    ->placeholder('—'),
+                    ->label('Visit limit')
+                    ->getStateUsing(fn ($record) => match (true) {
+                        $record->unlimited_entries => 'Unlimited (same day)',
+                        $record->visit_limit !== null => (string) $record->visit_limit,
+                        default => '—',
+                    }),
 
                 IconColumn::make('active')
                     ->boolean(),

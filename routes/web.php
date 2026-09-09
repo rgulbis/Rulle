@@ -22,6 +22,8 @@ Route::middleware('auth')->group(function () {
     Route::post('subscriptions/{subscriptionType}/checkout', [SubscriptionController::class, 'checkout'])->name('subscriptions.checkout');
     Route::get('subscriptions/success', [SubscriptionController::class, 'success'])->name('subscriptions.success');
     Route::get('subscriptions/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
+    Route::delete('subscriptions/subscription', [SubscriptionController::class, 'cancelSubscription'])->name('subscriptions.cancel-subscription');
+    Route::post('subscriptions/subscription/swap', [SubscriptionController::class, 'swapToCurrentPrice'])->name('subscriptions.swap-price');
 });
 
 Route::middleware(['auth', 'staff'])->group(function () {

@@ -65,6 +65,45 @@ test('scanning a client with an active purchase toggles check-in and consumes a 
     expect($client->activeOneTimePurchase()->visits_remaining)->toBe(1);
 });
 
+test('scanning a client with an unlimited-entries day pass allows repeated entries without consuming visits', function () {
+    $staff = User::factory()->create(['role' => 'staff']);
+    $client = User::factory()->create(['role' => 'client', 'checked_in' => false]);
+    $type = makeSubscriptionType(['unlimited_entries' => true, 'visit_limit' => null]);
+    Purchase::create([
+        'user_id' => $client->id,
+        'subscription_type_id' => $type->id,
+        'stripe_checkout_session_id' => 'cs_test_unlimited',
+        'status' => 'active',
+        'valid_date' => now()->toDateString(),
+    ]);
+
+    // Enter, then exit, then enter again — none of this should be blocked
+    // or decrement anything, since the pass is unlimited for the day.
+    for ($i = 0; $i < 4; $i++) {
+        $response = $this->actingAs($staff)->postJson('/staff/scan', [
+            'code' => $client->qr_code,
+        ]);
+
+        $response->assertOk()->assertJson(['allowed' => true]);
+    }
+
+    expect($client->activeOneTimePurchase())->not->toBeNull();
+});
+
+test('an unlimited-entries day pass is not usable on a different day', function () {
+    $client = User::factory()->create(['role' => 'client']);
+    $type = makeSubscriptionType(['unlimited_entries' => true, 'visit_limit' => null]);
+    Purchase::create([
+        'user_id' => $client->id,
+        'subscription_type_id' => $type->id,
+        'stripe_checkout_session_id' => 'cs_test_yesterday',
+        'status' => 'active',
+        'valid_date' => now()->subDay()->toDateString(),
+    ]);
+
+    expect($client->activeOneTimePurchase())->toBeNull();
+});
+
 test('scanning a client with no active subscription denies entry', function () {
     $staff = User::factory()->create(['role' => 'staff']);
     $client = User::factory()->create(['role' => 'client', 'checked_in' => false]);

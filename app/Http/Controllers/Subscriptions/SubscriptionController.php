@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Cashier\Cashier;
+use Laravel\Cashier\Subscription;
 
 class SubscriptionController extends Controller
 {
@@ -23,10 +24,76 @@ class SubscriptionController extends Controller
             'activeSubscription' => $subscription ? [
                 'stripe_status' => $subscription->stripe_status,
                 'ends_at' => $subscription->ends_at,
+                'on_grace_period' => $subscription->onGracePeriod(),
+                'canceled' => $subscription->canceled(),
             ] : null,
             'activePurchase' => $user->activeOneTimePurchase(),
+            'priceChange' => ($subscription && ! $subscription->canceled())
+                ? $this->detectPriceChange($subscription)
+                : null,
             'status' => $request->session()->get('status'),
         ]);
+    }
+
+    /**
+     * Stripe prices are immutable, so editing a plan's price in the admin
+     * panel creates a new Price rather than changing the one a subscriber
+     * is already on. This detects whether the plan they're subscribed to
+     * (matched by Stripe Product, since the Price id itself changes) now
+     * has a different current price than what they're actually paying.
+     */
+    /**
+     * @return array{current_price_cents: int, new_price_cents: int}|null
+     */
+    protected function detectPriceChange(Subscription $subscription): ?array
+    {
+        $currentPriceId = $subscription->stripe_price;
+
+        if (! $currentPriceId) {
+            return null;
+        }
+
+        $currentPrice = Cashier::stripe()->prices->retrieve($currentPriceId);
+        $type = SubscriptionType::where('stripe_product_id', $currentPrice->product)->first();
+
+        if (! $type || ! $type->stripe_price_id || $type->stripe_price_id === $currentPriceId) {
+            return null;
+        }
+
+        $newPrice = Cashier::stripe()->prices->retrieve($type->stripe_price_id);
+
+        return [
+            'current_price_cents' => $currentPrice->unit_amount,
+            'new_price_cents' => $newPrice->unit_amount,
+        ];
+    }
+
+    public function swapToCurrentPrice(Request $request): RedirectResponse
+    {
+        $subscription = $request->user()->subscription('default');
+
+        abort_unless($subscription && ! $subscription->canceled(), 404);
+
+        $currentPriceId = $subscription->stripe_price;
+        $currentPrice = $currentPriceId ? Cashier::stripe()->prices->retrieve($currentPriceId) : null;
+        $type = $currentPrice ? SubscriptionType::where('stripe_product_id', $currentPrice->product)->first() : null;
+
+        abort_unless($type && $type->stripe_price_id, 404);
+
+        $subscription->swap($type->stripe_price_id);
+
+        return redirect()->route('subscriptions.index')->with('status', 'price-updated');
+    }
+
+    public function cancelSubscription(Request $request): RedirectResponse
+    {
+        $subscription = $request->user()->subscription('default');
+
+        if ($subscription && ! $subscription->canceled()) {
+            $subscription->cancel();
+        }
+
+        return redirect()->route('subscriptions.index')->with('status', 'subscription-cancelled');
     }
 
     public function checkout(Request $request, SubscriptionType $subscriptionType): \Symfony\Component\HttpFoundation\Response
@@ -81,6 +148,7 @@ class SubscriptionController extends Controller
                     $purchase->update([
                         'status' => 'active',
                         'visits_remaining' => $purchase->subscriptionType->visit_limit,
+                        'valid_date' => now()->toDateString(),
                     ]);
                 }
             }

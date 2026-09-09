@@ -65,8 +65,9 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     {
         return $this->purchases()
             ->where('status', 'active')
-            ->where('visits_remaining', '>', 0)
-            ->first();
+            ->with('subscriptionType')
+            ->get()
+            ->first(fn (Purchase $purchase) => $purchase->isCurrentlyUsable());
     }
 
     public function hasActiveAccess(): bool

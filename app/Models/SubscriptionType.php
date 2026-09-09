@@ -13,11 +13,12 @@ use Laravel\Cashier\Cashier;
  * @property int $price_cents
  * @property string $billing_interval
  * @property int|null $visit_limit
+ * @property bool $unlimited_entries
  * @property string|null $stripe_product_id
  * @property string|null $stripe_price_id
  * @property bool $active
  */
-#[Fillable(['name', 'description', 'price_cents', 'billing_interval', 'visit_limit', 'active'])]
+#[Fillable(['name', 'description', 'price_cents', 'billing_interval', 'visit_limit', 'unlimited_entries', 'active'])]
 class SubscriptionType extends Model
 {
     protected function casts(): array
@@ -25,6 +26,7 @@ class SubscriptionType extends Model
         return [
             'price_cents' => 'integer',
             'visit_limit' => 'integer',
+            'unlimited_entries' => 'boolean',
             'active' => 'boolean',
         ];
     }
