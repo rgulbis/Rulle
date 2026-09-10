@@ -11,8 +11,8 @@ function NavLink({ href, children }: { href: string; children: ReactNode }) {
             href={href}
             className={
                 active
-                    ? 'text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]'
-                    : 'text-sm font-medium text-[#706f6c] hover:text-[#1b1b18] dark:text-[#A1A09A] dark:hover:text-[#EDEDEC]'
+                    ? 'border-b-2 border-yellow-400 text-sm font-semibold text-gray-900'
+                    : 'text-sm font-medium text-gray-500 hover:text-gray-900'
             }
         >
             {children}
@@ -24,20 +24,23 @@ export default function AppLayout({ children }: PropsWithChildren) {
     const { auth } = usePage<{ auth: Auth }>().props;
 
     return (
-        <div className="min-h-screen bg-[#FDFDFC] text-[#1b1b18] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]">
-            <nav className="border-b border-[#e3e3e0] dark:border-[#3E3E3A]">
+        <div className="min-h-screen bg-gray-50 text-gray-900">
+            <nav className="border-b border-gray-200 bg-white">
                 <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-4 px-6 py-4">
                     <div className="flex flex-wrap items-center gap-6">
-                        <span className="font-medium">Skatepark</span>
+                        <span className="font-semibold text-gray-900">
+                            Rullē
+                        </span>
                         <NavLink href="/dashboard">Dashboard</NavLink>
                         <NavLink href="/subscriptions">Subscriptions</NavLink>
-                        {auth.user.role === 'staff' && (
+                        {(auth.user.role === 'admin' ||
+                            auth.user.role === 'employee') && (
                             <NavLink href="/staff/scan">Scan</NavLink>
                         )}
-                        {auth.user.role === 'staff' && (
+                        {auth.user.role === 'admin' && (
                             <a
                                 href="/admin"
-                                className="text-sm font-medium text-[#706f6c] hover:text-[#1b1b18] dark:text-[#A1A09A] dark:hover:text-[#EDEDEC]"
+                                className="text-sm font-medium text-gray-500 hover:text-gray-900"
                             >
                                 Admin
                             </a>
@@ -50,7 +53,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
                         </NavLink>
                         <button
                             onClick={() => router.post('/logout')}
-                            className="text-sm font-medium text-[#f53003] dark:text-[#FF4433]"
+                            className="text-sm font-medium text-red-600 hover:text-red-500"
                         >
                             Log out
                         </button>

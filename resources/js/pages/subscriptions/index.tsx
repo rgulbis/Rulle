@@ -75,29 +75,34 @@ export default function Subscriptions({
         router.post('/subscriptions/subscription/swap');
     };
 
+    const hasActiveSubscription =
+        !!activeSubscription && !activeSubscription.canceled;
+
     return (
         <AppLayout>
             <Head title="Subscriptions" />
             <div className="p-6">
                 <div className="mx-auto max-w-3xl">
-                    <h1 className="mb-6 text-lg font-medium">Subscriptions</h1>
+                    <h1 className="mb-6 text-xl font-semibold text-gray-900">
+                        Subscriptions
+                    </h1>
 
                     {status === 'purchase-complete' && (
                         <StatusMessage status="Purchase complete — your access is now active." />
                     )}
                     {status === 'purchase-incomplete' && (
-                        <p className="mb-4 text-sm text-[#f53003] dark:text-[#FF4433]">
+                        <p className="mb-4 rounded-none border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                             That checkout wasn't completed, so nothing was
                             activated.
                         </p>
                     )}
                     {status === 'purchase-cancelled' && (
-                        <p className="mb-4 text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                        <p className="mb-4 rounded-none border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                             Checkout was cancelled.
                         </p>
                     )}
                     {status === 'subscription-cancelled' && (
-                        <p className="mb-4 text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                        <p className="mb-4 rounded-none border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                             Your subscription has been cancelled.
                         </p>
                     )}
@@ -106,9 +111,9 @@ export default function Subscriptions({
                     )}
 
                     {activeSubscription && (
-                        <div className="mb-6 flex items-center justify-between rounded-md border border-[#e3e3e0] p-4 dark:border-[#3E3E3A]">
+                        <div className="mb-6 flex items-center justify-between rounded-none border border-gray-200 bg-white p-4 shadow-sm">
                             {activeSubscription.canceled ? (
-                                <p className="text-sm font-medium text-[#706f6c] dark:text-[#A1A09A]">
+                                <p className="text-sm font-medium text-gray-600">
                                     Cancelled — access ends{' '}
                                     {activeSubscription.ends_at
                                         ? new Date(
@@ -119,13 +124,13 @@ export default function Subscriptions({
                                 </p>
                             ) : (
                                 <>
-                                    <p className="text-sm font-medium text-green-600 dark:text-green-500">
+                                    <p className="text-sm font-medium text-green-600">
                                         Active subscription (
                                         {activeSubscription.stripe_status})
                                     </p>
                                     <button
                                         onClick={cancelSubscription}
-                                        className="text-sm font-medium text-[#f53003] dark:text-[#FF4433]"
+                                        className="text-sm font-medium text-red-600 hover:text-red-500"
                                     >
                                         Cancel subscription
                                     </button>
@@ -135,8 +140,8 @@ export default function Subscriptions({
                     )}
 
                     {priceChange && (
-                        <div className="mb-6 flex items-center justify-between rounded-md border border-[#e3e3e0] p-4 dark:border-[#3E3E3A]">
-                            <p className="text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                        <div className="mb-6 flex items-center justify-between rounded-none border border-gray-200 bg-white p-4 shadow-sm">
+                            <p className="text-sm text-gray-600">
                                 This plan's price has changed: you're on{' '}
                                 {formatEuros(priceChange.current_price_cents)},
                                 the current price is{' '}
@@ -149,8 +154,8 @@ export default function Subscriptions({
                     )}
 
                     {activePurchase && (
-                        <div className="mb-6 rounded-md border border-[#e3e3e0] p-4 dark:border-[#3E3E3A]">
-                            <p className="text-sm font-medium text-green-600 dark:text-green-500">
+                        <div className="mb-6 rounded-none border border-gray-200 bg-white p-4 shadow-sm">
+                            <p className="text-sm font-medium text-green-600">
                                 {activePurchase.subscription_type
                                     .unlimited_entries
                                     ? 'Unlimited entries today'
@@ -163,46 +168,56 @@ export default function Subscriptions({
                         {plans.map((plan) => (
                             <div
                                 key={plan.id}
-                                className="flex flex-col rounded-lg border border-[#e3e3e0] p-6 dark:border-[#3E3E3A]"
+                                className="flex flex-col rounded-none border border-gray-200 bg-white p-6 shadow-sm"
                             >
-                                <h2 className="text-base font-medium">
+                                <h2 className="text-base font-semibold text-gray-900">
                                     {plan.name}
                                 </h2>
                                 {plan.description && (
-                                    <p className="mt-1 text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                                    <p className="mt-1 text-sm text-gray-500">
                                         {plan.description}
                                     </p>
                                 )}
-                                <p className="mt-4 text-lg font-medium">
+                                <p className="mt-4 text-lg font-semibold text-gray-900">
                                     {formatPrice(
                                         plan.price_cents,
                                         plan.billing_interval,
                                     )}
                                 </p>
                                 {plan.unlimited_entries ? (
-                                    <p className="text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                                    <p className="text-sm text-gray-500">
                                         Unlimited entries, same day
                                     </p>
                                 ) : (
                                     plan.visit_limit && (
-                                        <p className="text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                                        <p className="text-sm text-gray-500">
                                             {plan.visit_limit} visits
                                         </p>
                                     )
                                 )}
-                                <PrimaryButton
-                                    className="mt-4"
-                                    onClick={() => subscribe(plan.id)}
-                                >
-                                    {plan.billing_interval === 'one_time'
-                                        ? 'Buy'
-                                        : 'Subscribe'}
-                                </PrimaryButton>
+                                {plan.billing_interval !== 'one_time' &&
+                                hasActiveSubscription ? (
+                                    <button
+                                        disabled
+                                        className="mt-4 cursor-not-allowed rounded-none border border-gray-200 px-4 py-2 text-sm font-medium text-gray-400"
+                                    >
+                                        Already subscribed
+                                    </button>
+                                ) : (
+                                    <PrimaryButton
+                                        className="mt-4"
+                                        onClick={() => subscribe(plan.id)}
+                                    >
+                                        {plan.billing_interval === 'one_time'
+                                            ? 'Buy'
+                                            : 'Subscribe'}
+                                    </PrimaryButton>
+                                )}
                             </div>
                         ))}
 
                         {plans.length === 0 && (
-                            <p className="text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                            <p className="text-sm text-gray-500">
                                 No plans are available yet.
                             </p>
                         )}

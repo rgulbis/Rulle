@@ -30,10 +30,12 @@ export default function UpdatePassword({ status }: { status?: string }) {
         <AppLayout>
             <Head title="Change password" />
             <div className="flex justify-center p-6">
-                <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] dark:bg-[#161615] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]">
+                <div className="w-full max-w-sm rounded-none border border-gray-200 bg-white p-8 shadow-sm">
                     <div className="mb-6">
-                        <h1 className="text-lg font-medium">Change password</h1>
-                        <p className="mt-1 text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                        <h1 className="text-xl font-semibold text-gray-900">
+                            Change password
+                        </h1>
+                        <p className="mt-1 text-sm text-gray-500">
                             Ensure your account is using a long, random password
                             to stay secure.
                         </p>

@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Middleware\EnsureUserIsStaff;
+use App\Http\Middleware\EnsureUserCanScan;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -23,7 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'staff' => EnsureUserIsStaff::class,
+            'can-scan' => EnsureUserCanScan::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

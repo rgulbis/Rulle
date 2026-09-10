@@ -102,6 +102,10 @@ class SubscriptionController extends Controller
 
         $user = $request->user();
 
+        if ($subscriptionType->isRecurring()) {
+            abort_if($user->subscribed('default') && ! $user->subscription('default')->canceled(), 409, 'You already have an active subscription.');
+        }
+
         $successUrl = route('subscriptions.success').'?session_id={CHECKOUT_SESSION_ID}';
         $cancelUrl = route('subscriptions.cancel');
 

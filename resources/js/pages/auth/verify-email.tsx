@@ -34,7 +34,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
             <form onSubmit={logout} className="mt-6">
                 <button
                     type="submit"
-                    className="text-sm font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
+                    className="text-sm font-medium text-red-600 hover:text-red-500"
                 >
                     Log out
                 </button>

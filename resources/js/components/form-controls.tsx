@@ -12,7 +12,7 @@ export function Label({
     return (
         <label
             {...props}
-            className={`text-sm text-[#706f6c] dark:text-[#A1A09A] ${className}`}
+            className={`text-sm font-medium text-gray-700 ${className}`}
         />
     );
 }
@@ -24,7 +24,7 @@ export function TextInput({
     return (
         <input
             {...props}
-            className={`w-full rounded-md border border-[#e3e3e0] bg-transparent px-3 py-2 text-sm outline-none focus:border-[#1b1b18] dark:border-[#3E3E3A] dark:focus:border-[#EDEDEC] ${className}`}
+            className={`w-full rounded-none border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition outline-none placeholder:text-gray-400 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/20 ${className}`}
         />
     );
 }
@@ -34,9 +34,7 @@ export function InputError({ message }: { message?: string }) {
         return null;
     }
 
-    return (
-        <p className="text-sm text-[#f53003] dark:text-[#FF4433]">{message}</p>
-    );
+    return <p className="text-sm text-red-600">{message}</p>;
 }
 
 export function StatusMessage({ status }: { status?: string | null }) {
@@ -45,7 +43,7 @@ export function StatusMessage({ status }: { status?: string | null }) {
     }
 
     return (
-        <p className="mb-4 text-sm font-medium text-green-600 dark:text-green-500">
+        <p className="mb-4 rounded-none border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-700">
             {status}
         </p>
     );
@@ -58,7 +56,7 @@ export function PrimaryButton({
     return (
         <button
             {...props}
-            className={`rounded-md bg-[#1b1b18] px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-[#EDEDEC] dark:text-[#1b1b18] ${className}`}
+            className={`rounded-none bg-yellow-400 px-4 py-2 text-sm font-semibold text-black shadow-sm transition hover:bg-yellow-300 focus:ring-4 focus:ring-yellow-500/40 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
         />
     );
 }
@@ -67,7 +65,7 @@ export function AuthLink(props: React.ComponentProps<typeof Link>) {
     return (
         <Link
             {...props}
-            className={`text-sm font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433] ${props.className ?? ''}`}
+            className={`text-sm font-semibold text-yellow-700 hover:text-yellow-600 ${props.className ?? ''}`}
         />
     );
 }

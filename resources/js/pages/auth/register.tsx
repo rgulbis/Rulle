@@ -91,7 +91,7 @@ export default function Register() {
                 </PrimaryButton>
             </form>
 
-            <p className="mt-6 text-sm text-[#706f6c] dark:text-[#A1A09A]">
+            <p className="mt-6 text-sm text-gray-500">
                 Already have an account?{' '}
                 <AuthLink href="/login">Log in</AuthLink>
             </p>

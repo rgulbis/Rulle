@@ -34,6 +34,15 @@ class ScanController extends Controller
         $entering = ! $user->checked_in;
 
         if ($entering) {
+            if (! $user->hasVerifiedEmail()) {
+                return response()->json([
+                    'found' => true,
+                    'allowed' => false,
+                    'name' => $user->name,
+                    'message' => 'Email not verified.',
+                ], 403);
+            }
+
             if (! $user->hasActiveAccess()) {
                 return response()->json([
                     'found' => true,

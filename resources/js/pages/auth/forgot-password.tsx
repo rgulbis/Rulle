@@ -50,7 +50,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                 </PrimaryButton>
             </form>
 
-            <p className="mt-6 text-sm text-[#706f6c] dark:text-[#A1A09A]">
+            <p className="mt-6 text-sm text-gray-500">
                 Remembered your password?{' '}
                 <AuthLink href="/login">Log in</AuthLink>
             </p>

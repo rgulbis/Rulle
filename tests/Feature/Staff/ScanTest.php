@@ -16,15 +16,23 @@ function makeSubscriptionType(array $attributes = []): SubscriptionType
 }
 
 test('non-staff users cannot access the scanner', function () {
-    $client = User::factory()->create(['role' => 'client']);
+    $client = User::factory()->create(['role' => 'user']);
 
     $response = $this->actingAs($client)->get('/staff/scan');
 
     $response->assertForbidden();
 });
 
+test('admins can also access the scanner', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $response = $this->actingAs($admin)->get('/staff/scan');
+
+    $response->assertOk();
+});
+
 test('staff users can access the scanner', function () {
-    $staff = User::factory()->create(['role' => 'staff']);
+    $staff = User::factory()->create(['role' => 'employee']);
 
     $response = $this->actingAs($staff)->get('/staff/scan');
 
@@ -32,8 +40,8 @@ test('staff users can access the scanner', function () {
 });
 
 test('scanning a client with an active purchase toggles check-in and consumes a visit', function () {
-    $staff = User::factory()->create(['role' => 'staff']);
-    $client = User::factory()->create(['role' => 'client', 'checked_in' => false]);
+    $staff = User::factory()->create(['role' => 'employee']);
+    $client = User::factory()->create(['role' => 'user', 'checked_in' => false]);
     $type = makeSubscriptionType(['visit_limit' => 2]);
     Purchase::create([
         'user_id' => $client->id,
@@ -66,8 +74,8 @@ test('scanning a client with an active purchase toggles check-in and consumes a 
 });
 
 test('scanning a client with an unlimited-entries day pass allows repeated entries without consuming visits', function () {
-    $staff = User::factory()->create(['role' => 'staff']);
-    $client = User::factory()->create(['role' => 'client', 'checked_in' => false]);
+    $staff = User::factory()->create(['role' => 'employee']);
+    $client = User::factory()->create(['role' => 'user', 'checked_in' => false]);
     $type = makeSubscriptionType(['unlimited_entries' => true, 'visit_limit' => null]);
     Purchase::create([
         'user_id' => $client->id,
@@ -91,7 +99,7 @@ test('scanning a client with an unlimited-entries day pass allows repeated entri
 });
 
 test('an unlimited-entries day pass is not usable on a different day', function () {
-    $client = User::factory()->create(['role' => 'client']);
+    $client = User::factory()->create(['role' => 'user']);
     $type = makeSubscriptionType(['unlimited_entries' => true, 'visit_limit' => null]);
     Purchase::create([
         'user_id' => $client->id,
@@ -105,8 +113,8 @@ test('an unlimited-entries day pass is not usable on a different day', function 
 });
 
 test('scanning a client with no active subscription denies entry', function () {
-    $staff = User::factory()->create(['role' => 'staff']);
-    $client = User::factory()->create(['role' => 'client', 'checked_in' => false]);
+    $staff = User::factory()->create(['role' => 'employee']);
+    $client = User::factory()->create(['role' => 'user', 'checked_in' => false]);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
@@ -120,9 +128,33 @@ test('scanning a client with no active subscription denies entry', function () {
     expect($client->fresh()->checked_in)->toBeFalse();
 });
 
+test('scanning a client with unverified email denies entry even with active access', function () {
+    $staff = User::factory()->create(['role' => 'employee']);
+    $client = User::factory()->unverified()->create(['role' => 'user', 'checked_in' => false]);
+    $type = makeSubscriptionType(['unlimited_entries' => true, 'visit_limit' => null]);
+    Purchase::create([
+        'user_id' => $client->id,
+        'subscription_type_id' => $type->id,
+        'stripe_checkout_session_id' => 'cs_test_unverified',
+        'status' => 'active',
+        'valid_date' => now()->toDateString(),
+    ]);
+
+    $response = $this->actingAs($staff)->postJson('/staff/scan', [
+        'code' => $client->qr_code,
+    ]);
+
+    $response->assertForbidden()->assertJson([
+        'found' => true,
+        'allowed' => false,
+        'message' => 'Email not verified.',
+    ]);
+    expect($client->fresh()->checked_in)->toBeFalse();
+});
+
 test('checking out does not require an active subscription', function () {
-    $staff = User::factory()->create(['role' => 'staff']);
-    $client = User::factory()->create(['role' => 'client', 'checked_in' => true]);
+    $staff = User::factory()->create(['role' => 'employee']);
+    $client = User::factory()->create(['role' => 'user', 'checked_in' => true]);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
@@ -132,7 +164,7 @@ test('checking out does not require an active subscription', function () {
 });
 
 test('scanning an unknown code returns not found', function () {
-    $staff = User::factory()->create(['role' => 'staff']);
+    $staff = User::factory()->create(['role' => 'employee']);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => 'does-not-exist',

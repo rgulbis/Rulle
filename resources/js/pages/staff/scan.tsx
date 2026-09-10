@@ -65,29 +65,29 @@ export default function Scan() {
         <AppLayout>
             <Head title="Scan" />
             <div className="flex flex-col items-center gap-6 p-6">
-                <h1 className="text-lg font-medium">Scan a member QR code</h1>
+                <h1 className="text-xl font-semibold text-gray-900">
+                    Scan a member QR code
+                </h1>
 
                 <div
                     id="reader"
-                    className="w-full max-w-sm overflow-hidden rounded-md"
+                    className="w-full max-w-sm overflow-hidden rounded-none border border-gray-200"
                 />
 
-                {error && (
-                    <p className="text-sm text-[#f53003] dark:text-[#FF4433]">
-                        {error}
-                    </p>
-                )}
+                {error && <p className="text-sm text-red-600">{error}</p>}
 
                 {result && (
-                    <div className="w-full max-w-sm rounded-md border border-[#e3e3e0] p-4 text-center dark:border-[#3E3E3A]">
+                    <div className="w-full max-w-sm rounded-none border border-gray-200 bg-white p-4 text-center shadow-sm">
                         {result.found && result.allowed && (
                             <>
-                                <p className="font-medium">{result.name}</p>
+                                <p className="font-medium text-gray-900">
+                                    {result.name}
+                                </p>
                                 <p
                                     className={
                                         result.checked_in
-                                            ? 'text-green-600 dark:text-green-500'
-                                            : 'text-[#706f6c] dark:text-[#A1A09A]'
+                                            ? 'text-green-600'
+                                            : 'text-gray-500'
                                     }
                                 >
                                     {result.checked_in
@@ -99,17 +99,15 @@ export default function Scan() {
 
                         {result.found && !result.allowed && (
                             <>
-                                <p className="font-medium">{result.name}</p>
-                                <p className="text-[#f53003] dark:text-[#FF4433]">
-                                    {result.message}
+                                <p className="font-medium text-gray-900">
+                                    {result.name}
                                 </p>
+                                <p className="text-red-600">{result.message}</p>
                             </>
                         )}
 
                         {!result.found && (
-                            <p className="text-[#f53003] dark:text-[#FF4433]">
-                                {result.message}
-                            </p>
+                            <p className="text-red-600">{result.message}</p>
                         )}
                     </div>
                 )}

@@ -21,5 +21,5 @@ export default function QrCode({
         });
     }, [value, size]);
 
-    return <canvas ref={canvasRef} className="rounded-md" />;
+    return <canvas ref={canvasRef} className="rounded-none" />;
 }

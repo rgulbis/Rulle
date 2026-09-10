@@ -29,7 +29,7 @@ use Laravel\Cashier\Billable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'role', 'email_verified_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
@@ -43,14 +43,24 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         });
     }
 
-    public function isStaff(): bool
+    public function isAdmin(): bool
     {
-        return $this->role === 'staff';
+        return $this->role === 'admin';
+    }
+
+    public function isEmployee(): bool
+    {
+        return $this->role === 'employee';
+    }
+
+    public function canScan(): bool
+    {
+        return $this->isAdmin() || $this->isEmployee();
     }
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->isStaff();
+        return $this->isAdmin();
     }
 
     /**

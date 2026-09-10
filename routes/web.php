@@ -18,6 +18,9 @@ Route::middleware('auth')->group(function () {
     Route::get('settings/password', [PasswordController::class, 'edit'])->name('password.edit');
     Route::put('settings/password', [PasswordController::class, 'update'])->name('password.update');
 
+});
+
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
     Route::post('subscriptions/{subscriptionType}/checkout', [SubscriptionController::class, 'checkout'])->name('subscriptions.checkout');
     Route::get('subscriptions/success', [SubscriptionController::class, 'success'])->name('subscriptions.success');
@@ -26,7 +29,7 @@ Route::middleware('auth')->group(function () {
     Route::post('subscriptions/subscription/swap', [SubscriptionController::class, 'swapToCurrentPrice'])->name('subscriptions.swap-price');
 });
 
-Route::middleware(['auth', 'staff'])->group(function () {
+Route::middleware(['auth', 'can-scan'])->group(function () {
     Route::get('staff/scan', [ScanController::class, 'index'])->name('staff.scan');
     Route::post('staff/scan', [ScanController::class, 'store'])->name('staff.scan.store');
 });

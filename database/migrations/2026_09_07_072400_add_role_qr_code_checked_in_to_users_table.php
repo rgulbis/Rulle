@@ -14,7 +14,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('role')->default('client')->after('password');
+            $table->string('role')->default('user')->after('password');
             $table->string('qr_code')->nullable()->unique()->after('role');
             $table->boolean('checked_in')->default(false)->after('qr_code');
         });
