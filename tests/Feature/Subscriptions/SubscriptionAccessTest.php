@@ -41,6 +41,22 @@ test('verified users can view subscriptions', function () {
     $response->assertOk();
 });
 
+test('employees are redirected away from subscriptions', function () {
+    $employee = User::factory()->create(['role' => 'employee']);
+
+    $response = $this->actingAs($employee)->get('/subscriptions');
+
+    $response->assertRedirect(route('staff.scan', absolute: false));
+});
+
+test('admins are redirected away from subscriptions', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $response = $this->actingAs($admin)->get('/subscriptions');
+
+    $response->assertRedirect('/admin');
+});
+
 test('a user cannot start a second recurring subscription while one is active', function () {
     $user = User::factory()->create();
     $plan = makeRecurringPlan();

@@ -31,8 +31,14 @@ export default function AppLayout({ children }: PropsWithChildren) {
                         <span className="font-semibold text-gray-900">
                             Rullē
                         </span>
-                        <NavLink href="/dashboard">Dashboard</NavLink>
-                        <NavLink href="/subscriptions">Subscriptions</NavLink>
+                        {auth.user.role === 'user' && (
+                            <>
+                                <NavLink href="/dashboard">Dashboard</NavLink>
+                                <NavLink href="/subscriptions">
+                                    Subscriptions
+                                </NavLink>
+                            </>
+                        )}
                         {(auth.user.role === 'admin' ||
                             auth.user.role === 'employee') && (
                             <NavLink href="/staff/scan">Scan</NavLink>

@@ -58,6 +58,20 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $this->isAdmin() || $this->isEmployee();
     }
 
+    public function isCustomer(): bool
+    {
+        return $this->role === 'user';
+    }
+
+    public function homeUrl(): string
+    {
+        return match (true) {
+            $this->isAdmin() => '/admin',
+            $this->isEmployee() => route('staff.scan'),
+            default => route('dashboard'),
+        };
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->isAdmin();

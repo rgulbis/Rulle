@@ -20,6 +20,28 @@ test('users can authenticate using the login screen', function () {
     $response->assertRedirect(route('dashboard', absolute: false));
 });
 
+test('admins are redirected to the filament panel after login', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $response = $this->post('/login', [
+        'email' => $admin->email,
+        'password' => 'password',
+    ]);
+
+    $response->assertRedirect('/admin');
+});
+
+test('employees are redirected to the scanner after login', function () {
+    $employee = User::factory()->create(['role' => 'employee']);
+
+    $response = $this->post('/login', [
+        'email' => $employee->email,
+        'password' => 'password',
+    ]);
+
+    $response->assertRedirect(route('staff.scan', absolute: false));
+});
+
 test('users cannot authenticate with an invalid password', function () {
     $user = User::factory()->create();
 

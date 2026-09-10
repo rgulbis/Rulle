@@ -23,6 +23,22 @@ test('unverified users can still access the dashboard', function () {
     $response->assertOk();
 });
 
+test('employees are redirected away from the dashboard', function () {
+    $employee = User::factory()->create(['role' => 'employee']);
+
+    $response = $this->actingAs($employee)->get('/dashboard');
+
+    $response->assertRedirect(route('staff.scan', absolute: false));
+});
+
+test('admins are redirected away from the dashboard', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $response = $this->actingAs($admin)->get('/dashboard');
+
+    $response->assertRedirect('/admin');
+});
+
 test('email can be verified', function () {
     $user = User::factory()->unverified()->create();
 
