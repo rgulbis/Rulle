@@ -1,6 +1,9 @@
 services:
     app:
-        build: .
+        build:
+            context: .
+            args:
+                VITE_APP_NAME: ${APP_NAME}
         restart: unless-stopped
         ports:
             - '8080:8000'

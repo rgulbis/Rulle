@@ -1,6 +1,13 @@
 FROM php:8.5-cli-bookworm
 WORKDIR /var/www/html
 
+# Vite bakes VITE_-prefixed vars into the compiled JS at build time, but
+# .env is excluded from the build context (see .dockerignore) so real
+# secrets never end up baked into image layers. This build arg passes
+# through just the one cosmetic value the frontend actually needs.
+ARG VITE_APP_NAME=Laravel
+ENV VITE_APP_NAME=$VITE_APP_NAME
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libicu-dev libsqlite3-dev libzip-dev unzip git curl ca-certificates gnupg \
     && docker-php-ext-install intl pdo_sqlite bcmath pcntl zip \
