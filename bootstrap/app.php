@@ -27,6 +27,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'can-scan' => EnsureUserCanScan::class,
             'customer-only' => EnsureUserIsCustomer::class,
         ]);
+
+        // Stripe's webhook requests come from Stripe's servers, not a
+        // browser session, so they can't carry a CSRF token.
+        $middleware->validateCsrfTokens(except: [
+            'stripe/webhook',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

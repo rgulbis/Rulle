@@ -24,6 +24,7 @@ jobs:
           echo "DB_DATABASE=/var/www/html/storage/app/database.sqlite" >> .env
           echo "STRIPE_KEY=${{ secrets.STRIPE_KEY }}" >> .env
           echo "STRIPE_SECRET=${{ secrets.STRIPE_SECRET }}" >> .env
+          echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" >> .env
           sed -i "s|^MAIL_MAILER=.*|MAIL_MAILER=resend|" .env
           sed -i "s|^MAIL_FROM_ADDRESS=.*|MAIL_FROM_ADDRESS=hello@xn--rull-eva.lv|" .env
           echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> .env

@@ -7,6 +7,9 @@ use App\Http\Controllers\Subscriptions\SubscriptionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Laravel\Cashier\Http\Controllers\WebhookController;
+
+Route::post('stripe/webhook', [WebhookController::class, 'handleWebhook'])->name('cashier.webhook');
 
 Route::middleware(['auth', 'customer-only'])->group(function () {
     Route::get('dashboard', function (Request $request) {
