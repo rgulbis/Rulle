@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as BaseResponse;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -18,7 +19,7 @@ class AuthenticatedSessionController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): BaseResponse
     {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
@@ -33,7 +34,20 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended($request->user()->homeUrl());
+        $url = $request->session()->pull('url.intended', $request->user()->homeUrl());
+
+        // The login form is submitted through Inertia's XHR-based navigation,
+        // which expects every redirect to lead to another Inertia page. The
+        // admin panel is a separate, non-Inertia (Filament/Livewire) app, so
+        // sending Inertia there via a plain redirect makes it try to parse
+        // raw Filament HTML as an Inertia response, producing a broken
+        // half-rendered page. Inertia::location() forces a real full-page
+        // browser navigation instead, the same fix used for Stripe Checkout.
+        if (str_starts_with($url, url('/admin'))) {
+            return Inertia::location($url);
+        }
+
+        return redirect()->to($url);
     }
 
     public function destroy(Request $request): RedirectResponse
