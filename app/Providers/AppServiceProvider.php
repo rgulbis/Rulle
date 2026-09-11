@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Filament\Auth\LogoutResponse;
 use Carbon\CarbonImmutable;
+use Filament\Auth\Http\Responses\Contracts\LogoutResponse as LogoutResponseContract;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Support\Facades\Date;
@@ -18,7 +20,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Send admins to the regular login page (not Filament's own admin
+        // login) after signing out of the panel, since it's the same app.
+        $this->app->bind(LogoutResponseContract::class, LogoutResponse::class);
     }
 
     /**
