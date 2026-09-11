@@ -28,6 +28,9 @@ echo "== Step 3: point the domain's DNS at the tunnel (CLI only, no dashboard) =
 docker run --rm -v "$CF_DIR:/root/.cloudflared" cloudflare/cloudflared:latest tunnel route dns "$TUNNEL_NAME" "$DOMAIN"
 
 echo "== Step 4: write config.yml =="
+# The site is actually served from www, not the bare domain (see APP_URL) —
+# ingress hostname matching is an exact string match, so every rule below
+# needs to say "www.$DOMAIN", not "$DOMAIN", or it silently never matches.
 cat > "$CF_DIR/config.yml" <<EOF
 tunnel: $TUNNEL_ID
 credentials-file: /root/.cloudflared/$TUNNEL_ID.json
@@ -35,10 +38,10 @@ credentials-file: /root/.cloudflared/$TUNNEL_ID.json
 ingress:
   # Reverb's WebSocket endpoint (Pusher protocol default path). Must come
   # before the catch-all rule below since ingress rules match top-to-bottom.
-  - hostname: $DOMAIN
+  - hostname: www.$DOMAIN
     path: ^/app/.*
     service: http://host.docker.internal:8081
-  - hostname: $DOMAIN
+  - hostname: www.$DOMAIN
     service: http://host.docker.internal:8080
   - service: http_status:404
 EOF
