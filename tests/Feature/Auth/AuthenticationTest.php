@@ -23,12 +23,19 @@ test('users can authenticate using the login screen', function () {
 test('admins are redirected to the filament panel after login', function () {
     $admin = User::factory()->create(['role' => 'admin']);
 
-    $response = $this->post('/login', [
+    // The real login form submits via Inertia's XHR-based navigation, which
+    // sends this header. Filament's admin panel is a separate, non-Inertia
+    // app, so this redirect must use Inertia's "location visit" mechanism
+    // (409 + Location header) rather than a plain redirect, or Inertia's
+    // client tries to parse raw Filament HTML as an Inertia response and
+    // shows its own error dialog instead of navigating.
+    $response = $this->withHeaders(['X-Inertia' => 'true'])->post('/login', [
         'email' => $admin->email,
         'password' => 'password',
     ]);
 
-    $response->assertRedirect('/admin');
+    $response->assertStatus(409);
+    $response->assertHeader('X-Inertia-Location', url('/admin'));
 });
 
 test('employees are redirected to the scanner after login', function () {

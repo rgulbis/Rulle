@@ -66,7 +66,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function homeUrl(): string
     {
         return match (true) {
-            $this->isAdmin() => '/admin',
+            $this->isAdmin() => url('/admin'),
             $this->isEmployee() => route('staff.scan'),
             default => route('dashboard'),
         };
