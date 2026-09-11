@@ -1,8 +1,10 @@
 <?php
 
+use App\Events\UserCheckInStatusUpdated;
 use App\Models\Purchase;
 use App\Models\SubscriptionType;
 use App\Models\User;
+use Illuminate\Support\Facades\Event;
 
 function makeSubscriptionType(array $attributes = []): SubscriptionType
 {
@@ -40,6 +42,8 @@ test('staff users can access the scanner', function () {
 });
 
 test('scanning a client with an active purchase toggles check-in and consumes a visit', function () {
+    Event::fake([UserCheckInStatusUpdated::class]);
+
     $staff = User::factory()->create(['role' => 'employee']);
     $client = User::factory()->create(['role' => 'user', 'checked_in' => false]);
     $type = makeSubscriptionType(['visit_limit' => 2]);
@@ -63,6 +67,10 @@ test('scanning a client with an active purchase toggles check-in and consumes a 
     ]);
     expect($client->fresh()->checked_in)->toBeTrue();
     expect($client->activeOneTimePurchase()->visits_remaining)->toBe(1);
+    Event::assertDispatched(
+        UserCheckInStatusUpdated::class,
+        fn (UserCheckInStatusUpdated $event) => $event->user->is($client) && $event->user->checked_in === true,
+    );
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,

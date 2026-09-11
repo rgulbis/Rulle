@@ -4,6 +4,10 @@ services:
             context: .
             args:
                 VITE_APP_NAME: ${APP_NAME}
+                VITE_REVERB_APP_KEY: ${REVERB_APP_KEY}
+                VITE_REVERB_PORT: ${VITE_REVERB_PORT}
+                VITE_REVERB_SCHEME: ${VITE_REVERB_SCHEME}
+        image: skatepark-app
         restart: unless-stopped
         ports:
             - '8080:8000'
@@ -11,6 +15,21 @@ services:
             - .env
         volumes:
             - app_storage:/var/www/html/storage
+
+    # Same image as `app`, just running the Reverb WebSocket server instead
+    # of `php artisan serve`. Sharing the image avoids building it twice;
+    # `docker compose build` only builds services that declare `build:`.
+    reverb:
+        image: skatepark-app
+        restart: unless-stopped
+        depends_on:
+            - app
+        entrypoint: []
+        command: php artisan reverb:start --host=0.0.0.0 --port=8080
+        ports:
+            - '8081:8080'
+        env_file:
+            - .env
 
 volumes:
     app_storage:

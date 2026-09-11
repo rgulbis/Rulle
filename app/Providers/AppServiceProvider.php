@@ -7,6 +7,7 @@ use Carbon\CarbonImmutable;
 use Filament\Auth\Http\Responses\Contracts\LogoutResponse as LogoutResponseContract;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
+use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -33,6 +34,8 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
 
         Event::listen(Registered::class, SendEmailVerificationNotification::class);
+
+        DevCommands::artisan('reverb:start --debug', 'reverb');
     }
 
     /**

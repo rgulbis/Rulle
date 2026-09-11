@@ -33,6 +33,11 @@ tunnel: $TUNNEL_ID
 credentials-file: /root/.cloudflared/$TUNNEL_ID.json
 
 ingress:
+  # Reverb's WebSocket endpoint (Pusher protocol default path). Must come
+  # before the catch-all rule below since ingress rules match top-to-bottom.
+  - hostname: $DOMAIN
+    path: ^/app/.*
+    service: http://host.docker.internal:8081
   - hostname: $DOMAIN
     service: http://host.docker.internal:8080
   - service: http_status:404

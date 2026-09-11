@@ -8,6 +8,13 @@ WORKDIR /var/www/html
 ARG VITE_APP_NAME=Laravel
 ENV VITE_APP_NAME=$VITE_APP_NAME
 
+ARG VITE_REVERB_APP_KEY
+ENV VITE_REVERB_APP_KEY=$VITE_REVERB_APP_KEY
+ARG VITE_REVERB_PORT=8080
+ENV VITE_REVERB_PORT=$VITE_REVERB_PORT
+ARG VITE_REVERB_SCHEME=http
+ENV VITE_REVERB_SCHEME=$VITE_REVERB_SCHEME
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libicu-dev libsqlite3-dev libzip-dev unzip git curl ca-certificates gnupg \
     && docker-php-ext-install intl pdo_sqlite bcmath pcntl zip \

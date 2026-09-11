@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Staff;
 
+use App\Events\UserCheckInStatusUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -63,6 +64,8 @@ class ScanController extends Controller
 
         $user->checked_in = $entering;
         $user->save();
+
+        UserCheckInStatusUpdated::dispatch($user);
 
         return response()->json([
             'found' => true,

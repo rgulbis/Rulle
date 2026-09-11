@@ -11,6 +11,7 @@
         "inertiajs/inertia-laravel": "^3.0",
         "laravel/cashier": "*",
         "laravel/framework": "^13.17",
+        "laravel/reverb": "*",
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
         "resend/resend-php": "^1.13"

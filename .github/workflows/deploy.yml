@@ -22,6 +22,18 @@ jobs:
           sed -i "s|^APP_KEY=.*|APP_KEY=${{ secrets.APP_KEY }}|" .env
           sed -i "s|^APP_URL=.*|APP_URL=https://www.xn--rull-eva.lv|" .env
           echo "DB_DATABASE=/var/www/html/storage/app/database.sqlite" >> .env
+          sed -i "s|^BROADCAST_CONNECTION=.*|BROADCAST_CONNECTION=reverb|" .env
+          sed -i "s|^REVERB_APP_ID=.*|REVERB_APP_ID=${{ secrets.REVERB_APP_ID }}|" .env
+          sed -i "s|^REVERB_APP_KEY=.*|REVERB_APP_KEY=${{ secrets.REVERB_APP_KEY }}|" .env
+          sed -i "s|^REVERB_APP_SECRET=.*|REVERB_APP_SECRET=${{ secrets.REVERB_APP_SECRET }}|" .env
+          # Server-side: how the app container privately reaches the reverb
+          # container to publish events, over the Docker network.
+          sed -i "s|^REVERB_HOST=.*|REVERB_HOST=reverb|" .env
+          # Client-side: what the browser connects to publicly, through
+          # Cloudflare Tunnel's TLS-terminated path rule (see
+          # docker/cloudflared-setup.sh).
+          sed -i "s|^VITE_REVERB_PORT=.*|VITE_REVERB_PORT=443|" .env
+          sed -i "s|^VITE_REVERB_SCHEME=.*|VITE_REVERB_SCHEME=https|" .env
           echo "STRIPE_KEY=${{ secrets.STRIPE_KEY }}" >> .env
           echo "STRIPE_SECRET=${{ secrets.STRIPE_SECRET }}" >> .env
           echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" >> .env

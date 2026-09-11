@@ -1,5 +1,5 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useEffect, useState } from 'react';
 import { StatusMessage } from '@/components/form-controls';
 import QrCode from '@/components/qr-code';
 import AppLayout from '@/layouts/app-layout';
@@ -8,6 +8,23 @@ import type { Auth } from '@/types/auth';
 export default function Dashboard({ status }: { status?: string }) {
     const { auth } = usePage<{ auth: Auth }>().props;
     const { post, processing } = useForm({});
+    const [checkedIn, setCheckedIn] = useState(auth.user.checked_in);
+
+    useEffect(() => {
+        setCheckedIn(auth.user.checked_in);
+    }, [auth.user.checked_in]);
+
+    useEffect(() => {
+        const channel = window.Echo.private(`App.Models.User.${auth.user.id}`);
+
+        channel.listen('.check-in.updated', (e: { checked_in: boolean }) => {
+            setCheckedIn(e.checked_in);
+        });
+
+        return () => {
+            window.Echo.leave(`App.Models.User.${auth.user.id}`);
+        };
+    }, [auth.user.id]);
 
     const resendVerification: FormEventHandler = (e) => {
         e.preventDefault();
@@ -54,14 +71,12 @@ export default function Dashboard({ status }: { status?: string }) {
                             <p
                                 className={
                                     'text-sm font-medium ' +
-                                    (auth.user.checked_in
+                                    (checkedIn
                                         ? 'text-green-600'
                                         : 'text-gray-500')
                                 }
                             >
-                                {auth.user.checked_in
-                                    ? 'Checked in'
-                                    : 'Not checked in'}
+                                {checkedIn ? 'Checked in' : 'Not checked in'}
                             </p>
                         </div>
                     ) : (
