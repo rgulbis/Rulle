@@ -9,10 +9,18 @@ type ScanResult =
     | { found: true; allowed: false; name: string; message: string }
     | { found: false; message: string };
 
+type Mode = 'entry' | 'exit';
+
 export default function Scan() {
     const busyRef = useRef(false);
+    const [mode, setMode] = useState<Mode>('entry');
+    const modeRef = useRef<Mode>(mode);
     const [result, setResult] = useState<ScanResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        modeRef.current = mode;
+    }, [mode]);
 
     useEffect(() => {
         const scanner = new Html5Qrcode('reader');
@@ -27,7 +35,11 @@ export default function Scan() {
                         'X-XSRF-TOKEN': getCsrfToken(),
                     },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ code }),
+                    // Read via the ref, not the `mode` state directly: this
+                    // effect (and the scanner it starts) only runs once, so
+                    // a closure over `mode` would keep using whatever value
+                    // was current on that first render.
+                    body: JSON.stringify({ code, mode: modeRef.current }),
                 });
 
                 setResult(await response.json());
@@ -68,6 +80,31 @@ export default function Scan() {
                 <h1 className="text-xl font-semibold text-gray-900">
                     Scan a member QR code
                 </h1>
+
+                <div className="flex w-full max-w-sm rounded-none border border-gray-200">
+                    <button
+                        type="button"
+                        onClick={() => setMode('entry')}
+                        className={`flex-1 py-2 text-sm font-semibold transition ${
+                            mode === 'entry'
+                                ? 'bg-yellow-400 text-black'
+                                : 'bg-white text-gray-500 hover:bg-gray-50'
+                        }`}
+                    >
+                        Entry
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setMode('exit')}
+                        className={`flex-1 border-l border-gray-200 py-2 text-sm font-semibold transition ${
+                            mode === 'exit'
+                                ? 'bg-yellow-400 text-black'
+                                : 'bg-white text-gray-500 hover:bg-gray-50'
+                        }`}
+                    >
+                        Exit
+                    </button>
+                </div>
 
                 <div
                     id="reader"

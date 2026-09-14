@@ -32,6 +32,9 @@ class RegisteredUserController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
+            // Skip the real verification step outside production so local
+            // testing doesn't depend on receiving an actual email.
+            'email_verified_at' => app()->isProduction() ? null : now(),
         ]);
 
         event(new Registered($user));

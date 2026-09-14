@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Staff;
 
 use App\Events\UserCheckInStatusUpdated;
 use App\Http\Controllers\Controller;
+use App\Models\CheckInEvent;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class ScanController extends Controller
     {
         $validated = $request->validate([
             'code' => ['required', 'string'],
+            'mode' => ['required', 'in:entry,exit'],
         ]);
 
         $user = User::where('qr_code', $validated['code'])->first();
@@ -32,7 +34,20 @@ class ScanController extends Controller
             ], 404);
         }
 
-        $entering = ! $user->checked_in;
+        $entering = $validated['mode'] === 'entry';
+
+        // Staff picks the mode explicitly rather than the server inferring
+        // it from the current state, so a code that's already inside can't
+        // be scanned for entry again (e.g. a screenshot passed to a friend
+        // while the real owner is still on-site) and vice versa.
+        if ($entering === $user->checked_in) {
+            return response()->json([
+                'found' => true,
+                'allowed' => false,
+                'name' => $user->name,
+                'message' => $entering ? 'Already checked in.' : 'Not currently checked in.',
+            ], 409);
+        }
 
         if ($entering) {
             if (! $user->hasVerifiedEmail()) {
@@ -64,6 +79,11 @@ class ScanController extends Controller
 
         $user->checked_in = $entering;
         $user->save();
+
+        CheckInEvent::create([
+            'user_id' => $user->id,
+            'checked_in' => $entering,
+        ]);
 
         UserCheckInStatusUpdated::dispatch($user);
 

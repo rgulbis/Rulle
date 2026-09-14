@@ -57,6 +57,7 @@ test('scanning a client with an active purchase toggles check-in and consumes a 
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
+        'mode' => 'entry',
     ]);
 
     $response->assertOk()->assertJson([
@@ -74,11 +75,48 @@ test('scanning a client with an active purchase toggles check-in and consumes a 
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
+        'mode' => 'exit',
     ]);
 
     $response->assertOk()->assertJson(['checked_in' => false]);
     expect($client->fresh()->checked_in)->toBeFalse();
     expect($client->activeOneTimePurchase()->visits_remaining)->toBe(1);
+});
+
+test('scanning for entry while already checked in is rejected', function () {
+    $staff = User::factory()->create(['role' => 'employee']);
+    $client = User::factory()->create(['role' => 'user', 'checked_in' => true]);
+
+    $response = $this->actingAs($staff)->postJson('/staff/scan', [
+        'code' => $client->qr_code,
+        'mode' => 'entry',
+    ]);
+
+    $response->assertStatus(409)->assertJson([
+        'found' => true,
+        'allowed' => false,
+        'name' => $client->name,
+        'message' => 'Already checked in.',
+    ]);
+    expect($client->fresh()->checked_in)->toBeTrue();
+});
+
+test('scanning for exit while not checked in is rejected', function () {
+    $staff = User::factory()->create(['role' => 'employee']);
+    $client = User::factory()->create(['role' => 'user', 'checked_in' => false]);
+
+    $response = $this->actingAs($staff)->postJson('/staff/scan', [
+        'code' => $client->qr_code,
+        'mode' => 'exit',
+    ]);
+
+    $response->assertStatus(409)->assertJson([
+        'found' => true,
+        'allowed' => false,
+        'name' => $client->name,
+        'message' => 'Not currently checked in.',
+    ]);
+    expect($client->fresh()->checked_in)->toBeFalse();
 });
 
 test('scanning a client with an unlimited-entries day pass allows repeated entries without consuming visits', function () {
@@ -98,6 +136,7 @@ test('scanning a client with an unlimited-entries day pass allows repeated entri
     for ($i = 0; $i < 4; $i++) {
         $response = $this->actingAs($staff)->postJson('/staff/scan', [
             'code' => $client->qr_code,
+            'mode' => $i % 2 === 0 ? 'entry' : 'exit',
         ]);
 
         $response->assertOk()->assertJson(['allowed' => true]);
@@ -126,6 +165,7 @@ test('scanning a client with no active subscription denies entry', function () {
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
+        'mode' => 'entry',
     ]);
 
     $response->assertForbidden()->assertJson([
@@ -150,6 +190,7 @@ test('scanning a client with unverified email denies entry even with active acce
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
+        'mode' => 'entry',
     ]);
 
     $response->assertForbidden()->assertJson([
@@ -166,6 +207,7 @@ test('checking out does not require an active subscription', function () {
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
+        'mode' => 'exit',
     ]);
 
     $response->assertOk()->assertJson(['allowed' => true, 'checked_in' => false]);
@@ -176,6 +218,7 @@ test('scanning an unknown code returns not found', function () {
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => 'does-not-exist',
+        'mode' => 'entry',
     ]);
 
     $response->assertNotFound()->assertJson(['found' => false]);
