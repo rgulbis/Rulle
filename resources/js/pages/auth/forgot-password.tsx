@@ -32,7 +32,11 @@ export default function ForgotPassword({ status }: { status?: string }) {
                     <Label htmlFor="email">Email</Label>
                     <TextInput
                         id="email"
-                        type="email"
+                        // See login.tsx: not type="email" so a Unicode
+                        // domain isn't rejected by the browser itself
+                        // before the server-side IDN normalization runs.
+                        type="text"
+                        inputMode="email"
                         autoFocus
                         autoComplete="username"
                         value={data.email}

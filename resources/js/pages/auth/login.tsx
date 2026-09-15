@@ -36,7 +36,13 @@ export default function Login({ status }: { status?: string }) {
                     <Label htmlFor="email">Email</Label>
                     <TextInput
                         id="email"
-                        type="email"
+                        // Not type="email": the browser's own built-in
+                        // validation for that type rejects a Unicode domain
+                        // (e.g. admin@rullē.lv) before the form can even
+                        // submit, which defeats the server-side IDN
+                        // normalization that's supposed to accept it.
+                        type="text"
+                        inputMode="email"
                         autoFocus
                         autoComplete="username"
                         value={data.email}

@@ -39,7 +39,11 @@ export default function ResetPassword({
                     <Label htmlFor="email">Email</Label>
                     <TextInput
                         id="email"
-                        type="email"
+                        // See login.tsx: not type="email" so a Unicode
+                        // domain isn't rejected by the browser itself
+                        // before the server-side IDN normalization runs.
+                        type="text"
+                        inputMode="email"
                         autoComplete="username"
                         value={data.email}
                         onChange={(e) => setData('email', e.target.value)}

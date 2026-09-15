@@ -2,17 +2,22 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\CheckInEvent;
+use App\Support\CheckInOccupancy;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Carbon;
 
 class CheckInsByHourChart extends ChartWidget
 {
-    protected ?string $heading = 'Check-ins by Hour';
+    protected ?string $heading = 'Occupancy by Hour';
 
     protected ?string $pollingInterval = '30s';
 
     public ?string $filter = '7d';
+
+    /**
+     * @var array{labels: array<int, string>, values: array<int, int>}|null
+     */
+    private ?array $series = null;
 
     protected function getFilters(): ?array
     {
@@ -23,8 +28,80 @@ class CheckInsByHourChart extends ChartWidget
         ];
     }
 
+    public function getDescription(): ?string
+    {
+        $series = $this->series();
+
+        if (empty($series['values']) || max($series['values']) === 0) {
+            return null;
+        }
+
+        $peak = max($series['values']);
+        $peakIndex = array_search($peak, $series['values'], true);
+
+        return "Busiest: {$series['labels'][$peakIndex]} ({$peak} riders)";
+    }
+
     protected function getData(): array
     {
+        $series = $this->series();
+
+        return [
+            'datasets' => [
+                [
+                    'label' => 'Riders inside',
+                    'data' => $series['values'],
+                    'borderColor' => '#f59e0b',
+                    'backgroundColor' => 'rgba(245, 158, 11, 0.15)',
+                    'fill' => true,
+                    'tension' => 0.3,
+                    'pointRadius' => 0,
+                ],
+            ],
+            'labels' => $series['labels'],
+        ];
+    }
+
+    protected function getType(): string
+    {
+        return 'line';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function getOptions(): array
+    {
+        return [
+            'scales' => [
+                'y' => [
+                    'beginAtZero' => true,
+                    // A floor for the axis range, not a cap — real data
+                    // above this still grows the scale normally. Without
+                    // it, a quiet chart (nothing above 1 rider) looks like
+                    // a nearly-empty box with a single gridline.
+                    'suggestedMax' => 10,
+                    'ticks' => [
+                        // Occupancy is always a whole number of riders —
+                        // without this, Chart.js picks fractional steps
+                        // (0.2, 0.4, ...) for small ranges, which reads as
+                        // if half a rider is inside.
+                        'precision' => 0,
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array{labels: array<int, string>, values: array<int, int>}
+     */
+    private function series(): array
+    {
+        if ($this->series !== null) {
+            return $this->series;
+        }
+
         $hours = match ($this->filter) {
             '24h' => 24,
             '30d' => 24 * 30,
@@ -33,46 +110,6 @@ class CheckInsByHourChart extends ChartWidget
 
         $start = Carbon::now()->subHours($hours - 1)->startOfHour();
 
-        // SQLite-specific bucketing: the app only ever runs on sqlite (see
-        // config/database.php), so this doesn't need to be driver-agnostic.
-        $counts = CheckInEvent::query()
-            ->where('checked_in', true)
-            ->where('created_at', '>=', $start->toDateTimeString())
-            ->selectRaw("strftime('%Y-%m-%d %H:00:00', created_at) as hour, count(*) as total")
-            ->groupBy('hour')
-            ->pluck('total', 'hour');
-
-        $labels = [];
-        $data = [];
-
-        for ($i = 0; $i < $hours; $i++) {
-            $bucket = $start->copy()->addHours($i);
-
-            $labels[] = $hours <= 24
-                ? $bucket->format('H:00')
-                : $bucket->format('M j, H:00');
-
-            $data[] = (int) ($counts[$bucket->format('Y-m-d H:00:00')] ?? 0);
-        }
-
-        return [
-            'datasets' => [
-                [
-                    'label' => 'Check-ins',
-                    'data' => $data,
-                    'borderColor' => '#f59e0b',
-                    'backgroundColor' => 'rgba(245, 158, 11, 0.15)',
-                    'fill' => true,
-                    'tension' => 0.3,
-                    'pointRadius' => 0,
-                ],
-            ],
-            'labels' => $labels,
-        ];
-    }
-
-    protected function getType(): string
-    {
-        return 'line';
+        return $this->series = CheckInOccupancy::hourly($start, $hours);
     }
 }

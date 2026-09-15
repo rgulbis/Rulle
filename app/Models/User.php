@@ -63,6 +63,31 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $this->role === 'user';
     }
 
+    /**
+     * A browser doesn't convert a Unicode domain typed into a form field the
+     * way it converts one typed into the address bar, so "admin@rullē.lv"
+     * and "admin@xn--rull-eva.lv" are literally different strings as far as
+     * a plain DB lookup is concerned, even though they're the same address.
+     * Login forms should run the submitted email through this before
+     * looking it up, so either form works.
+     */
+    public static function normalizeEmailForLookup(string $email): string
+    {
+        if (! str_contains($email, '@')) {
+            return $email;
+        }
+
+        [$local, $domain] = explode('@', $email, 2);
+
+        if (! preg_match('/[^\x00-\x7F]/', $domain)) {
+            return $email;
+        }
+
+        $ascii = idn_to_ascii($domain, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+
+        return $ascii ? "{$local}@{$ascii}" : $email;
+    }
+
     public function homeUrl(): string
     {
         return match (true) {
