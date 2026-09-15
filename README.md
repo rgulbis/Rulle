@@ -37,8 +37,8 @@ way to run this against real data by mistake.
 
 ### Test accounts (from the seeder)
 
-| Role     | Email                    | Password   |
-|----------|--------------------------|------------|
+| Role     | Email                      | Password   |
+| -------- | -------------------------- | ---------- |
 | Admin    | `admin@xn--rull-eva.lv`    | `password` |
 | Employee | `employee@xn--rull-eva.lv` | `password` |
 
@@ -103,9 +103,12 @@ self-hosted runner that also lives on that same server.
 ```bash
 ssh -p 2222 <name>@<serverIp>
 ```
-## Refresh db on prod
 
+### Refresh db on prod
+
+```bash
 docker exec skatepark-app-1 rm -f storage/app/database.sqlite
 docker exec skatepark-app-1 touch storage/app/database.sqlite
 docker exec skatepark-app-1 php artisan migrate --force
 docker exec skatepark-app-1 php artisan db:seed --force
+```
