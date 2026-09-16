@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Staff;
 use App\Events\UserCheckInStatusUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\CheckInEvent;
+use App\Models\Reservation;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -59,20 +60,39 @@ class ScanController extends Controller
                 ], 403);
             }
 
-            if (! $user->hasActiveAccess()) {
+            // Staff and admins always work here regardless of a private
+            // reservation; the block is only for other customers.
+            $activeReservation = $user->isCustomer() ? Reservation::activeNow() : null;
+            $isReservationParty = $activeReservation && $activeReservation->includesParticipant($user);
+
+            if ($activeReservation && ! $isReservationParty) {
                 return response()->json([
                     'found' => true,
                     'allowed' => false,
                     'name' => $user->name,
-                    'message' => 'No active subscription.',
+                    'message' => 'Park privately reserved until '.$activeReservation->ends_at->format('H:i').'.',
                 ], 403);
             }
 
-            if (! $user->subscribed('default') && ($purchase = $user->activeOneTimePurchase()) && ! $purchase->subscriptionType->unlimited_entries) {
-                $purchase->decrement('visits_remaining');
+            // Being part of the currently-running reservation is itself
+            // what grants entry then — they already paid for this exact
+            // slot, so it doesn't also require a separate subscription.
+            if (! $isReservationParty) {
+                if (! $user->hasActiveAccess()) {
+                    return response()->json([
+                        'found' => true,
+                        'allowed' => false,
+                        'name' => $user->name,
+                        'message' => 'No active subscription.',
+                    ], 403);
+                }
 
-                if ($purchase->visits_remaining <= 0) {
-                    $purchase->update(['status' => 'used_up']);
+                if (! $user->subscribed('default') && ($purchase = $user->activeOneTimePurchase()) && ! $purchase->subscriptionType->unlimited_entries) {
+                    $purchase->decrement('visits_remaining');
+
+                    if ($purchase->visits_remaining <= 0) {
+                        $purchase->update(['status' => 'used_up']);
+                    }
                 }
             }
         }

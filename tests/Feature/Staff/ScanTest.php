@@ -2,6 +2,7 @@
 
 use App\Events\UserCheckInStatusUpdated;
 use App\Models\Purchase;
+use App\Models\Reservation;
 use App\Models\SubscriptionType;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
@@ -15,6 +16,18 @@ function makeSubscriptionType(array $attributes = []): SubscriptionType
         'billing_interval' => 'one_time',
         'visit_limit' => 1,
     ], $attributes)));
+}
+
+function makeActiveReservation(User $owner, array $attributes = []): Reservation
+{
+    return Reservation::create(array_merge([
+        'user_id' => $owner->id,
+        'starts_at' => now()->subMinutes(10),
+        'ends_at' => now()->addHour(),
+        'group_size' => 3,
+        'price_cents' => 4500,
+        'status' => 'active',
+    ], $attributes));
 }
 
 test('non-staff users cannot access the scanner', function () {
@@ -230,4 +243,97 @@ test('each user gets a unique qr code on creation', function () {
 
     expect($a->qr_code)->not->toBeNull();
     expect($a->qr_code)->not->toBe($b->qr_code);
+});
+
+test('a customer outside an active reservation is denied entry', function () {
+    $staff = User::factory()->create(['role' => 'employee']);
+    $owner = User::factory()->create();
+    makeActiveReservation($owner);
+
+    $outsider = User::factory()->create(['checked_in' => false]);
+    $type = makeSubscriptionType(['unlimited_entries' => true, 'visit_limit' => null]);
+    Purchase::create([
+        'user_id' => $outsider->id,
+        'subscription_type_id' => $type->id,
+        'stripe_checkout_session_id' => 'cs_test_reservation_outsider',
+        'status' => 'active',
+        'valid_date' => now()->toDateString(),
+    ]);
+
+    $response = $this->actingAs($staff)->postJson('/staff/scan', [
+        'code' => $outsider->qr_code,
+        'mode' => 'entry',
+    ]);
+
+    $response->assertForbidden()->assertJson(['found' => true, 'allowed' => false]);
+    expect($outsider->fresh()->checked_in)->toBeFalse();
+});
+
+test('the reservation owner can still enter during their own reservation', function () {
+    $staff = User::factory()->create(['role' => 'employee']);
+    $owner = User::factory()->create(['checked_in' => false]);
+    makeActiveReservation($owner);
+
+    $response = $this->actingAs($staff)->postJson('/staff/scan', [
+        'code' => $owner->qr_code,
+        'mode' => 'entry',
+    ]);
+
+    $response->assertOk()->assertJson(['allowed' => true, 'checked_in' => true]);
+});
+
+test('a reservation participant can still enter during the reservation', function () {
+    $staff = User::factory()->create(['role' => 'employee']);
+    $owner = User::factory()->create();
+    $reservation = makeActiveReservation($owner);
+    $participant = User::factory()->create(['checked_in' => false]);
+    $reservation->participants()->attach($participant->id);
+
+    $response = $this->actingAs($staff)->postJson('/staff/scan', [
+        'code' => $participant->qr_code,
+        'mode' => 'entry',
+    ]);
+
+    $response->assertOk()->assertJson(['allowed' => true, 'checked_in' => true]);
+});
+
+test('staff can still enter during an active reservation', function () {
+    $staff = User::factory()->create(['role' => 'employee', 'checked_in' => false]);
+    $owner = User::factory()->create();
+    makeActiveReservation($owner);
+
+    // Staff still go through the normal (pre-existing, unrelated to
+    // reservations) subscription check on entry, so they need access same
+    // as any other entry — what this test actually verifies is that they
+    // don't get the "privately reserved" rejection a customer would.
+    $type = makeSubscriptionType(['unlimited_entries' => true, 'visit_limit' => null]);
+    Purchase::create([
+        'user_id' => $staff->id,
+        'subscription_type_id' => $type->id,
+        'stripe_checkout_session_id' => 'cs_test_staff_access',
+        'status' => 'active',
+        'valid_date' => now()->toDateString(),
+    ]);
+
+    $response = $this->actingAs($staff)->postJson('/staff/scan', [
+        'code' => $staff->qr_code,
+        'mode' => 'entry',
+    ]);
+
+    $response->assertOk()->assertJson(['allowed' => true, 'checked_in' => true]);
+});
+
+test('reservation exclusivity does not block checking out', function () {
+    $staff = User::factory()->create(['role' => 'employee']);
+    $owner = User::factory()->create();
+    makeActiveReservation($owner);
+
+    $outsider = User::factory()->create(['checked_in' => true]);
+
+    $response = $this->actingAs($staff)->postJson('/staff/scan', [
+        'code' => $outsider->qr_code,
+        'mode' => 'exit',
+    ]);
+
+    $response->assertOk()->assertJson(['allowed' => true, 'checked_in' => false]);
 });

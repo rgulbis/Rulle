@@ -37,6 +37,9 @@ export default function AppLayout({ children }: PropsWithChildren) {
                                 <NavLink href="/subscriptions">
                                     Subscriptions
                                 </NavLink>
+                                <NavLink href="/reservations">
+                                    Reservations
+                                </NavLink>
                             </>
                         )}
                         {(auth.user.role === 'admin' ||

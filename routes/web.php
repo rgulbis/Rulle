@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Staff\ScanController;
 use App\Http\Controllers\Subscriptions\SubscriptionController;
@@ -31,6 +32,14 @@ Route::middleware(['auth', 'customer-only', 'verified'])->group(function () {
     Route::get('subscriptions/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
     Route::delete('subscriptions/subscription', [SubscriptionController::class, 'cancelSubscription'])->name('subscriptions.cancel-subscription');
     Route::post('subscriptions/subscription/swap', [SubscriptionController::class, 'swapToCurrentPrice'])->name('subscriptions.swap-price');
+
+    Route::get('reservations', [ReservationController::class, 'index'])->name('reservations.index');
+    Route::post('reservations', [ReservationController::class, 'store'])->name('reservations.store');
+    Route::get('reservations/success', [ReservationController::class, 'success'])->name('reservations.success');
+    Route::get('reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->name('reservations.cancel');
+    Route::get('reservations/users/search', [ReservationController::class, 'searchUsers'])->name('reservations.users.search');
+    Route::post('reservations/{reservation}/participants', [ReservationController::class, 'addParticipant'])->name('reservations.participants.add');
+    Route::delete('reservations/{reservation}/participants/{participant}', [ReservationController::class, 'removeParticipant'])->name('reservations.participants.remove');
 });
 
 Route::middleware(['auth', 'can-scan'])->group(function () {
