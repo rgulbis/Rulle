@@ -68,3 +68,22 @@ test('never goes negative even with an unmatched check-out', function () {
 
     expect($series['values'])->toBe([0, 0, 0]);
 });
+
+test('typicalCheckInsByHour collapses check-ins across dates into a 24-hour profile', function () {
+    $user = User::factory()->create();
+
+    // Two different days, both with a 15:00 check-in — should collapse
+    // into hour 15 having a count of 2, regardless of the date.
+    logEvent($user, true, Carbon::parse('2026-01-01 15:00:00'));
+    logEvent($user, true, Carbon::parse('2026-01-02 15:30:00'));
+    logEvent($user, true, Carbon::parse('2026-01-03 09:00:00'));
+    // Check-outs shouldn't count as "busy" traffic.
+    logEvent($user, false, Carbon::parse('2026-01-01 16:00:00'));
+
+    $profile = CheckInOccupancy::typicalCheckInsByHour();
+
+    expect($profile)->toHaveCount(24);
+    expect($profile[15])->toBe(2);
+    expect($profile[9])->toBe(1);
+    expect($profile[16])->toBe(0);
+});

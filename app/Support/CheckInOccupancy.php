@@ -51,6 +51,27 @@ class CheckInOccupancy
     }
 
     /**
+     * How busy each hour of the day (0-23) typically is, collapsed across
+     * all historical dates — used as a "peak hours" reference line behind
+     * the reservation timeline, not tied to any specific date. Returns raw
+     * check-in counts, not normalized; callers scale for display.
+     *
+     * @return array<int, int>
+     */
+    public static function typicalCheckInsByHour(): array
+    {
+        $countsByHour = DB::table('check_in_events')
+            ->where('checked_in', true)
+            ->selectRaw("CAST(strftime('%H', created_at) AS INTEGER) as hour, count(*) as total")
+            ->groupBy('hour')
+            ->pluck('total', 'hour');
+
+        return collect(range(0, 23))
+            ->mapWithKeys(fn (int $hour) => [$hour => (int) ($countsByHour[$hour] ?? 0)])
+            ->all();
+    }
+
+    /**
      * How many riders were already inside, right before $moment — the
      * starting balance the hourly running total needs to build from.
      */

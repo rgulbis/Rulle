@@ -17,6 +17,8 @@ return new class extends Migration
             $table->unsignedInteger('min_group_size');
             $table->unsignedInteger('min_duration_minutes');
             $table->unsignedInteger('max_duration_minutes');
+            $table->string('opening_time');
+            $table->string('closing_time');
             $table->timestamps();
         });
     }

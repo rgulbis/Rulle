@@ -54,6 +54,20 @@ class ReservationSettingResource extends Resource
                     ->required()
                     ->numeric()
                     ->gte('min_duration_minutes'),
+
+                TextInput::make('opening_time')
+                    ->label('Opening time')
+                    ->required()
+                    ->placeholder('08:00')
+                    ->regex('/^([01]\d|2[0-3]):[0-5]\d$/')
+                    ->helperText('24-hour, e.g. 08:00'),
+
+                TextInput::make('closing_time')
+                    ->label('Closing time')
+                    ->required()
+                    ->placeholder('23:00')
+                    ->regex('/^([01]\d|2[0-3]):[0-5]\d$/')
+                    ->helperText('24-hour, e.g. 23:00'),
             ]);
     }
 
@@ -67,6 +81,8 @@ class ReservationSettingResource extends Resource
                 TextColumn::make('min_group_size')->label('Min group size'),
                 TextColumn::make('min_duration_minutes')->label('Min length (min)'),
                 TextColumn::make('max_duration_minutes')->label('Max length (min)'),
+                TextColumn::make('opening_time')->label('Opens'),
+                TextColumn::make('closing_time')->label('Closes'),
             ])
             ->recordActions([
                 EditAction::make(),

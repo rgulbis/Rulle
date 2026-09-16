@@ -28,6 +28,8 @@ function makeReservationSettings(array $attributes = []): ReservationSetting
         'min_group_size' => 3,
         'min_duration_minutes' => 30,
         'max_duration_minutes' => 240,
+        'opening_time' => '08:00',
+        'closing_time' => '23:00',
     ], $attributes));
 }
 
@@ -81,6 +83,27 @@ test('rejects a group smaller than the configured minimum', function () {
     ]);
 
     $response->assertSessionHasErrors('group_size');
+    expect(Reservation::count())->toBe(0);
+});
+
+test('rejects a reservation outside operating hours', function () {
+    makeReservationSettings(['opening_time' => '08:00', 'closing_time' => '23:00']);
+    $user = User::factory()->create();
+
+    $tooEarly = $this->actingAs($user)->post('/reservations', [
+        'starts_at' => now()->addDay()->setTime(7, 0)->toDateTimeString(),
+        'duration_minutes' => 60,
+        'group_size' => 3,
+    ]);
+    $tooEarly->assertSessionHasErrors('starts_at');
+
+    $tooLate = $this->actingAs($user)->post('/reservations', [
+        'starts_at' => now()->addDay()->setTime(22, 30)->toDateTimeString(),
+        'duration_minutes' => 60,
+        'group_size' => 3,
+    ]);
+    $tooLate->assertSessionHasErrors('starts_at');
+
     expect(Reservation::count())->toBe(0);
 });
 

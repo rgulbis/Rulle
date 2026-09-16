@@ -7,6 +7,10 @@ import {
     StatusMessage,
     TextInput,
 } from '@/components/form-controls';
+import ReservationCalendar from '@/components/reservation-calendar';
+import ReservationTimeline, {
+    minutesToTime,
+} from '@/components/reservation-timeline';
 import AppLayout from '@/layouts/app-layout';
 
 type Settings = {
@@ -14,6 +18,8 @@ type Settings = {
     min_group_size: number;
     min_duration_minutes: number;
     max_duration_minutes: number;
+    opening_time: string;
+    closing_time: string;
 };
 
 type TimeRange = {
@@ -37,6 +43,7 @@ type MyReservation = TimeRange & {
 
 type Props = {
     settings: Settings;
+    peakHours: number[];
     upcoming: TimeRange[];
     mine: MyReservation[];
     status?: string;
@@ -60,12 +67,6 @@ function priceFor(
 ) {
     return Math.ceil((minutes / 60) * pricePerPersonPerHourCents * groupSize);
 }
-
-const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
-    const hours = String(Math.floor(i / 2)).padStart(2, '0');
-    const minutes = i % 2 === 0 ? '00' : '30';
-    return `${hours}:${minutes}`;
-});
 
 function AddParticipant({
     reservationId,
@@ -163,15 +164,16 @@ function AddParticipant({
 
 export default function ReservationsIndex({
     settings,
+    peakHours,
     upcoming,
     mine,
     status,
 }: Props) {
     const [date, setDate] = useState('');
-    const [time, setTime] = useState('');
-    const [durationMinutes, setDurationMinutes] = useState(
-        settings.min_duration_minutes,
-    );
+    const [selection, setSelection] = useState<{
+        start: number | null;
+        end: number | null;
+    }>({ start: null, end: null });
     const [groupSize, setGroupSize] = useState(settings.min_group_size);
     const [errors, setErrors] = useState<{
         starts_at?: string;
@@ -180,6 +182,16 @@ export default function ReservationsIndex({
     }>({});
     const [submitting, setSubmitting] = useState(false);
 
+    const durationMinutes =
+        selection.start !== null && selection.end !== null
+            ? selection.end - selection.start
+            : 0;
+
+    const chooseDate = (newDate: string) => {
+        setDate(newDate);
+        setSelection({ start: null, end: null });
+    };
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         setSubmitting(true);
@@ -187,7 +199,7 @@ export default function ReservationsIndex({
         router.post(
             '/reservations',
             {
-                starts_at: `${date} ${time}`,
+                starts_at: `${date} ${minutesToTime(selection.start ?? 0)}`,
                 duration_minutes: durationMinutes,
                 group_size: groupSize,
             },
@@ -239,70 +251,46 @@ export default function ReservationsIndex({
                             Reserve a time
                         </h2>
                         <form onSubmit={submit} className="flex flex-col gap-4">
-                            <div className="flex gap-4">
-                                <div className="flex flex-1 flex-col gap-1">
-                                    <Label htmlFor="starts_at_date">Date</Label>
-                                    <TextInput
-                                        id="starts_at_date"
-                                        type="date"
-                                        value={date}
-                                        min={
-                                            new Date()
-                                                .toISOString()
-                                                .split('T')[0]
-                                        }
-                                        onChange={(e) =>
-                                            setDate(e.target.value)
-                                        }
-                                    />
-                                </div>
-
-                                <div className="flex flex-1 flex-col gap-1">
-                                    <Label htmlFor="starts_at_time">
-                                        Start time
-                                    </Label>
-                                    <select
-                                        id="starts_at_time"
-                                        value={time}
-                                        onChange={(e) =>
-                                            setTime(e.target.value)
-                                        }
-                                        className="w-full rounded-none border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition outline-none focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/20"
-                                    >
-                                        <option value="">Select…</option>
-                                        {TIME_OPTIONS.map((option) => (
-                                            <option key={option} value={option}>
-                                                {option}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                            <InputError message={errors.starts_at} />
-
                             <div className="flex flex-col gap-1">
-                                <Label htmlFor="duration_minutes">
-                                    Duration (minutes)
-                                </Label>
+                                <Label htmlFor="starts_at_date">Date</Label>
                                 <TextInput
-                                    id="duration_minutes"
-                                    type="number"
-                                    min={settings.min_duration_minutes}
-                                    max={settings.max_duration_minutes}
-                                    step={15}
-                                    value={durationMinutes}
-                                    onChange={(e) =>
-                                        setDurationMinutes(
-                                            Number(e.target.value),
-                                        )
-                                    }
+                                    id="starts_at_date"
+                                    type="date"
+                                    value={date}
+                                    min={new Date().toISOString().split('T')[0]}
+                                    onChange={(e) => chooseDate(e.target.value)}
                                 />
-                                <p className="text-xs text-gray-400">
-                                    {settings.min_duration_minutes}–
-                                    {settings.max_duration_minutes} minutes
-                                </p>
-                                <InputError message={errors.duration_minutes} />
                             </div>
+
+                            {date && (
+                                <div className="flex flex-col gap-1">
+                                    <Label>Time</Label>
+                                    <ReservationTimeline
+                                        date={date}
+                                        openingTime={settings.opening_time}
+                                        closingTime={settings.closing_time}
+                                        peakHours={peakHours}
+                                        existingReservations={upcoming}
+                                        minDurationMinutes={
+                                            settings.min_duration_minutes
+                                        }
+                                        maxDurationMinutes={
+                                            settings.max_duration_minutes
+                                        }
+                                        value={selection}
+                                        onChange={setSelection}
+                                    />
+                                    <p className="text-xs text-gray-400">
+                                        {settings.min_duration_minutes}–
+                                        {settings.max_duration_minutes} minutes,
+                                        in 15-minute steps. The dotted line
+                                        shows typically busy hours; the red
+                                        block is already reserved.
+                                    </p>
+                                </div>
+                            )}
+                            <InputError message={errors.starts_at} />
+                            <InputError message={errors.duration_minutes} />
 
                             <div className="flex flex-col gap-1">
                                 <Label htmlFor="group_size">
@@ -337,7 +325,12 @@ export default function ReservationsIndex({
 
                             <PrimaryButton
                                 type="submit"
-                                disabled={submitting || !date || !time}
+                                disabled={
+                                    submitting ||
+                                    !date ||
+                                    selection.start === null ||
+                                    selection.end === null
+                                }
                             >
                                 Reserve and pay
                             </PrimaryButton>
@@ -351,26 +344,13 @@ export default function ReservationsIndex({
                         <p className="mb-3 text-sm text-gray-500">
                             The park is privately reserved during these times —
                             everyone else's entry is paused until they end.
+                            Click a day to see its reserved times, or to book
+                            that day above.
                         </p>
-                        {upcoming.length === 0 ? (
-                            <p className="text-sm text-gray-500">
-                                No upcoming reservations.
-                            </p>
-                        ) : (
-                            <ul className="divide-y divide-gray-100 rounded-none border border-gray-200 bg-white">
-                                {upcoming.map((reservation) => (
-                                    <li
-                                        key={reservation.id}
-                                        className="px-4 py-3 text-sm text-gray-700"
-                                    >
-                                        {formatRange(
-                                            reservation.starts_at,
-                                            reservation.ends_at,
-                                        )}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
+                        <ReservationCalendar
+                            reservations={upcoming}
+                            onSelectDate={chooseDate}
+                        />
                     </div>
 
                     <div>

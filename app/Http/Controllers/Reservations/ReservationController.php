@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Reservation;
 use App\Models\ReservationSetting;
 use App\Models\User;
+use App\Support\CheckInOccupancy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,7 +30,13 @@ class ReservationController extends Controller
                 'min_group_size',
                 'min_duration_minutes',
                 'max_duration_minutes',
+                'opening_time',
+                'closing_time',
             ]),
+            // A "typical day" busyness shape (hour => check-in count,
+            // collapsed across all history) shown as a reference line
+            // behind the booking timeline — not tied to the selected date.
+            'peakHours' => CheckInOccupancy::typicalCheckInsByHour(),
             // Time ranges only — who booked a slot isn't anyone else's
             // business, just that the park is unavailable then.
             'upcoming' => Reservation::where('status', 'active')
@@ -67,6 +74,15 @@ class ReservationController extends Controller
 
         $startsAt = Carbon::parse($validated['starts_at']);
         $endsAt = $startsAt->copy()->addMinutes($validated['duration_minutes']);
+
+        $startMinutes = $startsAt->hour * 60 + $startsAt->minute;
+        $endMinutes = $startMinutes + $validated['duration_minutes'];
+
+        if ($startMinutes < $settings->openingMinutes() || $endMinutes > $settings->closingMinutes()) {
+            return back()->withErrors([
+                'starts_at' => "The park is only open {$settings->opening_time}–{$settings->closing_time}.",
+            ]);
+        }
 
         if (Reservation::overlapping($startsAt, $endsAt)->exists()) {
             return back()->withErrors([
