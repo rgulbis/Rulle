@@ -1,8 +1,15 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { FormEventHandler, useEffect, useRef, useState } from 'react';
-import { TextInput } from '@/components/form-controls';
+import {
+    FormEventHandler,
+    KeyboardEventHandler,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 import AppLayout from '@/layouts/app-layout';
 import type { Auth } from '@/types/auth';
+
+const MAX_MESSAGE_LENGTH = 500;
 
 type ChatUser = {
     id: number;
@@ -69,9 +76,7 @@ export default function ChatIndex({
         };
     }, []);
 
-    const submit: FormEventHandler = (e) => {
-        e.preventDefault();
-
+    const sendMessage = () => {
         if (!body.trim()) {
             return;
         }
@@ -87,6 +92,25 @@ export default function ChatIndex({
                 onFinish: () => setSending(false),
             },
         );
+    };
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        sendMessage();
+    };
+
+    const handleComposerKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (
+        e,
+    ) => {
+        // Enter sends, Shift+Enter inserts a newline — the usual chat
+        // convention, since this is now a multi-line composer.
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+
+            if (!sending) {
+                sendMessage();
+            }
+        }
     };
 
     const deleteMessage = (messageId: number) => {
@@ -127,9 +151,7 @@ export default function ChatIndex({
                                                 key={message.id}
                                                 className={`group flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                                             >
-                                                <div
-                                                    className={`flex max-w-[75%] min-w-0 flex-col ${isOwn ? 'items-end' : 'items-start'}`}
-                                                >
+                                                <div className="flex max-w-[75%] min-w-0 flex-col">
                                                     <div className="flex items-baseline gap-2">
                                                         <span className="text-sm font-semibold text-gray-900">
                                                             {message.user.name}
@@ -195,7 +217,7 @@ export default function ChatIndex({
                                                             )}
                                                     </div>
                                                     <p
-                                                        className={`mt-1 px-3 py-2 text-sm break-words text-gray-700 ${isOwn ? 'bg-yellow-100' : 'bg-gray-100'}`}
+                                                        className={`mt-1 min-w-0 px-3 py-2 text-sm break-words whitespace-pre-wrap text-gray-700 ${isOwn ? 'bg-yellow-100' : 'bg-gray-100'}`}
                                                     >
                                                         {message.body}
                                                     </p>
@@ -221,19 +243,21 @@ export default function ChatIndex({
                                 </p>
                             ) : (
                                 <>
-                                    <TextInput
+                                    <textarea
                                         value={body}
                                         onChange={(e) =>
                                             setBody(e.target.value)
                                         }
+                                        onKeyDown={handleComposerKeyDown}
                                         placeholder="Say something…"
-                                        className="flex-1"
-                                        maxLength={1000}
+                                        rows={2}
+                                        maxLength={MAX_MESSAGE_LENGTH}
+                                        className="w-full flex-1 resize-none rounded-none border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition outline-none placeholder:text-gray-400 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/20"
                                     />
                                     <button
                                         type="submit"
                                         disabled={sending || !body.trim()}
-                                        className="rounded-none bg-yellow-400 px-4 py-2 text-sm font-semibold text-black hover:bg-yellow-300 disabled:opacity-50"
+                                        className="self-end rounded-none bg-yellow-400 px-4 py-2 text-sm font-semibold text-black hover:bg-yellow-300 disabled:opacity-50"
                                     >
                                         Send
                                     </button>

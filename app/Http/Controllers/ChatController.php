@@ -15,12 +15,26 @@ class ChatController extends Controller
     {
         $user = $request->user();
 
+        // Shaped explicitly (not the raw models) so nothing beyond what the
+        // page actually renders — e.g. the raw user_id column — leaks into
+        // the Inertia payload. Matches ChatMessageSent::broadcastWith()'s
+        // shape, so the initial load and the live broadcast look identical.
         $messages = ChatMessage::with('user:id,name,role')
             ->latest()
             ->limit(100)
             ->get()
             ->reverse()
-            ->values();
+            ->values()
+            ->map(fn (ChatMessage $message) => [
+                'id' => $message->id,
+                'body' => $message->body,
+                'created_at' => $message->created_at,
+                'user' => [
+                    'id' => $message->user->id,
+                    'name' => $message->user->name,
+                    'role' => $message->user->role,
+                ],
+            ]);
 
         return Inertia::render('chat/index', [
             'messages' => $messages,
@@ -38,7 +52,7 @@ class ChatController extends Controller
         abort_if($request->user()->isChatMuted(), 403, 'You are muted from chat.');
 
         $validated = $request->validate([
-            'body' => ['required', 'string', 'max:1000'],
+            'body' => ['required', 'string', 'max:500'],
         ]);
 
         ChatMessage::create([

@@ -19,6 +19,22 @@ test('a user with an unverified email cannot access chat', function () {
     $response->assertRedirect(route('verification.notice'));
 });
 
+test('the chat page does not leak the raw user_id column', function () {
+    $author = User::factory()->create();
+    ChatMessage::create(['user_id' => $author->id, 'body' => 'hello']);
+
+    $viewer = User::factory()->create();
+    $response = $this->actingAs($viewer)->get('/chat');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('messages', 1)
+        ->where('messages.0.user.id', $author->id)
+        ->missing('messages.0.user_id')
+        ->missing('messages.0.updated_at')
+    );
+});
+
 test('a customer can post a chat message', function () {
     $user = User::factory()->create();
 
@@ -35,6 +51,24 @@ test('an empty message is rejected', function () {
 
     $response->assertSessionHasErrors('body');
     expect(ChatMessage::count())->toBe(0);
+});
+
+test('a message over the length limit is rejected', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->post('/chat', ['body' => str_repeat('a', 501)]);
+
+    $response->assertSessionHasErrors('body');
+    expect(ChatMessage::count())->toBe(0);
+});
+
+test('a message right at the length limit is accepted', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->post('/chat', ['body' => str_repeat('a', 500)]);
+
+    $response->assertRedirect();
+    expect(ChatMessage::count())->toBe(1);
 });
 
 test('staff and admins can post too', function () {
