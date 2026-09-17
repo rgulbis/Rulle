@@ -24,9 +24,12 @@ Route::middleware(['auth', 'customer-only'])->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('settings/password', [PasswordController::class, 'edit'])->name('password.edit');
     Route::put('settings/password', [PasswordController::class, 'update'])->name('password.update');
+});
 
-    // Open to every logged-in role (customer, employee, admin) — chat isn't
-    // customer-only like reservations/subscriptions.
+// Open to every logged-in role (customer, employee, admin) — chat isn't
+// customer-only like reservations/subscriptions — but still requires a
+// verified email, same bar as subscriptions/reservations.
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
     Route::post('chat', [ChatController::class, 'store'])->name('chat.store');
     Route::delete('chat/{message}', [ChatController::class, 'destroy'])->name('chat.destroy');

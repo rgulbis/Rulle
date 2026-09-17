@@ -11,6 +11,14 @@ test('a logged-in customer can view the chat page', function () {
     $response->assertOk();
 });
 
+test('a user with an unverified email cannot access chat', function () {
+    $user = User::factory()->unverified()->create();
+
+    $response = $this->actingAs($user)->get('/chat');
+
+    $response->assertRedirect(route('verification.notice'));
+});
+
 test('a customer can post a chat message', function () {
     $user = User::factory()->create();
 
