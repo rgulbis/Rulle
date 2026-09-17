@@ -111,7 +111,7 @@ export default function ChatIndex({
                     </h1>
 
                     <div className="flex h-[60vh] flex-col rounded-none border border-gray-200 bg-white shadow-sm">
-                        <div className="flex-1 overflow-y-auto p-4">
+                        <div className="flex-1 overflow-x-hidden overflow-y-auto p-4">
                             {messages.length === 0 ? (
                                 <p className="text-sm text-gray-500">
                                     No messages yet — say something.
@@ -128,7 +128,7 @@ export default function ChatIndex({
                                                 className={`group flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                                             >
                                                 <div
-                                                    className={`flex max-w-[75%] flex-col ${isOwn ? 'items-end' : 'items-start'}`}
+                                                    className={`flex max-w-[75%] min-w-0 flex-col ${isOwn ? 'items-end' : 'items-start'}`}
                                                 >
                                                     <div className="flex items-baseline gap-2">
                                                         <span className="text-sm font-semibold text-gray-900">
