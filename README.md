@@ -92,6 +92,24 @@ account, and note the **Entry/Exit toggle** above the camera view — pick the
 matching mode before scanning, or the scan is rejected (this exists to stop
 one account's QR code being used to check in two people at once).
 
+### Testing time-dependent features without waiting
+
+Reservations, operating hours, and the "typically busy" chart all depend on
+the current time. Rather than waiting around for a reservation window to
+actually start, fake it:
+
+```bash
+php artisan time:fake "2026-09-17 16:15:00"   # or a relative string like "+3 hours"
+php artisan time:fake                          # shows what's currently faked, if anything
+php artisan time:fake --clear                  # back to the real time
+```
+
+This affects every request (web and artisan) until cleared, and is a no-op
+in production. For example, to check that a reservation participant with no
+active subscription can still enter through `/staff/scan`: book a
+reservation a few minutes out, fake the time to land inside that window,
+then scan their QR code.
+
 ## Production server
 
 The app runs in Docker on a self-hosted server, reachable only through a

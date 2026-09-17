@@ -30,6 +30,7 @@ function makeReservationSettings(array $attributes = []): ReservationSetting
         'max_duration_minutes' => 240,
         'opening_time' => '08:00',
         'closing_time' => '23:00',
+        'cancellation_cutoff_hours' => 24,
     ], $attributes));
 }
 
@@ -155,6 +156,29 @@ test('a stale pending reservation stops blocking after the grace window', functi
     expect(Reservation::overlapping($start, $start->copy()->addHour())->exists())->toBeFalse();
 });
 
+test('a pending reservation is not overlapped by another active one until that other reservation exists', function () {
+    $owner = User::factory()->create();
+    $other = User::factory()->create();
+    $start = now()->addDay()->setTime(14, 0);
+
+    $pending = makeReservation($owner, $start, $start->copy()->addHour(), ['status' => 'pending']);
+    expect($pending->overlappedByAnotherActiveReservation())->toBeFalse();
+
+    makeReservation($other, $start->copy()->addMinutes(30), $start->copy()->addHours(2), ['status' => 'active']);
+    expect($pending->overlappedByAnotherActiveReservation())->toBeTrue();
+});
+
+test('a non-overlapping active reservation does not count as a conflict', function () {
+    $owner = User::factory()->create();
+    $other = User::factory()->create();
+    $start = now()->addDay()->setTime(14, 0);
+
+    $pending = makeReservation($owner, $start, $start->copy()->addHour(), ['status' => 'pending']);
+    makeReservation($other, $start->copy()->addHours(2), $start->copy()->addHours(3), ['status' => 'active']);
+
+    expect($pending->overlappedByAnotherActiveReservation())->toBeFalse();
+});
+
 test('reservation owner and participants are not blocked from entering, other customers are', function () {
     $owner = User::factory()->create();
     $participant = User::factory()->create();
@@ -274,6 +298,25 @@ test('reservations index shows upcoming reservations without exposing who booked
     );
 });
 
+test('only the reservation owner can resume payment', function () {
+    $owner = User::factory()->create();
+    $someoneElse = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour(), ['status' => 'pending']);
+
+    $response = $this->actingAs($someoneElse)->post("/reservations/{$reservation->id}/resume");
+
+    $response->assertForbidden();
+});
+
+test('cannot resume a reservation that is no longer pending', function () {
+    $owner = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour(), ['status' => 'active']);
+
+    $response = $this->actingAs($owner)->post("/reservations/{$reservation->id}/resume");
+
+    $response->assertStatus(422);
+});
+
 test('cancelling a pending reservation frees the slot', function () {
     $owner = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour(), ['status' => 'pending']);
@@ -282,4 +325,56 @@ test('cancelling a pending reservation frees the slot', function () {
 
     $response->assertRedirect(route('reservations.index'));
     expect($reservation->fresh()->status)->toBe('cancelled');
+});
+
+test('a reservation well before its cutoff is eligible for a cancellation refund', function () {
+    $settings = makeReservationSettings(['cancellation_cutoff_hours' => 24]);
+
+    expect($settings->isEligibleForCancellationRefund(now()->addDays(2)))->toBeTrue();
+    expect($settings->isEligibleForCancellationRefund(now()->addHours(23)))->toBeFalse();
+});
+
+test('a customer can cancel a paid reservation before it starts, and it frees the slot', function () {
+    $owner = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addDays(3), now()->addDays(3)->addHour(), ['status' => 'active']);
+
+    $response = $this->actingAs($owner)->get("/reservations/{$reservation->id}/cancel");
+
+    $response->assertRedirect(route('reservations.index'));
+    expect($reservation->fresh()->status)->toBe('cancelled');
+});
+
+test('cancelling a paid reservation with no checkout session on record does not claim a refund happened', function () {
+    makeReservationSettings(['cancellation_cutoff_hours' => 24]);
+    $owner = User::factory()->create();
+    // No stripe_checkout_session_id set — nothing for the controller to
+    // actually refund against, even though it's well outside the cutoff.
+    $reservation = makeReservation($owner, now()->addDays(3), now()->addDays(3)->addHour(), ['status' => 'active']);
+
+    $response = $this->actingAs($owner)->get("/reservations/{$reservation->id}/cancel");
+
+    $response->assertRedirect(route('reservations.index'));
+    $response->assertSessionHas('status', 'reservation-cancelled-no-refund');
+    expect($reservation->fresh()->status)->toBe('cancelled');
+});
+
+test('a paid reservation that has already started cannot be cancelled', function () {
+    $owner = User::factory()->create();
+    $reservation = makeReservation($owner, now()->subMinutes(10), now()->addHour(), ['status' => 'active']);
+
+    $response = $this->actingAs($owner)->get("/reservations/{$reservation->id}/cancel");
+
+    $response->assertRedirect(route('reservations.index'));
+    $response->assertSessionHas('status', 'reservation-cannot-cancel');
+    expect($reservation->fresh()->status)->toBe('active');
+});
+
+test('only the reservation owner can cancel it', function () {
+    $owner = User::factory()->create();
+    $someoneElse = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addDays(3), now()->addDays(3)->addHour(), ['status' => 'active']);
+
+    $this->actingAs($someoneElse)->get("/reservations/{$reservation->id}/cancel");
+
+    expect($reservation->fresh()->status)->toBe('active');
 });

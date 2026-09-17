@@ -222,6 +222,10 @@ export default function ReservationsIndex({
         }
     };
 
+    const resumePayment = (reservationId: number) => {
+        router.post(`/reservations/${reservationId}/resume`);
+    };
+
     return (
         <AppLayout>
             <Head title="Reservations" />
@@ -243,6 +247,30 @@ export default function ReservationsIndex({
                     {status === 'reservation-cancelled' && (
                         <p className="mb-4 rounded-none border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                             Reservation cancelled.
+                        </p>
+                    )}
+                    {status === 'reservation-cancelled-refunded' && (
+                        <p className="mb-4 rounded-none border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                            Reservation cancelled and refunded.
+                        </p>
+                    )}
+                    {status === 'reservation-cancelled-no-refund' && (
+                        <p className="mb-4 rounded-none border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                            Reservation cancelled, but it was too close to the
+                            start time to be refunded.
+                        </p>
+                    )}
+                    {status === 'reservation-cannot-cancel' && (
+                        <p className="mb-4 rounded-none border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            That reservation has already started and can no
+                            longer be cancelled.
+                        </p>
+                    )}
+                    {status === 'reservation-slot-taken' && (
+                        <p className="mb-4 rounded-none border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            Someone else booked that time first while you were
+                            paying — you've been refunded and the reservation
+                            was cancelled. Pick another time.
                         </p>
                     )}
 
@@ -442,18 +470,47 @@ export default function ReservationsIndex({
                                         />
 
                                         {reservation.status === 'pending' && (
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    cancelReservation(
-                                                        reservation.id,
-                                                    )
-                                                }
-                                                className="mt-3 text-sm font-medium text-red-600 hover:text-red-500"
-                                            >
-                                                Cancel reservation
-                                            </button>
+                                            <div className="mt-3 flex items-center gap-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        resumePayment(
+                                                            reservation.id,
+                                                        )
+                                                    }
+                                                    className="text-sm font-semibold text-yellow-700 hover:text-yellow-600"
+                                                >
+                                                    Finish payment
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        cancelReservation(
+                                                            reservation.id,
+                                                        )
+                                                    }
+                                                    className="text-sm font-medium text-red-600 hover:text-red-500"
+                                                >
+                                                    Cancel reservation
+                                                </button>
+                                            </div>
                                         )}
+
+                                        {reservation.status === 'active' &&
+                                            new Date(reservation.starts_at) >
+                                                new Date() && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        cancelReservation(
+                                                            reservation.id,
+                                                        )
+                                                    }
+                                                    className="mt-3 text-sm font-medium text-red-600 hover:text-red-500"
+                                                >
+                                                    Cancel reservation
+                                                </button>
+                                            )}
                                     </div>
                                 ))}
                             </div>

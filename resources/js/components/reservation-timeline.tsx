@@ -73,12 +73,15 @@ export default function ReservationTimeline({
 
     const now = new Date();
     const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    // Round up to the next 15-minute mark: the timeline only ever snaps to
+    // :00/:15/:30/:45, so the cutoff itself has to land on one of those too,
+    // or a raw "now" like 13:43 could get selected as-is and be stale (in
+    // the past) by the time the form actually submits.
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const roundedNowMinutes = Math.ceil(nowMinutes / 15) * 15;
     const pastCutoff =
         date === todayKey
-            ? Math.min(
-                  closeMin,
-                  Math.max(openMin, now.getHours() * 60 + now.getMinutes()),
-              )
+            ? Math.min(closeMin, Math.max(openMin, roundedNowMinutes))
             : openMin;
 
     const xFor = (minutes: number) => ((minutes - openMin) / span) * WIDTH;

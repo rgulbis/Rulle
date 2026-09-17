@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $max_duration_minutes
  * @property string $opening_time
  * @property string $closing_time
+ * @property int $cancellation_cutoff_hours
  */
 #[Fillable([
     'price_cents_per_person_per_hour',
@@ -21,6 +23,7 @@ use Illuminate\Database\Eloquent\Model;
     'max_duration_minutes',
     'opening_time',
     'closing_time',
+    'cancellation_cutoff_hours',
 ])]
 class ReservationSetting extends Model
 {
@@ -31,6 +34,7 @@ class ReservationSetting extends Model
             'min_group_size' => 'integer',
             'min_duration_minutes' => 'integer',
             'max_duration_minutes' => 'integer',
+            'cancellation_cutoff_hours' => 'integer',
         ];
     }
 
@@ -46,12 +50,22 @@ class ReservationSetting extends Model
             'max_duration_minutes' => 240,
             'opening_time' => '08:00',
             'closing_time' => '23:00',
+            'cancellation_cutoff_hours' => 24,
         ]);
     }
 
     public function priceFor(int $minutes, int $groupSize): int
     {
         return (int) ceil($minutes / 60 * $this->price_cents_per_person_per_hour * $groupSize);
+    }
+
+    /**
+     * Whether a reservation starting at $startsAt is still far enough away
+     * to be cancelled for a full refund.
+     */
+    public function isEligibleForCancellationRefund(CarbonInterface $startsAt): bool
+    {
+        return now()->addHours($this->cancellation_cutoff_hours)->lte($startsAt);
     }
 
     public function openingMinutes(): int

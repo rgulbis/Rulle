@@ -72,6 +72,24 @@ class Reservation extends Model
     }
 
     /**
+     * True if some other reservation already claimed (paid for) an
+     * overlapping slot. Checked right when a payment completes, since two
+     * people can both have a pending reservation for the same overlapping
+     * time — whoever's Stripe Checkout finishes first wins the slot, and
+     * this is how the other one's payment gets caught and refunded instead
+     * of silently creating a second, conflicting active reservation.
+     */
+    public function overlappedByAnotherActiveReservation(): bool
+    {
+        return static::query()
+            ->where('status', 'active')
+            ->where('id', '!=', $this->id)
+            ->where('starts_at', '<', $this->ends_at)
+            ->where('ends_at', '>', $this->starts_at)
+            ->exists();
+    }
+
+    /**
      * The reservation currently blocking general entry, if any. Used by the
      * scanner to know whether the park is privately reserved right now.
      */

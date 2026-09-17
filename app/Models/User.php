@@ -25,11 +25,12 @@ use Laravel\Cashier\Billable;
  * @property string $role
  * @property string $qr_code
  * @property bool $checked_in
+ * @property Carbon|null $chat_muted_until
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'role', 'email_verified_at'])]
+#[Fillable(['name', 'email', 'password', 'role', 'email_verified_at', 'chat_muted_until'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
@@ -61,6 +62,11 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function isCustomer(): bool
     {
         return $this->role === 'user';
+    }
+
+    public function isChatMuted(): bool
+    {
+        return $this->chat_muted_until !== null && $this->chat_muted_until->isFuture();
     }
 
     /**
@@ -135,6 +141,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'checked_in' => 'boolean',
+            'chat_muted_until' => 'datetime',
         ];
     }
 }

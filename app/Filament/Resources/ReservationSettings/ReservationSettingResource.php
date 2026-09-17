@@ -68,6 +68,13 @@ class ReservationSettingResource extends Resource
                     ->placeholder('23:00')
                     ->regex('/^([01]\d|2[0-3]):[0-5]\d$/')
                     ->helperText('24-hour, e.g. 23:00'),
+
+                TextInput::make('cancellation_cutoff_hours')
+                    ->label('Cancellation refund cutoff (hours)')
+                    ->required()
+                    ->numeric()
+                    ->minValue(0)
+                    ->helperText('A paid reservation cancelled at least this many hours before its start gets refunded; cancelling closer to the start still frees the slot but forfeits the payment.'),
             ]);
     }
 
@@ -83,6 +90,7 @@ class ReservationSettingResource extends Resource
                 TextColumn::make('max_duration_minutes')->label('Max length (min)'),
                 TextColumn::make('opening_time')->label('Opens'),
                 TextColumn::make('closing_time')->label('Closes'),
+                TextColumn::make('cancellation_cutoff_hours')->label('Refund cutoff (hrs)'),
             ])
             ->recordActions([
                 EditAction::make(),
