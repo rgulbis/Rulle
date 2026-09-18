@@ -12,14 +12,18 @@ class ChatMessageDeleted implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets;
 
-    public function __construct(public int $messageId) {}
+    public function __construct(public int $messageId, public ?int $reservationId = null) {}
 
     /**
      * @return array<int, Channel>
      */
     public function broadcastOn(): array
     {
-        return [new PrivateChannel('chat')];
+        $channel = $this->reservationId
+            ? "reservation.{$this->reservationId}.chat"
+            : 'chat';
+
+        return [new PrivateChannel($channel)];
     }
 
     public function broadcastAs(): string

@@ -15,29 +15,16 @@ class ChatController extends Controller
     {
         $user = $request->user();
 
-        // Shaped explicitly (not the raw models) so nothing beyond what the
-        // page actually renders — e.g. the raw user_id column — leaks into
-        // the Inertia payload. Matches ChatMessageSent::broadcastWith()'s
-        // shape, so the initial load and the live broadcast look identical.
         $messages = ChatMessage::with('user:id,name,role')
+            ->whereNull('reservation_id')
             ->latest()
             ->limit(100)
             ->get()
             ->reverse()
-            ->values()
-            ->map(fn (ChatMessage $message) => [
-                'id' => $message->id,
-                'body' => $message->body,
-                'created_at' => $message->created_at,
-                'user' => [
-                    'id' => $message->user->id,
-                    'name' => $message->user->name,
-                    'role' => $message->user->role,
-                ],
-            ]);
+            ->values();
 
         return Inertia::render('chat/index', [
-            'messages' => $messages,
+            'messages' => ChatMessage::shapeForClient($messages),
             // Admins moderate from the Filament admin panel instead — this
             // page's inline moderation is for employees, who can't get into
             // Filament at all (User::canAccessPanel() is admin-only).

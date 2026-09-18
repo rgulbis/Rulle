@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\Reservations\ReservationChatController;
 use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Staff\ScanController;
@@ -53,6 +54,9 @@ Route::middleware(['auth', 'customer-only', 'verified'])->group(function () {
     Route::get('reservations/users/search', [ReservationController::class, 'searchUsers'])->name('reservations.users.search');
     Route::post('reservations/{reservation}/participants', [ReservationController::class, 'addParticipant'])->name('reservations.participants.add');
     Route::delete('reservations/{reservation}/participants/{participant}', [ReservationController::class, 'removeParticipant'])->name('reservations.participants.remove');
+
+    Route::get('reservations/{reservation}/chat', [ReservationChatController::class, 'show'])->name('reservations.chat.show');
+    Route::post('reservations/{reservation}/chat', [ReservationChatController::class, 'store'])->name('reservations.chat.store');
 });
 
 Route::middleware(['auth', 'can-scan'])->group(function () {

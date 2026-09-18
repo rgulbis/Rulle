@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\Reservation;
+use App\Models\ReservationSetting;
+use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +48,31 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+// Typed against the interface, not Illuminate\Support\Carbon: this app
+// configures Date::use(CarbonImmutable::class) (see AppServiceProvider), so
+// now()->addDay() etc. actually return Carbon\CarbonImmutable instances.
+function makeReservation(User $owner, CarbonInterface $start, CarbonInterface $end, array $attributes = []): Reservation
 {
-    // ..
+    return Reservation::create(array_merge([
+        'user_id' => $owner->id,
+        'starts_at' => $start,
+        'ends_at' => $end,
+        'group_size' => 3,
+        'price_cents' => 3000,
+        'status' => 'active',
+    ], $attributes));
+}
+
+function makeReservationSettings(array $attributes = []): ReservationSetting
+{
+    return ReservationSetting::forceCreate(array_merge([
+        'id' => 1,
+        'price_cents_per_person_per_hour' => 500,
+        'min_group_size' => 3,
+        'min_duration_minutes' => 30,
+        'max_duration_minutes' => 240,
+        'opening_time' => '08:00',
+        'closing_time' => '23:00',
+        'cancellation_cutoff_hours' => 24,
+    ], $attributes));
 }

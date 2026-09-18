@@ -43,12 +43,28 @@ class ReservationController extends Controller
                 ->where('ends_at', '>', now())
                 ->orderBy('starts_at')
                 ->get(['id', 'starts_at', 'ends_at']),
-            'mine' => Reservation::where('user_id', $user->id)
+            // Reservations the user owns, or was added to as a participant —
+            // shaped explicitly so a participant's view doesn't leak the
+            // owner's raw user_id, just whether *they* are the owner.
+            'mine' => Reservation::where(function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->orWhereHas('participants', fn ($q) => $q->whereKey($user->id));
+            })
                 ->where('ends_at', '>', now())
                 ->where('status', '!=', 'cancelled')
                 ->with('participants:id,name,email')
                 ->orderBy('starts_at')
-                ->get(['id', 'starts_at', 'ends_at', 'group_size', 'price_cents', 'status']),
+                ->get(['id', 'user_id', 'starts_at', 'ends_at', 'group_size', 'price_cents', 'status'])
+                ->map(fn (Reservation $reservation) => [
+                    'id' => $reservation->id,
+                    'starts_at' => $reservation->starts_at,
+                    'ends_at' => $reservation->ends_at,
+                    'group_size' => $reservation->group_size,
+                    'price_cents' => $reservation->price_cents,
+                    'status' => $reservation->status,
+                    'is_owner' => $reservation->user_id === $user->id,
+                    'participants' => $reservation->participants,
+                ]),
             'status' => $request->session()->get('status'),
         ]);
     }

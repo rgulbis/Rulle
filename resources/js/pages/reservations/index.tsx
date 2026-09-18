@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 import {
     InputError,
@@ -38,6 +38,7 @@ type MyReservation = TimeRange & {
     group_size: number;
     price_cents: number;
     status: 'pending' | 'active' | 'cancelled';
+    is_owner: boolean;
     participants: Participant[];
 };
 
@@ -436,18 +437,20 @@ export default function ReservationsIndex({
                                                                     participant.name
                                                                 }
                                                             </span>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    removeParticipant(
-                                                                        reservation.id,
-                                                                        participant.id,
-                                                                    )
-                                                                }
-                                                                className="text-xs font-medium text-red-600 hover:text-red-500"
-                                                            >
-                                                                Remove
-                                                            </button>
+                                                            {reservation.is_owner && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        removeParticipant(
+                                                                            reservation.id,
+                                                                            participant.id,
+                                                                        )
+                                                                    }
+                                                                    className="text-xs font-medium text-red-600 hover:text-red-500"
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            )}
                                                         </li>
                                                     ),
                                                 )}
@@ -460,43 +463,56 @@ export default function ReservationsIndex({
                                             of {reservation.group_size} named
                                         </p>
 
-                                        <AddParticipant
-                                            reservationId={reservation.id}
-                                            remainingCapacity={
-                                                reservation.group_size -
-                                                1 -
-                                                reservation.participants.length
-                                            }
-                                        />
-
-                                        {reservation.status === 'pending' && (
-                                            <div className="mt-3 flex items-center gap-4">
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        resumePayment(
-                                                            reservation.id,
-                                                        )
-                                                    }
-                                                    className="text-sm font-semibold text-yellow-700 hover:text-yellow-600"
-                                                >
-                                                    Finish payment
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        cancelReservation(
-                                                            reservation.id,
-                                                        )
-                                                    }
-                                                    className="text-sm font-medium text-red-600 hover:text-red-500"
-                                                >
-                                                    Cancel reservation
-                                                </button>
-                                            </div>
+                                        {reservation.is_owner && (
+                                            <AddParticipant
+                                                reservationId={reservation.id}
+                                                remainingCapacity={
+                                                    reservation.group_size -
+                                                    1 -
+                                                    reservation.participants
+                                                        .length
+                                                }
+                                            />
                                         )}
 
-                                        {reservation.status === 'active' &&
+                                        <Link
+                                            href={`/reservations/${reservation.id}/chat`}
+                                            className="mt-3 inline-block text-sm font-semibold text-yellow-700 hover:text-yellow-600"
+                                        >
+                                            Group chat
+                                        </Link>
+
+                                        {reservation.is_owner &&
+                                            reservation.status ===
+                                                'pending' && (
+                                                <div className="mt-3 flex items-center gap-4">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            resumePayment(
+                                                                reservation.id,
+                                                            )
+                                                        }
+                                                        className="text-sm font-semibold text-yellow-700 hover:text-yellow-600"
+                                                    >
+                                                        Finish payment
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            cancelReservation(
+                                                                reservation.id,
+                                                            )
+                                                        }
+                                                        className="text-sm font-medium text-red-600 hover:text-red-500"
+                                                    >
+                                                        Cancel reservation
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                        {reservation.is_owner &&
+                                            reservation.status === 'active' &&
                                             new Date(reservation.starts_at) >
                                                 new Date() && (
                                                 <button
@@ -506,7 +522,7 @@ export default function ReservationsIndex({
                                                             reservation.id,
                                                         )
                                                     }
-                                                    className="mt-3 text-sm font-medium text-red-600 hover:text-red-500"
+                                                    className="mt-3 block text-sm font-medium text-red-600 hover:text-red-500"
                                                 >
                                                     Cancel reservation
                                                 </button>
