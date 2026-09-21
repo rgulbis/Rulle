@@ -1,9 +1,11 @@
 import { Head } from '@inertiajs/react';
-import ChatThread, { ChatMessage } from '@/components/chat-thread';
+import ChatThread, { ChatMessage, SlowMode } from '@/components/chat-thread';
 import AppLayout from '@/layouts/app-layout';
 
 type Props = {
     messages: ChatMessage[];
+    pinned: ChatMessage[];
+    slowMode: SlowMode;
     canModerate: boolean;
     muted: boolean;
     mutedUntil: string | null;
@@ -11,6 +13,8 @@ type Props = {
 
 export default function ChatIndex({
     messages,
+    pinned,
+    slowMode,
     canModerate,
     muted,
     mutedUntil,
@@ -27,15 +31,18 @@ export default function ChatIndex({
                     <ChatThread
                         channel="chat"
                         initialMessages={messages}
+                        initialPinned={pinned}
                         postUrl="/chat"
                         muted={muted}
                         mutedUntil={mutedUntil}
+                        slowMode={slowMode}
                         moderation={
                             canModerate
                                 ? {
                                       deleteUrl: (id) => `/chat/${id}`,
                                       muteUrl: (userId) =>
                                           `/chat/users/${userId}/mute`,
+                                      pinUrl: (id) => `/chat/${id}/pin`,
                                   }
                                 : undefined
                         }

@@ -9,9 +9,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 
-// Broadcast immediately rather than queueing: production only runs
-// `php artisan serve`, with no queue worker to process a queued broadcast.
-class ChatMessageSent implements ShouldBroadcastNow
+class ChatMessagePinChanged implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets;
 
@@ -22,23 +20,25 @@ class ChatMessageSent implements ShouldBroadcastNow
      */
     public function broadcastOn(): array
     {
-        $channel = $this->message->reservation_id
-            ? "reservation.{$this->message->reservation_id}.chat"
-            : 'chat';
-
-        return [new PrivateChannel($channel)];
+        return [new PrivateChannel('chat')];
     }
 
     public function broadcastAs(): string
     {
-        return 'message.sent';
+        return 'message.pin-changed';
     }
 
     /**
+     * The whole message is sent (not just an id) since a pinned message can
+     * be older than the recent window other clients loaded.
+     *
      * @return array<string, mixed>
      */
     public function broadcastWith(): array
     {
-        return $this->message->toClientArray();
+        return [
+            'pinned' => $this->message->pinned_at !== null,
+            'message' => $this->message->toClientArray(),
+        ];
     }
 }

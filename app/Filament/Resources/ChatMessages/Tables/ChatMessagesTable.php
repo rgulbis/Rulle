@@ -29,6 +29,10 @@ class ChatMessagesTable
                     ->label('Message')
                     ->limit(80)
                     ->wrap(),
+                IconColumn::make('pinned_at')
+                    ->label('Pinned')
+                    ->boolean()
+                    ->getStateUsing(fn (ChatMessage $record) => $record->pinned_at !== null),
                 IconColumn::make('user.chat_muted_until')
                     ->label('Muted')
                     ->boolean()
@@ -38,8 +42,19 @@ class ChatMessagesTable
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
             ])
+            // Only the global room: reservation group chats are private to
+            // their group, so they're neither listed nor moderated here.
+            ->modifyQueryUsing(fn ($query) => $query->whereNull('reservation_id'))
             ->defaultSort('created_at', 'desc')
             ->recordActions([
+                Action::make('pin')
+                    ->color('info')
+                    ->visible(fn (ChatMessage $record) => $record->pinned_at === null)
+                    ->action(fn (ChatMessage $record) => $record->pin()),
+                Action::make('unpin')
+                    ->color('gray')
+                    ->visible(fn (ChatMessage $record) => $record->pinned_at !== null)
+                    ->action(fn (ChatMessage $record) => $record->unpin()),
                 Action::make('mute')
                     ->color('warning')
                     ->schema([

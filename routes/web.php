@@ -34,6 +34,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
     Route::post('chat', [ChatController::class, 'store'])->name('chat.store');
     Route::delete('chat/{message}', [ChatController::class, 'destroy'])->name('chat.destroy');
+    Route::post('chat/{message}/pin', [ChatController::class, 'pin'])->name('chat.pin');
+    Route::delete('chat/{message}/pin', [ChatController::class, 'unpin'])->name('chat.unpin');
     Route::post('chat/users/{user}/mute', [ChatController::class, 'mute'])->name('chat.mute');
     Route::post('chat/users/{user}/unmute', [ChatController::class, 'unmute'])->name('chat.unmute');
 });

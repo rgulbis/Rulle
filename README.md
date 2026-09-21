@@ -125,7 +125,7 @@ ssh -p 2222 <name>@<serverIp>
 ### Refresh db on prod
 
 ```bash
-dwaocker exec skatepark-app-1 rm -f storage/app/database.sqlite
+docker exec skatepark-app-1 rm -f storage/app/database.sqlite
 docker exec skatepark-app-1 touch storage/app/database.sqlite
 docker exec skatepark-app-1 php artisan migrate --force
 docker exec skatepark-app-1 php artisan db:seed --force
