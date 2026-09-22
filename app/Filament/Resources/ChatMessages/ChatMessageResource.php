@@ -9,6 +9,7 @@ use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class ChatMessageResource extends Resource
@@ -33,6 +34,15 @@ class ChatMessageResource extends Resource
     public static function canEdit(Model $record): bool
     {
         return false;
+    }
+
+    // Only the global room. Reservation group chats are private to their
+    // group, so they're neither listed nor reachable by any action here —
+    // scoping the resource query (not just the table) covers record lookup
+    // for every action too.
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->whereNull('reservation_id');
     }
 
     public static function table(Table $table): Table

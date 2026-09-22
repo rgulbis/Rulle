@@ -283,6 +283,13 @@ export default function ChatThread({
                     <ul className="flex flex-col gap-3">
                         {messages.map((message) => {
                             const isOwn = message.user.id === auth.user.id;
+                            // Mirrors App\Support\ChatModeration: the inline
+                            // moderators are employees, who may only delete
+                            // and mute customers — never staff or admins.
+                            const canPenalise =
+                                moderation !== undefined &&
+                                !isOwn &&
+                                message.user.role === 'user';
 
                             return (
                                 <li
@@ -322,7 +329,7 @@ export default function ChatThread({
                                                             ? 'Unpin'
                                                             : 'Pin'}
                                                     </button>
-                                                    {!isOwn && (
+                                                    {canPenalise && (
                                                         <>
                                                             {MUTE_OPTIONS.map(
                                                                 (option) => (

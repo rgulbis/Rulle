@@ -64,6 +64,17 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $this->role === 'user';
     }
 
+    /**
+     * Strictly higher in the role hierarchy (customer < employee < admin).
+     * Equal ranks don't outrank each other, so nobody outranks themselves.
+     */
+    public function outranks(User $other): bool
+    {
+        $ranks = ['user' => 0, 'employee' => 1, 'admin' => 2];
+
+        return ($ranks[$this->role] ?? 0) > ($ranks[$other->role] ?? 0);
+    }
+
     public function isChatMuted(): bool
     {
         return $this->chat_muted_until !== null && $this->chat_muted_until->isFuture();

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ChatMessages\Tables;
 
 use App\Models\ChatMessage;
+use App\Support\ChatModeration;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\Select;
@@ -42,9 +43,6 @@ class ChatMessagesTable
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
             ])
-            // Only the global room: reservation group chats are private to
-            // their group, so they're neither listed nor moderated here.
-            ->modifyQueryUsing(fn ($query) => $query->whereNull('reservation_id'))
             ->defaultSort('created_at', 'desc')
             ->recordActions([
                 Action::make('pin')
@@ -57,6 +55,7 @@ class ChatMessagesTable
                     ->action(fn (ChatMessage $record) => $record->unpin()),
                 Action::make('mute')
                     ->color('warning')
+                    ->visible(fn (ChatMessage $record) => ChatModeration::canMute(auth()->user(), $record->user))
                     ->schema([
                         Select::make('hours')
                             ->label('Mute for')
@@ -69,15 +68,26 @@ class ChatMessagesTable
                             ->default(24)
                             ->required(),
                     ])
-                    ->action(fn (ChatMessage $record, array $data) => $record->user->update([
-                        'chat_muted_until' => now()->addHours((int) $data['hours']),
-                    ])),
+                    ->action(function (ChatMessage $record, array $data) {
+                        // Re-checked here: hiding a button isn't authorization.
+                        abort_unless(ChatModeration::canMute(auth()->user(), $record->user), 403);
+
+                        $record->user->update([
+                            'chat_muted_until' => now()->addHours((int) $data['hours']),
+                        ]);
+                    }),
                 Action::make('unmute')
                     ->color('gray')
-                    ->visible(fn (ChatMessage $record) => $record->user->isChatMuted())
+                    ->visible(fn (ChatMessage $record) => $record->user->isChatMuted()
+                        && ChatModeration::canMute(auth()->user(), $record->user))
                     ->requiresConfirmation()
-                    ->action(fn (ChatMessage $record) => $record->user->update(['chat_muted_until' => null])),
-                DeleteAction::make(),
+                    ->action(function (ChatMessage $record) {
+                        abort_unless(ChatModeration::canMute(auth()->user(), $record->user), 403);
+
+                        $record->user->update(['chat_muted_until' => null]);
+                    }),
+                DeleteAction::make()
+                    ->authorize(fn (ChatMessage $record) => ChatModeration::canDelete(auth()->user(), $record)),
             ]);
     }
 }

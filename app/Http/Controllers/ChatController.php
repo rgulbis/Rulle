@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ChatMessage;
 use App\Models\User;
+use App\Support\ChatModeration;
 use App\Support\ChatSlowMode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -67,32 +68,30 @@ class ChatController extends Controller
         return back();
     }
 
-    public function destroy(Request $request, ChatMessage $message): RedirectResponse
+    public function destroy(Request $request, ChatMessage $globalMessage): RedirectResponse
     {
         abort_unless($request->user()->isEmployee(), 403);
+        abort_unless(ChatModeration::canDelete($request->user(), $globalMessage), 403);
 
-        $message->delete();
+        $globalMessage->delete();
 
         return back();
     }
 
-    public function pin(Request $request, ChatMessage $message): RedirectResponse
+    public function pin(Request $request, ChatMessage $globalMessage): RedirectResponse
     {
         abort_unless($request->user()->isEmployee(), 403);
-        // Reservation group chats are private to their group — nothing to pin.
-        abort_unless($message->reservation_id === null, 404);
 
-        $message->pin();
+        $globalMessage->pin();
 
         return back();
     }
 
-    public function unpin(Request $request, ChatMessage $message): RedirectResponse
+    public function unpin(Request $request, ChatMessage $globalMessage): RedirectResponse
     {
         abort_unless($request->user()->isEmployee(), 403);
-        abort_unless($message->reservation_id === null, 404);
 
-        $message->unpin();
+        $globalMessage->unpin();
 
         return back();
     }
@@ -101,6 +100,7 @@ class ChatController extends Controller
     {
         abort_unless($request->user()->isEmployee(), 403);
         abort_if($user->id === $request->user()->id, 422, 'You cannot mute yourself.');
+        abort_unless(ChatModeration::canMute($request->user(), $user), 403);
 
         $validated = $request->validate([
             'hours' => ['required', 'integer', 'min:1', 'max:8760'],
@@ -114,6 +114,7 @@ class ChatController extends Controller
     public function unmute(Request $request, User $user): RedirectResponse
     {
         abort_unless($request->user()->isEmployee(), 403);
+        abort_unless(ChatModeration::canMute($request->user(), $user), 403);
 
         $user->update(['chat_muted_until' => null]);
 
