@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Staff;
 
+use App\Events\OccupancyUpdated;
 use App\Events\UserCheckInStatusUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\CheckInEvent;
@@ -106,6 +107,7 @@ class ScanController extends Controller
         ]);
 
         UserCheckInStatusUpdated::dispatch($user);
+        OccupancyUpdated::dispatch();
 
         return response()->json([
             'found' => true,

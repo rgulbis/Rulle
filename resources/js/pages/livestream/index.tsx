@@ -1,17 +1,51 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import Hls from 'hls.js';
 import { useEffect, useRef, useState } from 'react';
-import type { Auth } from '@/types/auth';
+import AppLayout from '@/layouts/app-layout';
 
 // Same-origin: Cloudflare Tunnel proxies this path straight to MediaMTX's
 // HLS output (see docker/cloudflared-setup.sh), so there's no CORS to deal
 // with and this works identically in dev and production.
 const STREAM_URL = '/live-cam/index.m3u8';
 
-export default function Livestream() {
-    const { auth } = usePage<{ auth: Auth }>().props;
+type TimeRange = {
+    starts_at: string;
+    ends_at: string;
+};
+
+type Props = {
+    checkedInCount: number;
+    todaysReservations: TimeRange[];
+};
+
+function formatTime(dateTime: string) {
+    return new Date(dateTime).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
+export default function Livestream({
+    checkedInCount: initialCount,
+    todaysReservations,
+}: Props) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [error, setError] = useState<string | null>(null);
+    const [checkedInCount, setCheckedInCount] = useState(initialCount);
+
+    useEffect(() => {
+        // Public channel — no auth needed, matching this being a public
+        // page. A headcount isn't sensitive the way who's inside is.
+        const channel = window.Echo.channel('occupancy');
+
+        channel.listen('.occupancy.updated', (e: { count: number }) => {
+            setCheckedInCount(e.count);
+        });
+
+        return () => {
+            window.Echo.leave('occupancy');
+        };
+    }, []);
 
     useEffect(() => {
         const video = videoRef.current;
@@ -61,38 +95,7 @@ export default function Livestream() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-gray-50 text-gray-900">
-            <nav className="border-b border-gray-200 bg-white">
-                <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-                    <Link href="/" className="font-semibold text-gray-900">
-                        Rullē
-                    </Link>
-                    <div className="flex items-center gap-6">
-                        <Link
-                            href="/livestream"
-                            className="text-sm font-semibold text-gray-900"
-                        >
-                            Livestream
-                        </Link>
-                        {auth.user ? (
-                            <button
-                                onClick={() => router.post('/logout')}
-                                className="text-sm font-medium text-red-600 hover:text-red-500"
-                            >
-                                Log out
-                            </button>
-                        ) : (
-                            <Link
-                                href="/login"
-                                className="text-sm font-medium text-gray-500 hover:text-gray-900"
-                            >
-                                Log in
-                            </Link>
-                        )}
-                    </div>
-                </div>
-            </nav>
-
+        <AppLayout>
             <Head title="Livestream" />
             <div className="p-6">
                 <div className="mx-auto flex max-w-3xl flex-col gap-4">
@@ -102,6 +105,26 @@ export default function Livestream() {
                     <p className="text-sm text-gray-500">
                         A live look at the park. Not recorded or saved.
                     </p>
+
+                    <div className="flex flex-wrap items-center gap-4 text-sm">
+                        <span className="inline-flex items-center gap-1.5 rounded-none border border-gray-200 bg-white px-3 py-1.5 font-medium text-gray-900">
+                            <span className="h-2 w-2 rounded-full bg-green-500" />
+                            {checkedInCount}{' '}
+                            {checkedInCount === 1 ? 'person' : 'people'} checked
+                            in
+                        </span>
+                        <span className="text-gray-500">
+                            {todaysReservations.length === 0
+                                ? 'No reservations today.'
+                                : 'Reserved today: ' +
+                                  todaysReservations
+                                      .map(
+                                          (r) =>
+                                              `${formatTime(r.starts_at)}–${formatTime(r.ends_at)}`,
+                                      )
+                                      .join(', ')}
+                        </span>
+                    </div>
 
                     <div className="aspect-video w-full rounded-none border border-gray-200 bg-black">
                         {error ? (
@@ -121,6 +144,6 @@ export default function Livestream() {
                     </div>
                 </div>
             </div>
-        </div>
+        </AppLayout>
     );
 }

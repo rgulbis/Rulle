@@ -1,5 +1,6 @@
 <?php
 
+use App\Events\OccupancyUpdated;
 use App\Events\UserCheckInStatusUpdated;
 use App\Models\Purchase;
 use App\Models\Reservation;
@@ -94,6 +95,28 @@ test('scanning a client with an active purchase toggles check-in and consumes a 
     $response->assertOk()->assertJson(['checked_in' => false]);
     expect($client->fresh()->checked_in)->toBeFalse();
     expect($client->activeOneTimePurchase()->visits_remaining)->toBe(1);
+});
+
+test('a successful scan broadcasts the updated occupancy count for the livestream page', function () {
+    Event::fake([OccupancyUpdated::class]);
+
+    $staff = User::factory()->create(['role' => 'employee']);
+    $client = User::factory()->create(['role' => 'user', 'checked_in' => false]);
+    $type = makeSubscriptionType(['visit_limit' => 2]);
+    Purchase::create([
+        'user_id' => $client->id,
+        'subscription_type_id' => $type->id,
+        'stripe_checkout_session_id' => 'cs_test_1',
+        'status' => 'active',
+        'visits_remaining' => 2,
+    ]);
+
+    $this->actingAs($staff)->postJson('/staff/scan', ['code' => $client->qr_code, 'mode' => 'entry']);
+
+    Event::assertDispatched(OccupancyUpdated::class);
+    // The public headcount, not who's inside — broadcastWith() must never
+    // grow to include names or ids.
+    expect((new OccupancyUpdated)->broadcastWith())->toBe(['count' => 1]);
 });
 
 test('scanning for entry while already checked in is rejected', function () {

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\LivestreamController;
 use App\Http\Controllers\Reservations\ReservationChatController;
 use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\Settings\PasswordController;
@@ -20,9 +21,8 @@ Route::bind('globalMessage', fn (string $value) => ChatMessage::whereNull('reser
 Route::post('stripe/webhook', [WebhookController::class, 'handleWebhook'])->name('cashier.webhook');
 
 // Public, no auth — guests get general info and the livestream per the
-// project spec; the page renders its own minimal nav instead of AppLayout
-// since AppLayout assumes an always-logged-in `auth.user`.
-Route::get('livestream', fn () => Inertia::render('livestream/index'))->name('livestream.index');
+// project spec.
+Route::get('livestream', [LivestreamController::class, 'index'])->name('livestream.index');
 
 Route::middleware(['auth', 'customer-only'])->group(function () {
     Route::get('dashboard', function (Request $request) {
@@ -80,4 +80,4 @@ require __DIR__.'/auth.php';
 
 // The site's default landing page is now the public livestream/guest page,
 // not a login wall — logging in is still one click away via its own nav.
-Route::get('/', fn () => Inertia::render('livestream/index'))->name('home');
+Route::get('/', [LivestreamController::class, 'index'])->name('home');

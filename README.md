@@ -165,9 +165,9 @@ credentials.
    `~/.cloudflared/config.yml` to add the `path: ^/live-cam/.*` rule (see the
    script for the exact block and where it goes — order matters, it must
    come before the catch-all rule), then:
-   ```bash
-   docker restart cloudflared
-   ```
+    ```bash
+    docker restart cloudflared
+    ```
 4. **Deploy** (push to `main`, or re-run the workflow) so the new
    `CAMERA_RTSP_URL` reaches the server's `.env` and the `mediamtx` service
    starts.
