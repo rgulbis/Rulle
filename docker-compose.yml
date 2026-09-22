@@ -34,18 +34,25 @@ services:
             - app_storage:/var/www/html/storage
 
     # Pulls the Reolink's RTSP feed and re-serves it as HLS for the
-    # livestream page — see docker/mediamtx.yml and the "Livestream" section
-    # of the README. CAMERA_RTSP_URL comes from .env like everything else
-    # here; the credentials never appear in this file or in git.
+    # livestream page — see docker/mediamtx.yml, mediamtx.Dockerfile, and
+    # the "Livestream" section of the README.
+    #
+    # The config (with CAMERA_RTSP_URL substituted in) is baked into a
+    # custom image at build time rather than bind-mounted at runtime — our
+    # deploy runner is itself a container sharing the host's Docker socket,
+    # so a runtime bind-mount source path valid inside the runner doesn't
+    # exist at that same path on the actual host. CAMERA_RTSP_URL never
+    # appears in this file or in git either way.
     mediamtx:
-        image: bluenviron/mediamtx:latest
+        build:
+            context: .
+            dockerfile: mediamtx.Dockerfile
+            args:
+                CAMERA_RTSP_URL: ${CAMERA_RTSP_URL}
+        image: skatepark-mediamtx
         restart: unless-stopped
         ports:
             - '8888:8888'
-        env_file:
-            - .env
-        volumes:
-            - ./docker/mediamtx.yml:/mediamtx.yml:ro
 
 volumes:
     app_storage:

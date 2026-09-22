@@ -2,9 +2,11 @@
 # and re-serves it as HLS, which every visitor's browser can play with
 # hls.js — a raw RTSP feed isn't something a browser can open directly.
 #
-# ${CAMERA_RTSP_URL} is expanded by MediaMTX itself at startup; it's never
-# written to disk here, so the camera's credentials stay out of git and out
-# of this file.
+# ${CAMERA_RTSP_URL} below is a placeholder substituted at Docker build
+# time (see mediamtx.Dockerfile) — MediaMTX itself doesn't expand env vars
+# inside arbitrary values like this, so it's never left as-is at runtime.
+# It's never written to this file in git, so the camera's credentials
+# don't appear here.
 
 hls: yes
 hlsAddress: :8888
@@ -13,8 +15,10 @@ hlsAddress: :8888
 # and keyframe delay before anything played.
 hlsAlwaysRemux: yes
 # Cloudflare's edge caches HTTP responses by default; a stale cached segment
-# would mean viewers see a frozen frame instead of a live feed.
-hlsSegmentCount: 3
+# would mean viewers see a frozen frame instead of a live feed — short
+# segments keep that window small. 7 is the minimum MediaMTX allows for its
+# default low-latency HLS variant.
+hlsSegmentCount: 7
 hlsSegmentDuration: 1s
 
 paths:
