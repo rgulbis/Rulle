@@ -47,6 +47,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
                             <NavLink href="/staff/scan">Scan</NavLink>
                         )}
                         <NavLink href="/chat">Chat</NavLink>
+                        <NavLink href="/livestream">Livestream</NavLink>
                         {auth.user.role === 'admin' && (
                             <a
                                 href="/admin"

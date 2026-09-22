@@ -33,5 +33,19 @@ services:
         volumes:
             - app_storage:/var/www/html/storage
 
+    # Pulls the Reolink's RTSP feed and re-serves it as HLS for the
+    # livestream page — see docker/mediamtx.yml and the "Livestream" section
+    # of the README. CAMERA_RTSP_URL comes from .env like everything else
+    # here; the credentials never appear in this file or in git.
+    mediamtx:
+        image: bluenviron/mediamtx:latest
+        restart: unless-stopped
+        ports:
+            - '8888:8888'
+        env_file:
+            - .env
+        volumes:
+            - ./docker/mediamtx.yml:/mediamtx.yml:ro
+
 volumes:
     app_storage:

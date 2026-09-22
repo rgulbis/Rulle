@@ -1,0 +1,24 @@
+# MediaMTX pulls the Reolink's RTSP feed once (from CAMERA_RTSP_URL in .env)
+# and re-serves it as HLS, which every visitor's browser can play with
+# hls.js — a raw RTSP feed isn't something a browser can open directly.
+#
+# ${CAMERA_RTSP_URL} is expanded by MediaMTX itself at startup; it's never
+# written to disk here, so the camera's credentials stay out of git and out
+# of this file.
+
+hls: yes
+hlsAddress: :8888
+# Always-on rather than only-while-someone's-watching: the first viewer of a
+# lazily-started feed would otherwise wait through the camera's connection
+# and keyframe delay before anything played.
+hlsAlwaysRemux: yes
+# Cloudflare's edge caches HTTP responses by default; a stale cached segment
+# would mean viewers see a frozen frame instead of a live feed.
+hlsSegmentCount: 3
+hlsSegmentDuration: 1s
+
+paths:
+    live-cam:
+        # CAMERA_RTSP_URL is the full URL, e.g.
+        # rtsp://user:pass@192.168.1.50:554/h264Preview_01_sub
+        source: ${CAMERA_RTSP_URL}

@@ -1,18 +1,28 @@
 <?php
 
-use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\Reservations\ReservationChatController;
 use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Staff\ScanController;
 use App\Http\Controllers\Subscriptions\SubscriptionController;
+use App\Models\ChatMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Cashier\Http\Controllers\WebhookController;
 
+// `{globalMessage}` only ever resolves a message from the global room. A
+// reservation's private group chat message id 404s on every global-chat route
+// by construction, so no controller method has to remember to check.
+Route::bind('globalMessage', fn (string $value) => ChatMessage::whereNull('reservation_id')->findOrFail($value));
+
 Route::post('stripe/webhook', [WebhookController::class, 'handleWebhook'])->name('cashier.webhook');
+
+// Public, no auth — guests get general info and the livestream per the
+// project spec; the page renders its own minimal nav instead of AppLayout
+// since AppLayout assumes an always-logged-in `auth.user`.
+Route::get('livestream', fn () => Inertia::render('livestream/index'))->name('livestream.index');
 
 Route::middleware(['auth', 'customer-only'])->group(function () {
     Route::get('dashboard', function (Request $request) {
@@ -33,9 +43,9 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
     Route::post('chat', [ChatController::class, 'store'])->name('chat.store');
-    Route::delete('chat/{message}', [ChatController::class, 'destroy'])->name('chat.destroy');
-    Route::post('chat/{message}/pin', [ChatController::class, 'pin'])->name('chat.pin');
-    Route::delete('chat/{message}/pin', [ChatController::class, 'unpin'])->name('chat.unpin');
+    Route::delete('chat/{globalMessage}', [ChatController::class, 'destroy'])->name('chat.destroy');
+    Route::post('chat/{globalMessage}/pin', [ChatController::class, 'pin'])->name('chat.pin');
+    Route::delete('chat/{globalMessage}/pin', [ChatController::class, 'unpin'])->name('chat.unpin');
     Route::post('chat/users/{user}/mute', [ChatController::class, 'mute'])->name('chat.mute');
     Route::post('chat/users/{user}/unmute', [ChatController::class, 'unmute'])->name('chat.unmute');
 });
@@ -68,4 +78,6 @@ Route::middleware(['auth', 'can-scan'])->group(function () {
 
 require __DIR__.'/auth.php';
 
-Route::middleware('guest')->get('/', [AuthenticatedSessionController::class, 'create'])->name('home');
+// The site's default landing page is now the public livestream/guest page,
+// not a login wall — logging in is still one click away via its own nav.
+Route::get('/', fn () => Inertia::render('livestream/index'))->name('home');

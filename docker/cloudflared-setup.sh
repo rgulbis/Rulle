@@ -41,6 +41,11 @@ ingress:
   - hostname: www.$DOMAIN
     path: ^/app/.*
     service: http://host.docker.internal:8081
+  # MediaMTX's HLS output for the livestream page (see docker-compose.yml
+  # and docker/mediamtx.yml) — same reasoning, must precede the catch-all.
+  - hostname: www.$DOMAIN
+    path: ^/live-cam/.*
+    service: http://host.docker.internal:8888
   - hostname: www.$DOMAIN
     service: http://host.docker.internal:8080
   - service: http_status:404

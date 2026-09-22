@@ -130,3 +130,49 @@ docker exec skatepark-app-1 touch storage/app/database.sqlite
 docker exec skatepark-app-1 php artisan migrate --force
 docker exec skatepark-app-1 php artisan db:seed --force
 ```
+
+### Livestream (Reolink camera)
+
+`/livestream` is public — no login required, per the spec's guest access —
+and plays an HLS feed pulled from a Reolink camera on the same network as
+the production server. The pipeline:
+
+```
+Reolink camera --RTSP--> MediaMTX (docker-compose service) --HLS--> Cloudflare Tunnel --> browser (hls.js)
+```
+
+MediaMTX (`docker/mediamtx.yml`) does the actual RTSP→HLS conversion; the
+app never touches the video itself. The camera's RTSP URL is
+`CAMERA_RTSP_URL` in `.env` (a `GitHub Actions` secret in prod, same pattern
+as `STRIPE_SECRET` etc.) — never commit it, since it embeds the camera's
+credentials.
+
+**One-time setup, in this order:**
+
+1. **Find the camera's RTSP URL.** In the Reolink app: Settings → Network →
+   IP address. Build the URL as
+   `rtsp://<user>:<pass>@<camera-ip>:554/h264Preview_01_sub` (the `_sub`
+   substream — lower resolution, much lighter than `_main`, which is plenty
+   for a web embed). Test it in VLC (Media → Open Network Stream) before
+   wiring anything else up — if VLC can't play it, nothing downstream will
+   either.
+2. **Add the GitHub secret.** Repo → Settings → Secrets and variables →
+   Actions → `CAMERA_RTSP_URL`, value = the URL from step 1.
+3. **Update the live Cloudflare Tunnel config.** `docker/cloudflared-setup.sh`
+   is a run-once bootstrap script — it won't re-run on its own, so the
+   already-provisioned tunnel needs its `ingress` rules updated by hand to
+   match what's now in the script. SSH into the server and edit
+   `~/.cloudflared/config.yml` to add the `path: ^/live-cam/.*` rule (see the
+   script for the exact block and where it goes — order matters, it must
+   come before the catch-all rule), then:
+   ```bash
+   docker restart cloudflared
+   ```
+4. **Deploy** (push to `main`, or re-run the workflow) so the new
+   `CAMERA_RTSP_URL` reaches the server's `.env` and the `mediamtx` service
+   starts.
+5. **Check it.** `https://www.xn--rull-eva.lv/livestream` should show the
+   feed within a few seconds. If it shows "Camera feed isn't available right
+   now", check `docker logs skatepark-mediamtx-1` on the server — almost
+   always either the RTSP URL/credentials are wrong, or the camera and
+   server aren't actually on the same network.

@@ -40,6 +40,7 @@ jobs:
           sed -i "s|^MAIL_MAILER=.*|MAIL_MAILER=resend|" .env
           sed -i "s|^MAIL_FROM_ADDRESS=.*|MAIL_FROM_ADDRESS=hello@xn--rull-eva.lv|" .env
           echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> .env
+          echo "CAMERA_RTSP_URL=${{ secrets.CAMERA_RTSP_URL }}" >> .env
 
       - name: Build image
         run: docker compose build
