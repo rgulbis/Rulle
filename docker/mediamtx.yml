@@ -10,15 +10,22 @@
 
 hls: yes
 hlsAddress: :8888
+# MediaMTX's default HLS mode is low-latency (LL-HLS), which needs the
+# camera to produce parts of a genuinely stable duration — RTSP cameras
+# generally don't, so that duration drifts constantly. hls.js (Windows/
+# Android/most browsers) tolerates that fine, but Safari's *native* HLS
+# playback (used on macOS/iOS, since Safari can play HLS without hls.js)
+# doesn't, and playback fails there. Plain HLS has no such requirement.
+hlsVariant: mpegts
 # Always-on rather than only-while-someone's-watching: the first viewer of a
 # lazily-started feed would otherwise wait through the camera's connection
 # and keyframe delay before anything played.
 hlsAlwaysRemux: yes
 # Cloudflare's edge caches HTTP responses by default; a stale cached segment
 # would mean viewers see a frozen frame instead of a live feed — short
-# segments keep that window small. 7 is the minimum MediaMTX allows for its
-# default low-latency HLS variant.
-hlsSegmentCount: 7
+# segments keep that window small (no lowLatency-mode minimum applies once
+# hlsVariant is mpegts).
+hlsSegmentCount: 3
 hlsSegmentDuration: 1s
 
 paths:
