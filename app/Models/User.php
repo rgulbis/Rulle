@@ -30,7 +30,12 @@ use Laravel\Cashier\Billable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'role', 'email_verified_at', 'chat_muted_until'])]
+// 'role' is deliberately left out — it's a privilege boundary, not just
+// another profile field, so it should never be settable via a mass-assigned
+// array built from request input. The admin panel (the only place a role is
+// meant to change) sets it via forceFill/forceCreate instead — see
+// App\Filament\Resources\Users\Pages\CreateUser and EditUser.
+#[Fillable(['name', 'email', 'password', 'email_verified_at', 'chat_muted_until'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
@@ -78,6 +83,23 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function isChatMuted(): bool
     {
         return $this->chat_muted_until !== null && $this->chat_muted_until->isFuture();
+    }
+
+    /**
+     * For showing an email address to someone other than its owner (e.g.
+     * disambiguating same-named results in a customer search) without
+     * handing out the full address — enough is visible to tell two people
+     * apart, not enough to be scraped as a usable contact list.
+     */
+    public static function maskEmail(string $email): string
+    {
+        if (! str_contains($email, '@')) {
+            return $email;
+        }
+
+        [$local, $domain] = explode('@', $email, 2);
+
+        return mb_substr($local, 0, 1).'***@'.$domain;
     }
 
     /**

@@ -17,7 +17,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->trustProxies(at: '*');
+        // The only real proxy hop in front of this app is the `cloudflared`
+        // container relaying Cloudflare Tunnel traffic over the internal
+        // Docker network (not Cloudflare's own edge IPs — a Tunnel doesn't
+        // expose a public IP to proxy from) — so trusting these private
+        // ranges is enough for `X-Forwarded-*` to be honoured from it,
+        // without also trusting a spoofed IP from anyone who reaches the
+        // app directly (e.g. now that login/register are IP-rate-limited).
+        $middleware->trustProxies(at: [
+            '10.0.0.0/8',
+            '172.16.0.0/12',
+            '192.168.0.0/16',
+        ]);
 
         $middleware->web(append: [
             HandleInertiaRequests::class,

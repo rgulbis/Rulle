@@ -295,7 +295,15 @@ class ReservationController extends Controller
             })
             ->orderBy('name')
             ->limit(10)
-            ->get(['id', 'name', 'email']);
+            ->get(['id', 'name', 'email'])
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                // Masked, not omitted — enough to disambiguate same-named
+                // people without letting any customer harvest every other
+                // customer's real email address through this search.
+                'email' => User::maskEmail($user->email),
+            ]);
 
         return response()->json($matches);
     }

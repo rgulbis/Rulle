@@ -11,6 +11,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Cashier\Cashier;
 use Laravel\Cashier\Subscription;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class SubscriptionController extends Controller
 {
@@ -96,14 +97,19 @@ class SubscriptionController extends Controller
         return redirect()->route('subscriptions.index')->with('status', 'subscription-cancelled');
     }
 
-    public function checkout(Request $request, SubscriptionType $subscriptionType): \Symfony\Component\HttpFoundation\Response
-    {
+    public function checkout(
+        Request $request,
+        SubscriptionType $subscriptionType,
+    ): SymfonyResponse {
         abort_unless($subscriptionType->active && $subscriptionType->stripe_price_id, 404);
 
         $user = $request->user();
 
         if ($subscriptionType->isRecurring()) {
-            abort_if($user->subscribed('default') && ! $user->subscription('default')->canceled(), 409, 'You already have an active subscription.');
+            $alreadySubscribed = $user->subscribed('default')
+                && ! $user->subscription('default')->canceled();
+
+            abort_if($alreadySubscribed, 409, 'You already have an active subscription.');
         }
 
         $successUrl = route('subscriptions.success').'?session_id={CHECKOUT_SESSION_ID}';

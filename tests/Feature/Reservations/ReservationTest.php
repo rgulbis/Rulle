@@ -252,6 +252,18 @@ test('user search excludes staff and the searching user themselves', function ()
     expect($names)->not->toContain('Findable Frank');
 });
 
+test('user search masks emails instead of exposing them in full', function () {
+    $searcher = User::factory()->create();
+    User::factory()->create(['name' => 'Findable Fiona', 'email' => 'fiona@example.com']);
+
+    $response = $this->actingAs($searcher)->getJson('/reservations/users/search?q=Findable');
+
+    $response->assertOk();
+    expect(collect($response->json())->pluck('email'))
+        ->toContain('f***@example.com')
+        ->not->toContain('fiona@example.com');
+});
+
 test('reservations index shows upcoming reservations without exposing who booked them', function () {
     $owner = User::factory()->create();
     makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
