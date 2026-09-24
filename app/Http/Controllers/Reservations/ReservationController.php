@@ -7,6 +7,7 @@ use App\Models\Reservation;
 use App\Models\ReservationSetting;
 use App\Models\User;
 use App\Support\CheckInOccupancy;
+use App\Support\StripeRefunds;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -223,13 +224,8 @@ class ReservationController extends Controller
             $settings = ReservationSetting::current();
             $refunded = false;
 
-            if ($settings->isEligibleForCancellationRefund($reservation->starts_at) && $reservation->stripe_checkout_session_id) {
-                $session = Cashier::stripe()->checkout->sessions->retrieve($reservation->stripe_checkout_session_id);
-
-                if ($session->payment_intent) {
-                    Cashier::stripe()->refunds->create(['payment_intent' => $session->payment_intent]);
-                    $refunded = true;
-                }
+            if ($settings->isEligibleForCancellationRefund($reservation->starts_at)) {
+                $refunded = StripeRefunds::refundCheckoutSession($reservation->stripe_checkout_session_id);
             }
 
             $reservation->update(['status' => 'cancelled']);

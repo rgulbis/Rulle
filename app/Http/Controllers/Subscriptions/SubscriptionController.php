@@ -136,6 +136,7 @@ class SubscriptionController extends Controller
             'user_id' => $user->id,
             'subscription_type_id' => $subscriptionType->id,
             'stripe_checkout_session_id' => $session->id,
+            'price_cents' => $subscriptionType->price_cents,
             'status' => 'pending',
         ]);
 

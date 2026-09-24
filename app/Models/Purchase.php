@@ -12,16 +12,18 @@ use Illuminate\Support\Carbon;
  * @property int $user_id
  * @property int $subscription_type_id
  * @property string $stripe_checkout_session_id
+ * @property int|null $price_cents
  * @property string $status
  * @property int|null $visits_remaining
  * @property Carbon|null $valid_date
  */
-#[Fillable(['user_id', 'subscription_type_id', 'stripe_checkout_session_id', 'status', 'visits_remaining', 'valid_date'])]
+#[Fillable(['user_id', 'subscription_type_id', 'stripe_checkout_session_id', 'price_cents', 'status', 'visits_remaining', 'valid_date'])]
 class Purchase extends Model
 {
     protected function casts(): array
     {
         return [
+            'price_cents' => 'integer',
             'visits_remaining' => 'integer',
             'valid_date' => 'date',
         ];

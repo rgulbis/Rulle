@@ -4,20 +4,8 @@ use App\Events\OccupancyUpdated;
 use App\Events\UserCheckInStatusUpdated;
 use App\Models\Purchase;
 use App\Models\Reservation;
-use App\Models\SubscriptionType;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
-
-function makeSubscriptionType(array $attributes = []): SubscriptionType
-{
-    // Avoid the model's `saved` hook making a real Stripe API call in tests.
-    return SubscriptionType::withoutEvents(fn () => SubscriptionType::create(array_merge([
-        'name' => 'Day pass',
-        'price_cents' => 500,
-        'billing_interval' => 'one_time',
-        'visit_limit' => 1,
-    ], $attributes)));
-}
 
 function makeActiveReservation(User $owner, array $attributes = []): Reservation
 {

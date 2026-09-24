@@ -2,6 +2,7 @@
 
 use App\Models\Reservation;
 use App\Models\ReservationSetting;
+use App\Models\SubscriptionType;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -75,4 +76,18 @@ function makeReservationSettings(array $attributes = []): ReservationSetting
         'closing_time' => '23:00',
         'cancellation_cutoff_hours' => 24,
     ], $attributes));
+}
+
+// withoutEvents() skips the model's `saved` hook, which would otherwise try
+// to sync this to Stripe over the network. Defaults to a one-time plan
+// since that's the one that produces a Purchase (a recurring plan goes
+// through Cashier's own subscriptions instead).
+function makeSubscriptionType(array $attributes = []): SubscriptionType
+{
+    return SubscriptionType::withoutEvents(fn () => SubscriptionType::create(array_merge([
+        'name' => 'Day pass',
+        'price_cents' => 500,
+        'billing_interval' => 'one_time',
+        'visit_limit' => 1,
+    ], $attributes)));
 }
