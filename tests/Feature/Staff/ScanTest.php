@@ -2,6 +2,7 @@
 
 use App\Events\OccupancyUpdated;
 use App\Events\UserCheckInStatusUpdated;
+use App\Models\CheckInEvent;
 use App\Models\Purchase;
 use App\Models\Reservation;
 use App\Models\User;
@@ -18,6 +19,25 @@ function makeActiveReservation(User $owner, array $attributes = []): Reservation
         'status' => 'active',
     ], $attributes));
 }
+
+// A fresh user has no check_in_events at all, which already reads as "not
+// checked in" — this is only needed to set up the opposite starting state.
+function checkUserIn(User $user): void
+{
+    CheckInEvent::create(['user_id' => $user->id, 'checked_in' => true]);
+}
+
+test('isCurrentlyCheckedIn reflects only the most recent event', function () {
+    $user = User::factory()->create();
+
+    expect($user->isCurrentlyCheckedIn())->toBeFalse();
+
+    checkUserIn($user);
+    expect($user->isCurrentlyCheckedIn())->toBeTrue();
+
+    CheckInEvent::create(['user_id' => $user->id, 'checked_in' => false]);
+    expect($user->isCurrentlyCheckedIn())->toBeFalse();
+});
 
 test('non-staff users cannot access the scanner', function () {
     $client = User::factory()->create(['role' => 'user']);
@@ -47,7 +67,7 @@ test('scanning a client with an active purchase toggles check-in and consumes a 
     Event::fake([UserCheckInStatusUpdated::class]);
 
     $staff = User::factory()->create(['role' => 'employee']);
-    $client = User::factory()->create(['role' => 'user', 'checked_in' => false]);
+    $client = User::factory()->create(['role' => 'user']);
     $type = makeSubscriptionType(['visit_limit' => 2]);
     Purchase::create([
         'user_id' => $client->id,
@@ -68,11 +88,11 @@ test('scanning a client with an active purchase toggles check-in and consumes a 
         'name' => $client->name,
         'checked_in' => true,
     ]);
-    expect($client->fresh()->checked_in)->toBeTrue();
+    expect($client->isCurrentlyCheckedIn())->toBeTrue();
     expect($client->activeOneTimePurchase()->visits_remaining)->toBe(1);
     Event::assertDispatched(
         UserCheckInStatusUpdated::class,
-        fn (UserCheckInStatusUpdated $event) => $event->user->is($client) && $event->user->checked_in === true,
+        fn (UserCheckInStatusUpdated $event) => $event->user->is($client) && $event->user->isCurrentlyCheckedIn() === true,
     );
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
@@ -80,8 +100,8 @@ test('scanning a client with an active purchase toggles check-in and consumes a 
         'mode' => 'exit',
     ]);
 
-    $response->assertOk()->assertJson(['checked_in' => false]);
-    expect($client->fresh()->checked_in)->toBeFalse();
+    $response->assertOk()->assertJson([]);
+    expect($client->isCurrentlyCheckedIn())->toBeFalse();
     expect($client->activeOneTimePurchase()->visits_remaining)->toBe(1);
 });
 
@@ -89,7 +109,7 @@ test('a successful scan broadcasts the updated occupancy count for the livestrea
     Event::fake([OccupancyUpdated::class]);
 
     $staff = User::factory()->create(['role' => 'employee']);
-    $client = User::factory()->create(['role' => 'user', 'checked_in' => false]);
+    $client = User::factory()->create(['role' => 'user']);
     $type = makeSubscriptionType(['visit_limit' => 2]);
     Purchase::create([
         'user_id' => $client->id,
@@ -109,7 +129,8 @@ test('a successful scan broadcasts the updated occupancy count for the livestrea
 
 test('scanning for entry while already checked in is rejected', function () {
     $staff = User::factory()->create(['role' => 'employee']);
-    $client = User::factory()->create(['role' => 'user', 'checked_in' => true]);
+    $client = User::factory()->create(['role' => 'user']);
+    checkUserIn($client);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
@@ -122,12 +143,12 @@ test('scanning for entry while already checked in is rejected', function () {
         'name' => $client->name,
         'message' => 'Already checked in.',
     ]);
-    expect($client->fresh()->checked_in)->toBeTrue();
+    expect($client->isCurrentlyCheckedIn())->toBeTrue();
 });
 
 test('scanning for exit while not checked in is rejected', function () {
     $staff = User::factory()->create(['role' => 'employee']);
-    $client = User::factory()->create(['role' => 'user', 'checked_in' => false]);
+    $client = User::factory()->create(['role' => 'user']);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
@@ -140,12 +161,12 @@ test('scanning for exit while not checked in is rejected', function () {
         'name' => $client->name,
         'message' => 'Not currently checked in.',
     ]);
-    expect($client->fresh()->checked_in)->toBeFalse();
+    expect($client->isCurrentlyCheckedIn())->toBeFalse();
 });
 
 test('scanning a client with an unlimited-entries day pass allows repeated entries without consuming visits', function () {
     $staff = User::factory()->create(['role' => 'employee']);
-    $client = User::factory()->create(['role' => 'user', 'checked_in' => false]);
+    $client = User::factory()->create(['role' => 'user']);
     $type = makeSubscriptionType(['unlimited_entries' => true, 'visit_limit' => null]);
     Purchase::create([
         'user_id' => $client->id,
@@ -185,7 +206,7 @@ test('an unlimited-entries day pass is not usable on a different day', function 
 
 test('scanning a client with no active subscription denies entry', function () {
     $staff = User::factory()->create(['role' => 'employee']);
-    $client = User::factory()->create(['role' => 'user', 'checked_in' => false]);
+    $client = User::factory()->create(['role' => 'user']);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
@@ -197,12 +218,12 @@ test('scanning a client with no active subscription denies entry', function () {
         'allowed' => false,
         'name' => $client->name,
     ]);
-    expect($client->fresh()->checked_in)->toBeFalse();
+    expect($client->isCurrentlyCheckedIn())->toBeFalse();
 });
 
 test('scanning a client with unverified email denies entry even with active access', function () {
     $staff = User::factory()->create(['role' => 'employee']);
-    $client = User::factory()->unverified()->create(['role' => 'user', 'checked_in' => false]);
+    $client = User::factory()->unverified()->create(['role' => 'user']);
     $type = makeSubscriptionType(['unlimited_entries' => true, 'visit_limit' => null]);
     Purchase::create([
         'user_id' => $client->id,
@@ -222,19 +243,20 @@ test('scanning a client with unverified email denies entry even with active acce
         'allowed' => false,
         'message' => 'Email not verified.',
     ]);
-    expect($client->fresh()->checked_in)->toBeFalse();
+    expect($client->isCurrentlyCheckedIn())->toBeFalse();
 });
 
 test('checking out does not require an active subscription', function () {
     $staff = User::factory()->create(['role' => 'employee']);
-    $client = User::factory()->create(['role' => 'user', 'checked_in' => true]);
+    $client = User::factory()->create(['role' => 'user']);
+    checkUserIn($client);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $client->qr_code,
         'mode' => 'exit',
     ]);
 
-    $response->assertOk()->assertJson(['allowed' => true, 'checked_in' => false]);
+    $response->assertOk()->assertJson(['allowed' => true]);
 });
 
 test('scanning an unknown code returns not found', function () {
@@ -261,7 +283,7 @@ test('a customer outside an active reservation is denied entry', function () {
     $owner = User::factory()->create();
     makeActiveReservation($owner);
 
-    $outsider = User::factory()->create(['checked_in' => false]);
+    $outsider = User::factory()->create([]);
     $type = makeSubscriptionType(['unlimited_entries' => true, 'visit_limit' => null]);
     Purchase::create([
         'user_id' => $outsider->id,
@@ -277,12 +299,12 @@ test('a customer outside an active reservation is denied entry', function () {
     ]);
 
     $response->assertForbidden()->assertJson(['found' => true, 'allowed' => false]);
-    expect($outsider->fresh()->checked_in)->toBeFalse();
+    expect($outsider->isCurrentlyCheckedIn())->toBeFalse();
 });
 
 test('the reservation owner can still enter during their own reservation', function () {
     $staff = User::factory()->create(['role' => 'employee']);
-    $owner = User::factory()->create(['checked_in' => false]);
+    $owner = User::factory()->create([]);
     makeActiveReservation($owner);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
@@ -297,7 +319,7 @@ test('a reservation participant can still enter during the reservation', functio
     $staff = User::factory()->create(['role' => 'employee']);
     $owner = User::factory()->create();
     $reservation = makeActiveReservation($owner);
-    $participant = User::factory()->create(['checked_in' => false]);
+    $participant = User::factory()->create([]);
     $reservation->participants()->attach($participant->id);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
@@ -309,7 +331,7 @@ test('a reservation participant can still enter during the reservation', functio
 });
 
 test('staff can still enter during an active reservation', function () {
-    $staff = User::factory()->create(['role' => 'employee', 'checked_in' => false]);
+    $staff = User::factory()->create(['role' => 'employee']);
     $owner = User::factory()->create();
     makeActiveReservation($owner);
 
@@ -339,12 +361,13 @@ test('reservation exclusivity does not block checking out', function () {
     $owner = User::factory()->create();
     makeActiveReservation($owner);
 
-    $outsider = User::factory()->create(['checked_in' => true]);
+    $outsider = User::factory()->create();
+    checkUserIn($outsider);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $outsider->qr_code,
         'mode' => 'exit',
     ]);
 
-    $response->assertOk()->assertJson(['allowed' => true, 'checked_in' => false]);
+    $response->assertOk()->assertJson(['allowed' => true]);
 });

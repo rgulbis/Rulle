@@ -42,7 +42,7 @@ class ScanController extends Controller
         // it from the current state, so a code that's already inside can't
         // be scanned for entry again (e.g. a screenshot passed to a friend
         // while the real owner is still on-site) and vice versa.
-        if ($entering === $user->checked_in) {
+        if ($entering === $user->isCurrentlyCheckedIn()) {
             return response()->json([
                 'found' => true,
                 'allowed' => false,
@@ -98,9 +98,6 @@ class ScanController extends Controller
             }
         }
 
-        $user->checked_in = $entering;
-        $user->save();
-
         CheckInEvent::create([
             'user_id' => $user->id,
             'checked_in' => $entering,
@@ -113,7 +110,7 @@ class ScanController extends Controller
             'found' => true,
             'allowed' => true,
             'name' => $user->name,
-            'checked_in' => $user->checked_in,
+            'checked_in' => $entering,
         ]);
     }
 }

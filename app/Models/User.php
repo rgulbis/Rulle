@@ -24,7 +24,6 @@ use Laravel\Cashier\Billable;
  * @property string $password
  * @property string $role
  * @property string $qr_code
- * @property bool $checked_in
  * @property Carbon|null $chat_muted_until
  * @property string|null $remember_token
  * @property Carbon|null $created_at
@@ -173,8 +172,20 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'checked_in' => 'boolean',
             'chat_muted_until' => 'datetime',
         ];
+    }
+
+    /**
+     * Whether this user is currently inside the park, derived from their
+     * most recent check_in_events row rather than a cached column — see
+     * App\Support\CheckInOccupancy for the equivalent count across everyone.
+     */
+    public function isCurrentlyCheckedIn(): bool
+    {
+        // Ordered by id, not created_at: two events landing in the same
+        // timestamp (SQLite's precision is only to the second) would
+        // otherwise tie, and id is always a reliable insertion order.
+        return (bool) CheckInEvent::where('user_id', $this->id)->orderByDesc('id')->value('checked_in');
     }
 }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\CheckInEvent;
 use App\Models\Reservation;
 use App\Models\User;
 
@@ -29,8 +30,11 @@ test('the site root is the same public livestream page, not a login wall', funct
 });
 
 test('the livestream page shows how many people are currently checked in', function () {
-    User::factory()->count(2)->create(['checked_in' => true]);
-    User::factory()->count(3)->create(['checked_in' => false]);
+    User::factory()->count(2)->create()->each(
+        fn (User $user) => CheckInEvent::create(['user_id' => $user->id, 'checked_in' => true]),
+    );
+    // Never checked in at all — should not count towards the headcount.
+    User::factory()->count(3)->create();
 
     $this->get('/livestream')->assertInertia(fn ($page) => $page
         ->where('checkedInCount', 2)

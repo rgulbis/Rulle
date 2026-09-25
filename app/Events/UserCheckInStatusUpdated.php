@@ -35,6 +35,6 @@ class UserCheckInStatusUpdated implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
-        return ['checked_in' => $this->user->checked_in];
+        return ['checked_in' => $this->user->isCurrentlyCheckedIn()];
     }
 }

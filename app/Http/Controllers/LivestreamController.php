@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Reservation;
-use App\Models\User;
+use App\Support\CheckInOccupancy;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -12,7 +12,7 @@ class LivestreamController extends Controller
     public function index(): Response
     {
         return Inertia::render('livestream/index', [
-            'checkedInCount' => User::where('checked_in', true)->count(),
+            'checkedInCount' => CheckInOccupancy::currentlyCheckedInCount(),
             // Time ranges only — same as the reservations page, who booked
             // a slot isn't anyone else's business.
             'todaysReservations' => Reservation::where('status', 'active')

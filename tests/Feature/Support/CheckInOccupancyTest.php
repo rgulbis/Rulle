@@ -69,6 +69,18 @@ test('never goes negative even with an unmatched check-out', function () {
     expect($series['values'])->toBe([0, 0, 0]);
 });
 
+test('currentlyCheckedInCount reflects only each user\'s latest event', function () {
+    $start = Carbon::parse('2026-01-01 00:00:00');
+    $inside = User::factory()->create();
+    $left = User::factory()->create();
+
+    logEvent($inside, true, $start);
+    logEvent($left, true, $start);
+    logEvent($left, false, $start->copy()->addHour());
+
+    expect(CheckInOccupancy::currentlyCheckedInCount())->toBe(1);
+});
+
 test('typicalCheckInsByHour collapses check-ins across dates into a 24-hour profile', function () {
     $user = User::factory()->create();
 

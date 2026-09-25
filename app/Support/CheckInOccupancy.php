@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -72,19 +73,36 @@ class CheckInOccupancy
     }
 
     /**
+     * How many riders are inside the park right now — the source of truth
+     * for the live headcount, derived from everyone's latest event rather
+     * than a cached column on `users`.
+     */
+    public static function currentlyCheckedInCount(): int
+    {
+        return self::latestEventPerUser()->where('checked_in', true)->count();
+    }
+
+    /**
      * How many riders were already inside, right before $moment — the
      * starting balance the hourly running total needs to build from.
      */
     private static function occupancyBefore(Carbon $moment): int
     {
-        return (int) DB::table('check_in_events')
-            ->fromSub(function ($query) use ($moment) {
+        return self::latestEventPerUser($moment)->where('checked_in', true)->count();
+    }
+
+    /**
+     * Each user's most recent check_in_events row (as of $before, if given),
+     * one row per user_id.
+     */
+    private static function latestEventPerUser(?Carbon $before = null): Builder
+    {
+        return DB::table('check_in_events')
+            ->fromSub(function ($query) use ($before) {
                 $query->from('check_in_events')
-                    ->where('created_at', '<', $moment->toDateTimeString())
+                    ->when($before, fn ($q) => $q->where('created_at', '<', $before->toDateTimeString()))
                     ->selectRaw('user_id, checked_in, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id DESC) as rn');
             }, 'latest_per_user')
-            ->where('rn', 1)
-            ->where('checked_in', true)
-            ->count();
+            ->where('rn', 1);
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Events;
 
-use App\Models\User;
+use App\Support\CheckInOccupancy;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -32,6 +32,6 @@ class OccupancyUpdated implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
-        return ['count' => User::where('checked_in', true)->count()];
+        return ['count' => CheckInOccupancy::currentlyCheckedInCount()];
     }
 }

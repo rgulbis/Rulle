@@ -2,7 +2,7 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\User;
+use App\Support\CheckInOccupancy;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -13,7 +13,7 @@ class ActiveRidersStats extends StatsOverviewWidget
     protected function getStats(): array
     {
         return [
-            Stat::make('Active riders', User::where('checked_in', true)->count())
+            Stat::make('Active riders', CheckInOccupancy::currentlyCheckedInCount())
                 ->description('Currently checked in')
                 ->color('success'),
         ];

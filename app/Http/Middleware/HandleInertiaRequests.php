@@ -35,11 +35,22 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
+                // checked_in isn't a column on `users` (see
+                // User::isCurrentlyCheckedIn()) — added back here explicitly
+                // rather than via the model's global $appends, so it's only
+                // ever computed for the one logged-in user on every page
+                // load, not for every User serialized anywhere else in the
+                // app (reservation participants, chat senders, Filament...).
+                'user' => $user ? [
+                    ...$user->toArray(),
+                    'checked_in' => $user->isCurrentlyCheckedIn(),
+                ] : null,
             ],
         ];
     }
