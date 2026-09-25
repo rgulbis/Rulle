@@ -6,6 +6,7 @@ import {
     PrimaryButton,
     TextInput,
 } from '@/components/form-controls';
+import { useTranslation } from '@/lib/i18n/context';
 import AuthLayout from '@/layouts/auth-layout';
 
 export default function ResetPassword({
@@ -15,6 +16,7 @@ export default function ResetPassword({
     token: string;
     email: string;
 }) {
+    const { t } = useTranslation();
     const { data, setData, post, processing, errors, reset } = useForm({
         token,
         email,
@@ -31,12 +33,12 @@ export default function ResetPassword({
 
     return (
         <AuthLayout
-            title="Reset password"
-            description="Enter your new password below."
+            title={t('auth.resetPassword.title')}
+            description={t('auth.resetPassword.description')}
         >
             <form onSubmit={submit} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t('auth.email')}</Label>
                     <TextInput
                         id="email"
                         // See login.tsx: not type="email" so a Unicode
@@ -52,7 +54,9 @@ export default function ResetPassword({
                 </div>
 
                 <div className="flex flex-col gap-1">
-                    <Label htmlFor="password">New password</Label>
+                    <Label htmlFor="password">
+                        {t('settings.password.new')}
+                    </Label>
                     <TextInput
                         id="password"
                         type="password"
@@ -66,7 +70,7 @@ export default function ResetPassword({
 
                 <div className="flex flex-col gap-1">
                     <Label htmlFor="password_confirmation">
-                        Confirm new password
+                        {t('auth.resetPassword.confirmPassword')}
                     </Label>
                     <TextInput
                         id="password_confirmation"
@@ -85,7 +89,7 @@ export default function ResetPassword({
                     disabled={processing}
                     className="mt-2"
                 >
-                    Reset password
+                    {t('auth.resetPassword.submit')}
                 </PrimaryButton>
             </form>
         </AuthLayout>

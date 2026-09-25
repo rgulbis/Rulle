@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from '@/lib/i18n/context';
 
 type TimeRange = {
     starts_at: string;
@@ -64,6 +65,7 @@ export default function ReservationTimeline({
     value,
     onChange,
 }: Props) {
+    const { t } = useTranslation();
     const svgRef = useRef<SVGSVGElement>(null);
     const [hover, setHover] = useState<number | null>(null);
 
@@ -297,10 +299,16 @@ export default function ReservationTimeline({
             <div className="mt-2 flex items-center justify-between text-sm">
                 <p className="text-gray-700">
                     {value.start !== null && value.end !== null
-                        ? `${minutesToTime(value.start)} – ${minutesToTime(value.end)} (${value.end - value.start} min)`
+                        ? t('reservations.selectionSummary', {
+                              start: minutesToTime(value.start),
+                              end: minutesToTime(value.end),
+                              minutes: value.end - value.start,
+                          })
                         : value.start !== null
-                          ? `${minutesToTime(value.start)} – click an end time`
-                          : 'Click to choose a start time'}
+                          ? t('reservations.chooseEnd', {
+                                start: minutesToTime(value.start),
+                            })
+                          : t('reservations.chooseStart')}
                 </p>
                 {value.start !== null && (
                     <button
@@ -308,7 +316,7 @@ export default function ReservationTimeline({
                         onClick={() => onChange({ start: null, end: null })}
                         className="text-xs font-medium text-red-600 hover:text-red-500"
                     >
-                        Reset
+                        {t('reservations.reset')}
                     </button>
                 )}
             </div>

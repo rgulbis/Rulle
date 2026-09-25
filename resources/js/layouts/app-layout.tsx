@@ -1,5 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { PropsWithChildren, ReactNode } from 'react';
+import LanguageToggle from '@/components/language-toggle';
+import { useTranslation } from '@/lib/i18n/context';
 import type { User } from '@/types/auth';
 
 function NavLink({ href, children }: { href: string; children: ReactNode }) {
@@ -26,6 +28,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
     // user here really can be null, unlike every other page that renders it.
     const { auth } = usePage<{ auth: { user: User | null } }>().props;
     const user = auth.user;
+    const { t } = useTranslation();
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -33,50 +36,59 @@ export default function AppLayout({ children }: PropsWithChildren) {
                 <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-4 px-6 py-4">
                     <div className="flex flex-wrap items-center gap-6">
                         <span className="font-semibold text-gray-900">
-                            Rullē
+                            {t('nav.brand')}
                         </span>
                         {user?.role === 'user' && (
                             <>
-                                <NavLink href="/dashboard">Dashboard</NavLink>
+                                <NavLink href="/dashboard">
+                                    {t('nav.dashboard')}
+                                </NavLink>
                                 <NavLink href="/subscriptions">
-                                    Subscriptions
+                                    {t('nav.subscriptions')}
                                 </NavLink>
                                 <NavLink href="/reservations">
-                                    Reservations
+                                    {t('nav.reservations')}
                                 </NavLink>
                             </>
                         )}
                         {(user?.role === 'admin' ||
                             user?.role === 'employee') && (
-                            <NavLink href="/staff/scan">Scan</NavLink>
+                            <NavLink href="/staff/scan">
+                                {t('nav.scan')}
+                            </NavLink>
                         )}
-                        {user && <NavLink href="/chat">Chat</NavLink>}
-                        <NavLink href="/livestream">Livestream</NavLink>
+                        {user && (
+                            <NavLink href="/chat">{t('nav.chat')}</NavLink>
+                        )}
+                        <NavLink href="/livestream">
+                            {t('nav.livestream')}
+                        </NavLink>
                         {user?.role === 'admin' && (
                             <a
                                 href="/admin"
                                 className="text-sm font-medium text-gray-500 hover:text-gray-900"
                             >
-                                Admin
+                                {t('nav.admin')}
                             </a>
                         )}
                     </div>
 
                     <div className="flex items-center gap-6">
+                        <LanguageToggle />
                         {user ? (
                             <>
                                 <NavLink href="/settings/password">
-                                    Change password
+                                    {t('nav.changePassword')}
                                 </NavLink>
                                 <button
                                     onClick={() => router.post('/logout')}
                                     className="text-sm font-medium text-red-600 hover:text-red-500"
                                 >
-                                    Log out
+                                    {t('nav.logOut')}
                                 </button>
                             </>
                         ) : (
-                            <NavLink href="/login">Log in</NavLink>
+                            <NavLink href="/login">{t('nav.logIn')}</NavLink>
                         )}
                     </div>
                 </div>

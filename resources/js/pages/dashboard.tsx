@@ -3,10 +3,12 @@ import { FormEventHandler, useEffect, useState } from 'react';
 import { StatusMessage } from '@/components/form-controls';
 import QrCode from '@/components/qr-code';
 import AppLayout from '@/layouts/app-layout';
+import { useTranslation } from '@/lib/i18n/context';
 import type { Auth } from '@/types/auth';
 
 export default function Dashboard({ status }: { status?: string }) {
     const { auth } = usePage<{ auth: Auth }>().props;
+    const { t } = useTranslation();
     const { post, processing } = useForm({});
     const [checkedIn, setCheckedIn] = useState(auth.user.checked_in);
 
@@ -33,24 +35,25 @@ export default function Dashboard({ status }: { status?: string }) {
 
     return (
         <AppLayout>
-            <Head title="Dashboard" />
+            <Head title={t('nav.dashboard')} />
             <div className="flex justify-center p-6">
                 <div className="w-full max-w-sm rounded-none border border-gray-200 bg-white p-8 shadow-sm">
                     <h1 className="mb-1 text-xl font-semibold text-gray-900">
-                        Welcome, {auth.user.name}.
+                        {t('dashboard.welcome', { name: auth.user.name })}
                     </h1>
                     <p className="mb-6 text-sm text-gray-500">
-                        You're logged in.
+                        {t('dashboard.loggedIn')}
                     </p>
 
                     {!auth.user.email_verified_at && (
                         <div className="mb-6 rounded-none border border-amber-200 bg-amber-50 p-4">
                             {status === 'verification-link-sent' ? (
-                                <StatusMessage status="A new verification link has been sent to your email address." />
+                                <StatusMessage
+                                    status={t('dashboard.verificationSent')}
+                                />
                             ) : (
                                 <p className="mb-3 text-sm text-amber-800">
-                                    Please verify your email address to
-                                    subscribe or make purchases.
+                                    {t('dashboard.pleaseVerify')}
                                 </p>
                             )}
                             <form onSubmit={resendVerification}>
@@ -59,7 +62,7 @@ export default function Dashboard({ status }: { status?: string }) {
                                     disabled={processing}
                                     className="text-sm font-semibold text-yellow-700 hover:text-yellow-600 disabled:opacity-50"
                                 >
-                                    Resend verification email
+                                    {t('dashboard.resendVerification')}
                                 </button>
                             </form>
                         </div>
@@ -76,12 +79,14 @@ export default function Dashboard({ status }: { status?: string }) {
                                         : 'text-gray-500')
                                 }
                             >
-                                {checkedIn ? 'Checked in' : 'Not checked in'}
+                                {checkedIn
+                                    ? t('dashboard.checkedIn')
+                                    : t('dashboard.notCheckedIn')}
                             </p>
                         </div>
                     ) : (
                         <div className="rounded-none border border-gray-200 p-4 text-center text-sm text-gray-500">
-                            Verify your email to get your entry QR code.
+                            {t('dashboard.verifyForQrCode')}
                         </div>
                     )}
                 </div>

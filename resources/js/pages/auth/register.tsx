@@ -7,9 +7,11 @@ import {
     PrimaryButton,
     TextInput,
 } from '@/components/form-controls';
+import { useTranslation } from '@/lib/i18n/context';
 import AuthLayout from '@/layouts/auth-layout';
 
 export default function Register() {
+    const { t } = useTranslation();
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         email: '',
@@ -26,12 +28,12 @@ export default function Register() {
 
     return (
         <AuthLayout
-            title="Create an account"
-            description="Enter your details below to sign up."
+            title={t('auth.register.title')}
+            description={t('auth.register.description')}
         >
             <form onSubmit={submit} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
-                    <Label htmlFor="name">Name</Label>
+                    <Label htmlFor="name">{t('auth.register.name')}</Label>
                     <TextInput
                         id="name"
                         autoFocus
@@ -43,7 +45,7 @@ export default function Register() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t('auth.email')}</Label>
                     <TextInput
                         id="email"
                         type="email"
@@ -55,7 +57,7 @@ export default function Register() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">{t('auth.password')}</Label>
                     <TextInput
                         id="password"
                         type="password"
@@ -68,7 +70,7 @@ export default function Register() {
 
                 <div className="flex flex-col gap-1">
                     <Label htmlFor="password_confirmation">
-                        Confirm password
+                        {t('auth.register.confirmPassword')}
                     </Label>
                     <TextInput
                         id="password_confirmation"
@@ -87,13 +89,13 @@ export default function Register() {
                     disabled={processing}
                     className="mt-2"
                 >
-                    Sign up
+                    {t('auth.register.submit')}
                 </PrimaryButton>
             </form>
 
             <p className="mt-6 text-sm text-gray-500">
-                Already have an account?{' '}
-                <AuthLink href="/login">Log in</AuthLink>
+                {t('auth.register.haveAccount')}{' '}
+                <AuthLink href="/login">{t('auth.register.logIn')}</AuthLink>
             </p>
         </AuthLayout>
     );

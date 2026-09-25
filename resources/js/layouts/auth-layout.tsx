@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { PropsWithChildren } from 'react';
+import LanguageToggle from '@/components/language-toggle';
 
 export default function AuthLayout({
     title,
@@ -11,6 +12,9 @@ export default function AuthLayout({
             <Head title={title} />
             <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
                 <div className="w-full max-w-sm rounded-none border border-gray-300 bg-white p-8 shadow-sm">
+                    <div className="mb-3 flex justify-end">
+                        <LanguageToggle />
+                    </div>
                     <div className="mb-6">
                         <h1 className="text-xl font-semibold text-gray-900">
                             {title}

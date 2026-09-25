@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import ChatThread, { ChatMessage, SlowMode } from '@/components/chat-thread';
 import AppLayout from '@/layouts/app-layout';
+import { useTranslation } from '@/lib/i18n/context';
 
 type Props = {
     messages: ChatMessage[];
@@ -19,13 +20,15 @@ export default function ChatIndex({
     muted,
     mutedUntil,
 }: Props) {
+    const { t } = useTranslation();
+
     return (
         <AppLayout>
-            <Head title="Chat" />
+            <Head title={t('chat.title')} />
             <div className="p-6">
                 <div className="mx-auto flex max-w-3xl flex-col gap-4">
                     <h1 className="text-xl font-semibold text-gray-900">
-                        Chat
+                        {t('chat.title')}
                     </h1>
 
                     <ChatThread

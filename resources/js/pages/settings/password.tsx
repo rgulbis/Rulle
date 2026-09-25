@@ -8,8 +8,10 @@ import {
     TextInput,
 } from '@/components/form-controls';
 import AppLayout from '@/layouts/app-layout';
+import { useTranslation } from '@/lib/i18n/context';
 
 export default function UpdatePassword({ status }: { status?: string }) {
+    const { t } = useTranslation();
     const { data, setData, put, processing, errors, reset } = useForm({
         current_password: '',
         password: '',
@@ -28,27 +30,28 @@ export default function UpdatePassword({ status }: { status?: string }) {
 
     return (
         <AppLayout>
-            <Head title="Change password" />
+            <Head title={t('settings.password.title')} />
             <div className="flex justify-center p-6">
                 <div className="w-full max-w-sm rounded-none border border-gray-200 bg-white p-8 shadow-sm">
                     <div className="mb-6">
                         <h1 className="text-xl font-semibold text-gray-900">
-                            Change password
+                            {t('settings.password.title')}
                         </h1>
                         <p className="mt-1 text-sm text-gray-500">
-                            Ensure your account is using a long, random password
-                            to stay secure.
+                            {t('settings.password.subtitle')}
                         </p>
                     </div>
 
                     {status === 'password-updated' && (
-                        <StatusMessage status="Your password has been updated." />
+                        <StatusMessage
+                            status={t('settings.password.updated')}
+                        />
                     )}
 
                     <form onSubmit={submit} className="flex flex-col gap-4">
                         <div className="flex flex-col gap-1">
                             <Label htmlFor="current_password">
-                                Current password
+                                {t('settings.password.current')}
                             </Label>
                             <TextInput
                                 id="current_password"
@@ -64,7 +67,9 @@ export default function UpdatePassword({ status }: { status?: string }) {
                         </div>
 
                         <div className="flex flex-col gap-1">
-                            <Label htmlFor="password">New password</Label>
+                            <Label htmlFor="password">
+                                {t('settings.password.new')}
+                            </Label>
                             <TextInput
                                 id="password"
                                 type="password"
@@ -79,7 +84,7 @@ export default function UpdatePassword({ status }: { status?: string }) {
 
                         <div className="flex flex-col gap-1">
                             <Label htmlFor="password_confirmation">
-                                Confirm new password
+                                {t('settings.password.confirm')}
                             </Label>
                             <TextInput
                                 id="password_confirmation"
@@ -103,7 +108,7 @@ export default function UpdatePassword({ status }: { status?: string }) {
                             disabled={processing}
                             className="mt-2"
                         >
-                            Update password
+                            {t('settings.password.submit')}
                         </PrimaryButton>
                     </form>
                 </div>

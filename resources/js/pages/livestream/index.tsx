@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import Hls from 'hls.js';
 import { useEffect, useRef, useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import { useTranslation } from '@/lib/i18n/context';
 
 // Same-origin: Cloudflare Tunnel proxies this path straight to MediaMTX's
 // HLS output (see docker/cloudflared-setup.sh), so there's no CORS to deal
@@ -18,20 +19,24 @@ type Props = {
     todaysReservations: TimeRange[];
 };
 
-function formatTime(dateTime: string) {
-    return new Date(dateTime).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
-
 export default function Livestream({
     checkedInCount: initialCount,
     todaysReservations,
 }: Props) {
+    const { t, tCount, intlLocale } = useTranslation();
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [error, setError] = useState<string | null>(null);
+    // A key into the dictionary, not the formatted message itself — so
+    // switching language afterwards updates text that's already on screen,
+    // without needing to re-run the effect below (which would needlessly
+    // restart the stream) just because the locale changed.
+    const [error, setError] = useState<'offline' | 'unsupported' | null>(null);
     const [checkedInCount, setCheckedInCount] = useState(initialCount);
+
+    const formatTime = (dateTime: string) =>
+        new Date(dateTime).toLocaleTimeString(intlLocale, {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
 
     useEffect(() => {
         // Public channel — no auth needed, matching this being a public
@@ -54,9 +59,6 @@ export default function Livestream({
             return;
         }
 
-        const offlineMessage =
-            "Camera feed isn't available right now — check back later.";
-
         setError(null);
 
         // Safari (and WebKit generally) plays HLS natively; every other
@@ -66,7 +68,7 @@ export default function Livestream({
         // own listener to show the same message instead of a silently
         // stalled player.
         if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            const handleNativeError = () => setError(offlineMessage);
+            const handleNativeError = () => setError('offline');
 
             video.addEventListener('error', handleNativeError);
             video.src = STREAM_URL;
@@ -75,7 +77,7 @@ export default function Livestream({
         }
 
         if (!Hls.isSupported()) {
-            setError("Your browser can't play this stream.");
+            setError('unsupported');
 
             return;
         }
@@ -84,7 +86,7 @@ export default function Livestream({
 
         hls.on(Hls.Events.ERROR, (_event, data) => {
             if (data.fatal) {
-                setError(offlineMessage);
+                setError('offline');
             }
         });
 
@@ -96,40 +98,46 @@ export default function Livestream({
 
     return (
         <AppLayout>
-            <Head title="Livestream" />
+            <Head title={t('livestream.title')} />
             <div className="p-6">
                 <div className="mx-auto flex max-w-3xl flex-col gap-4">
                     <h1 className="text-xl font-semibold text-gray-900">
-                        Livestream
+                        {t('livestream.title')}
                     </h1>
                     <p className="text-sm text-gray-500">
-                        A live look at the park. Not recorded or saved.
+                        {t('livestream.subtitle')}
                     </p>
 
                     <div className="flex flex-wrap items-center gap-4 text-sm">
                         <span className="inline-flex items-center gap-1.5 rounded-none border border-gray-200 bg-white px-3 py-1.5 font-medium text-gray-900">
                             <span className="h-2 w-2 rounded-full bg-green-500" />
-                            {checkedInCount}{' '}
-                            {checkedInCount === 1 ? 'person' : 'people'} checked
-                            in
+                            {tCount(
+                                'livestream.checkedInCount',
+                                checkedInCount,
+                            )}
                         </span>
                         <span className="text-gray-500">
                             {todaysReservations.length === 0
-                                ? 'No reservations today.'
-                                : 'Reserved today: ' +
-                                  todaysReservations
-                                      .map(
-                                          (r) =>
-                                              `${formatTime(r.starts_at)}–${formatTime(r.ends_at)}`,
-                                      )
-                                      .join(', ')}
+                                ? t('livestream.noReservationsToday')
+                                : t('livestream.reservedToday', {
+                                      ranges: todaysReservations
+                                          .map(
+                                              (r) =>
+                                                  `${formatTime(r.starts_at)}–${formatTime(r.ends_at)}`,
+                                          )
+                                          .join(', '),
+                                  })}
                         </span>
                     </div>
 
                     <div className="aspect-video w-full rounded-none border border-gray-200 bg-black">
                         {error ? (
                             <p className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-300">
-                                {error}
+                                {t(
+                                    error === 'offline'
+                                        ? 'livestream.offline'
+                                        : 'livestream.unsupportedBrowser',
+                                )}
                             </p>
                         ) : (
                             <video

@@ -12,6 +12,7 @@ import ReservationTimeline, {
     minutesToTime,
 } from '@/components/reservation-timeline';
 import AppLayout from '@/layouts/app-layout';
+import { useTranslation } from '@/lib/i18n/context';
 
 type Settings = {
     price_cents_per_person_per_hour: number;
@@ -54,13 +55,6 @@ function formatEuros(cents: number) {
     return (cents / 100).toFixed(2) + ' €';
 }
 
-function formatRange(startsAt: string, endsAt: string) {
-    const start = new Date(startsAt);
-    const end = new Date(endsAt);
-
-    return `${start.toLocaleDateString()} ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-}
-
 function priceFor(
     minutes: number,
     groupSize: number,
@@ -76,6 +70,7 @@ function AddParticipant({
     reservationId: number;
     remainingCapacity: number;
 }) {
+    const { t } = useTranslation();
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<Participant[]>([]);
     const [searching, setSearching] = useState(false);
@@ -83,8 +78,7 @@ function AddParticipant({
     if (remainingCapacity <= 0) {
         return (
             <p className="mt-2 text-xs text-gray-400">
-                This reservation's group size is full — remove someone or make a
-                new reservation for more people.
+                {t('reservations.groupFull')}
             </p>
         );
     }
@@ -129,11 +123,13 @@ function AddParticipant({
             <TextInput
                 value={query}
                 onChange={(e) => search(e.target.value)}
-                placeholder="Search by name or email to add a friend"
+                placeholder={t('reservations.searchPlaceholder')}
                 className="text-sm"
             />
             {searching && (
-                <p className="mt-1 text-xs text-gray-400">Searching…</p>
+                <p className="mt-1 text-xs text-gray-400">
+                    {t('reservations.searching')}
+                </p>
             )}
             {results.length > 0 && (
                 <ul className="mt-1 divide-y divide-gray-100 border border-gray-200">
@@ -153,7 +149,7 @@ function AddParticipant({
                                 onClick={() => add(result.id)}
                                 className="text-sm font-semibold text-yellow-700 hover:text-yellow-600"
                             >
-                                Add
+                                {t('reservations.add')}
                             </button>
                         </li>
                     ))}
@@ -170,6 +166,7 @@ export default function ReservationsIndex({
     mine,
     status,
 }: Props) {
+    const { t, intlLocale } = useTranslation();
     const [date, setDate] = useState('');
     const [selection, setSelection] = useState<{
         start: number | null;
@@ -187,6 +184,13 @@ export default function ReservationsIndex({
         selection.start !== null && selection.end !== null
             ? selection.end - selection.start
             : 0;
+
+    const formatRange = (startsAt: string, endsAt: string) => {
+        const start = new Date(startsAt);
+        const end = new Date(endsAt);
+
+        return `${start.toLocaleDateString(intlLocale)} ${start.toLocaleTimeString(intlLocale, { hour: '2-digit', minute: '2-digit' })} – ${end.toLocaleTimeString(intlLocale, { hour: '2-digit', minute: '2-digit' })}`;
+    };
 
     const chooseDate = (newDate: string) => {
         setDate(newDate);
@@ -218,7 +222,7 @@ export default function ReservationsIndex({
     };
 
     const cancelReservation = (reservationId: number) => {
-        if (confirm('Cancel this reservation?')) {
+        if (confirm(t('reservations.confirmCancel'))) {
             router.get(`/reservations/${reservationId}/cancel`);
         }
     };
@@ -227,61 +231,60 @@ export default function ReservationsIndex({
         router.post(`/reservations/${reservationId}/resume`);
     };
 
+    const statusMessages: Record<string, string | undefined> = {
+        'reservation-incomplete': t('reservations.statusIncomplete'),
+        'reservation-cancelled': t('reservations.statusCancelled'),
+        'reservation-cancelled-refunded': t(
+            'reservations.statusCancelledRefunded',
+        ),
+        'reservation-cancelled-no-refund': t(
+            'reservations.statusCancelledNoRefund',
+        ),
+        'reservation-cannot-cancel': t('reservations.statusCannotCancel'),
+        'reservation-slot-taken': t('reservations.statusSlotTaken'),
+    };
+
     return (
         <AppLayout>
-            <Head title="Reservations" />
+            <Head title={t('nav.reservations')} />
             <div className="p-6">
                 <div className="mx-auto max-w-3xl">
                     <h1 className="mb-6 text-xl font-semibold text-gray-900">
-                        Reserve the park
+                        {t('reservations.title')}
                     </h1>
 
                     {status === 'reservation-complete' && (
-                        <StatusMessage status="Reservation confirmed — the park is yours for that time." />
+                        <StatusMessage
+                            status={t('reservations.statusComplete')}
+                        />
                     )}
-                    {status === 'reservation-incomplete' && (
-                        <p className="mb-4 rounded-none border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                            That checkout wasn't completed, so nothing was
-                            reserved.
-                        </p>
-                    )}
-                    {status === 'reservation-cancelled' && (
-                        <p className="mb-4 rounded-none border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                            Reservation cancelled.
-                        </p>
-                    )}
-                    {status === 'reservation-cancelled-refunded' && (
-                        <p className="mb-4 rounded-none border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                            Reservation cancelled and refunded.
-                        </p>
-                    )}
-                    {status === 'reservation-cancelled-no-refund' && (
-                        <p className="mb-4 rounded-none border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                            Reservation cancelled, but it was too close to the
-                            start time to be refunded.
-                        </p>
-                    )}
-                    {status === 'reservation-cannot-cancel' && (
-                        <p className="mb-4 rounded-none border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                            That reservation has already started and can no
-                            longer be cancelled.
-                        </p>
-                    )}
-                    {status === 'reservation-slot-taken' && (
-                        <p className="mb-4 rounded-none border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                            Someone else booked that time first while you were
-                            paying — you've been refunded and the reservation
-                            was cancelled. Pick another time.
+                    {status && statusMessages[status] && (
+                        <p
+                            className={
+                                'mb-4 rounded-none border px-3 py-2 text-sm ' +
+                                (status === 'reservation-incomplete' ||
+                                status === 'reservation-cannot-cancel' ||
+                                status === 'reservation-slot-taken'
+                                    ? 'border-red-200 bg-red-50 text-red-700'
+                                    : status ===
+                                        'reservation-cancelled-no-refund'
+                                      ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                      : 'border-gray-200 bg-gray-50 text-gray-600')
+                            }
+                        >
+                            {statusMessages[status]}
                         </p>
                     )}
 
                     <div className="mb-8 rounded-none border border-gray-200 bg-white p-6 shadow-sm">
                         <h2 className="mb-4 text-base font-semibold text-gray-900">
-                            Reserve a time
+                            {t('reservations.reserveATime')}
                         </h2>
                         <form onSubmit={submit} className="flex flex-col gap-4">
                             <div className="flex flex-col gap-1">
-                                <Label htmlFor="starts_at_date">Date</Label>
+                                <Label htmlFor="starts_at_date">
+                                    {t('reservations.date')}
+                                </Label>
                                 <TextInput
                                     id="starts_at_date"
                                     type="date"
@@ -293,7 +296,7 @@ export default function ReservationsIndex({
 
                             {date && (
                                 <div className="flex flex-col gap-1">
-                                    <Label>Time</Label>
+                                    <Label>{t('reservations.time')}</Label>
                                     <ReservationTimeline
                                         date={date}
                                         openingTime={settings.opening_time}
@@ -310,11 +313,10 @@ export default function ReservationsIndex({
                                         onChange={setSelection}
                                     />
                                     <p className="text-xs text-gray-400">
-                                        {settings.min_duration_minutes}–
-                                        {settings.max_duration_minutes} minutes,
-                                        in 15-minute steps. The dotted line
-                                        shows typically busy hours; the red
-                                        block is already reserved.
+                                        {t('reservations.timelineHint', {
+                                            min: settings.min_duration_minutes,
+                                            max: settings.max_duration_minutes,
+                                        })}
                                     </p>
                                 </div>
                             )}
@@ -323,7 +325,7 @@ export default function ReservationsIndex({
 
                             <div className="flex flex-col gap-1">
                                 <Label htmlFor="group_size">
-                                    Group size (people)
+                                    {t('reservations.groupSize')}
                                 </Label>
                                 <TextInput
                                     id="group_size"
@@ -335,21 +337,23 @@ export default function ReservationsIndex({
                                     }
                                 />
                                 <p className="text-xs text-gray-400">
-                                    Minimum {settings.min_group_size} people —
-                                    priced per person, per hour.
+                                    {t('reservations.minGroupSizeHint', {
+                                        min: settings.min_group_size,
+                                    })}
                                 </p>
                                 <InputError message={errors.group_size} />
                             </div>
 
                             <p className="text-sm font-medium text-gray-900">
-                                Price:{' '}
-                                {formatEuros(
-                                    priceFor(
-                                        durationMinutes,
-                                        groupSize,
-                                        settings.price_cents_per_person_per_hour,
+                                {t('reservations.price', {
+                                    amount: formatEuros(
+                                        priceFor(
+                                            durationMinutes,
+                                            groupSize,
+                                            settings.price_cents_per_person_per_hour,
+                                        ),
                                     ),
-                                )}
+                                })}
                             </p>
 
                             <PrimaryButton
@@ -361,20 +365,17 @@ export default function ReservationsIndex({
                                     selection.end === null
                                 }
                             >
-                                Reserve and pay
+                                {t('reservations.reserveAndPay')}
                             </PrimaryButton>
                         </form>
                     </div>
 
                     <div className="mb-8">
                         <h2 className="mb-3 text-base font-semibold text-gray-900">
-                            Upcoming reservations
+                            {t('reservations.upcoming')}
                         </h2>
                         <p className="mb-3 text-sm text-gray-500">
-                            The park is privately reserved during these times —
-                            everyone else's entry is paused until they end.
-                            Click a day to see its reserved times, or to book
-                            that day above.
+                            {t('reservations.upcomingHint')}
                         </p>
                         <ReservationCalendar
                             reservations={upcoming}
@@ -384,11 +385,11 @@ export default function ReservationsIndex({
 
                     <div>
                         <h2 className="mb-3 text-base font-semibold text-gray-900">
-                            My reservations
+                            {t('reservations.mine')}
                         </h2>
                         {mine.length === 0 ? (
                             <p className="text-sm text-gray-500">
-                                You don't have any upcoming reservations.
+                                {t('reservations.noneUpcoming')}
                             </p>
                         ) : (
                             <div className="flex flex-col gap-4">
@@ -413,14 +414,19 @@ export default function ReservationsIndex({
                                                         : 'text-amber-600')
                                                 }
                                             >
-                                                {reservation.status}
+                                                {t(
+                                                    `reservations.status.${reservation.status}`,
+                                                )}
                                             </span>
                                         </div>
                                         <p className="mt-1 text-sm text-gray-500">
                                             {formatEuros(
                                                 reservation.price_cents,
                                             )}{' '}
-                                            · {reservation.group_size} people
+                                            ·{' '}
+                                            {t('reservations.peopleCount', {
+                                                count: reservation.group_size,
+                                            })}
                                         </p>
 
                                         {reservation.participants.length >
@@ -448,7 +454,9 @@ export default function ReservationsIndex({
                                                                     }
                                                                     className="text-xs font-medium text-red-600 hover:text-red-500"
                                                                 >
-                                                                    Remove
+                                                                    {t(
+                                                                        'reservations.remove',
+                                                                    )}
                                                                 </button>
                                                             )}
                                                         </li>
@@ -458,9 +466,12 @@ export default function ReservationsIndex({
                                         )}
 
                                         <p className="mt-2 text-xs text-gray-400">
-                                            {reservation.participants.length +
-                                                1}{' '}
-                                            of {reservation.group_size} named
+                                            {t('reservations.namedOf', {
+                                                named:
+                                                    reservation.participants
+                                                        .length + 1,
+                                                total: reservation.group_size,
+                                            })}
                                         </p>
 
                                         {reservation.is_owner && (
@@ -479,7 +490,7 @@ export default function ReservationsIndex({
                                             href={`/reservations/${reservation.id}/chat`}
                                             className="mt-3 inline-block text-sm font-semibold text-yellow-700 hover:text-yellow-600"
                                         >
-                                            Group chat
+                                            {t('reservations.groupChat')}
                                         </Link>
 
                                         {reservation.is_owner &&
@@ -495,7 +506,9 @@ export default function ReservationsIndex({
                                                         }
                                                         className="text-sm font-semibold text-yellow-700 hover:text-yellow-600"
                                                     >
-                                                        Finish payment
+                                                        {t(
+                                                            'reservations.finishPayment',
+                                                        )}
                                                     </button>
                                                     <button
                                                         type="button"
@@ -506,7 +519,9 @@ export default function ReservationsIndex({
                                                         }
                                                         className="text-sm font-medium text-red-600 hover:text-red-500"
                                                     >
-                                                        Cancel reservation
+                                                        {t(
+                                                            'reservations.cancel',
+                                                        )}
                                                     </button>
                                                 </div>
                                             )}
@@ -524,7 +539,7 @@ export default function ReservationsIndex({
                                                     }
                                                     className="mt-3 block text-sm font-medium text-red-600 hover:text-red-500"
                                                 >
-                                                    Cancel reservation
+                                                    {t('reservations.cancel')}
                                                 </button>
                                             )}
                                     </div>

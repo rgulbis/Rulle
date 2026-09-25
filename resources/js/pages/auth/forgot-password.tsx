@@ -8,9 +8,11 @@ import {
     StatusMessage,
     TextInput,
 } from '@/components/form-controls';
+import { useTranslation } from '@/lib/i18n/context';
 import AuthLayout from '@/layouts/auth-layout';
 
 export default function ForgotPassword({ status }: { status?: string }) {
+    const { t } = useTranslation();
     const { data, setData, post, processing, errors } = useForm({
         email: '',
     });
@@ -22,14 +24,14 @@ export default function ForgotPassword({ status }: { status?: string }) {
 
     return (
         <AuthLayout
-            title="Forgot password"
-            description="Enter your email and we'll send you a link to reset your password."
+            title={t('auth.forgotPassword.title')}
+            description={t('auth.forgotPassword.description')}
         >
             <StatusMessage status={status} />
 
             <form onSubmit={submit} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t('auth.email')}</Label>
                     <TextInput
                         id="email"
                         // See login.tsx: not type="email" so a Unicode
@@ -50,13 +52,15 @@ export default function ForgotPassword({ status }: { status?: string }) {
                     disabled={processing}
                     className="mt-2"
                 >
-                    Email password reset link
+                    {t('auth.forgotPassword.submit')}
                 </PrimaryButton>
             </form>
 
             <p className="mt-6 text-sm text-gray-500">
-                Remembered your password?{' '}
-                <AuthLink href="/login">Log in</AuthLink>
+                {t('auth.forgotPassword.remembered')}{' '}
+                <AuthLink href="/login">
+                    {t('auth.forgotPassword.logIn')}
+                </AuthLink>
             </p>
         </AuthLayout>
     );

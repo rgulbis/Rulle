@@ -6,6 +6,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { useTranslation } from '@/lib/i18n/context';
 import type { Auth } from '@/types/auth';
 
 const MAX_MESSAGE_LENGTH = 500;
@@ -47,17 +48,10 @@ type Props = {
 };
 
 const MUTE_OPTIONS = [
-    { hours: 1, label: '1 hour' },
-    { hours: 24, label: '1 day' },
-    { hours: 168, label: '1 week' },
-];
-
-function formatTime(dateTime: string) {
-    return new Date(dateTime).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
+    { hours: 1, labelKey: 'chatThread.muteHour' },
+    { hours: 24, labelKey: 'chatThread.muteDay' },
+    { hours: 168, labelKey: 'chatThread.muteWeek' },
+] as const;
 
 export default function ChatThread({
     channel,
@@ -70,12 +64,19 @@ export default function ChatThread({
     slowMode,
 }: Props) {
     const { auth } = usePage<{ auth: Auth }>().props;
+    const { t, intlLocale } = useTranslation();
     const [messages, setMessages] = useState(initialMessages);
     const [pinned, setPinned] = useState(initialPinned);
     const [body, setBody] = useState('');
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
+
+    const formatTime = (dateTime: string) =>
+        new Date(dateTime).toLocaleTimeString(intlLocale, {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
 
     // Slow mode is tracked as absolute client-side end times, derived from
     // the durations the server sends, so a skewed clock can't stretch it.
@@ -177,7 +178,7 @@ export default function ChatThread({
                     }
                 },
                 onError: (errors) =>
-                    setError(errors.body ?? 'Could not send that message.'),
+                    setError(errors.body ?? t('chatThread.sendFailed')),
                 onFinish: () => setSending(false),
             },
         );
@@ -243,7 +244,7 @@ export default function ChatThread({
             {pinned.length > 0 && (
                 <div className="max-h-32 overflow-y-auto border-b border-amber-200 bg-amber-50 px-4 py-2">
                     <p className="text-xs font-semibold tracking-wide text-amber-800 uppercase">
-                        Pinned
+                        {t('chatThread.pinned')}
                     </p>
                     <ul className="mt-1 flex flex-col gap-1">
                         {pinned.map((message) => (
@@ -265,7 +266,7 @@ export default function ChatThread({
                                         }
                                         className="shrink-0 text-xs font-medium text-amber-700 hover:text-amber-600"
                                     >
-                                        Unpin
+                                        {t('chatThread.unpin')}
                                     </button>
                                 )}
                             </li>
@@ -277,7 +278,7 @@ export default function ChatThread({
             <div className="flex-1 overflow-x-hidden overflow-y-auto p-4">
                 {messages.length === 0 ? (
                     <p className="text-sm text-gray-500">
-                        No messages yet — say something.
+                        {t('chatThread.noMessages')}
                     </p>
                 ) : (
                     <ul className="flex flex-col gap-3">
@@ -326,8 +327,12 @@ export default function ChatThread({
                                                         className="font-medium text-gray-600 hover:text-gray-900"
                                                     >
                                                         {message.pinned
-                                                            ? 'Unpin'
-                                                            : 'Pin'}
+                                                            ? t(
+                                                                  'chatThread.unpin',
+                                                              )
+                                                            : t(
+                                                                  'chatThread.pin',
+                                                              )}
                                                     </button>
                                                     {canPenalise && (
                                                         <>
@@ -348,10 +353,15 @@ export default function ChatThread({
                                                                         }
                                                                         className="font-medium text-amber-700 hover:text-amber-600"
                                                                     >
-                                                                        Mute{' '}
-                                                                        {
-                                                                            option.label
-                                                                        }
+                                                                        {t(
+                                                                            'chatThread.mute',
+                                                                            {
+                                                                                duration:
+                                                                                    t(
+                                                                                        option.labelKey,
+                                                                                    ),
+                                                                            },
+                                                                        )}
                                                                     </button>
                                                                 ),
                                                             )}
@@ -364,7 +374,9 @@ export default function ChatThread({
                                                                 }
                                                                 className="font-medium text-red-600 hover:text-red-500"
                                                             >
-                                                                Delete
+                                                                {t(
+                                                                    'chatThread.delete',
+                                                                )}
                                                             </button>
                                                         </>
                                                     )}
@@ -389,18 +401,23 @@ export default function ChatThread({
                 {slowActive && (
                     <p className="border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
                         {isStaff
-                            ? "Slow mode is on — it doesn't apply to staff."
-                            : `Slow mode is on — one message every ${slow.cooldownSeconds}s.`}
+                            ? t('chatThread.slowModeStaff')
+                            : t('chatThread.slowModeCustomer', {
+                                  seconds: slow.cooldownSeconds,
+                              })}
                     </p>
                 )}
 
                 <form onSubmit={submit} className="flex gap-2 p-3">
                     {muted ? (
                         <p className="flex-1 self-center text-sm text-red-600">
-                            You're muted from chat
-                            {mutedUntil &&
-                                ` until ${new Date(mutedUntil).toLocaleString()}`}
-                            .
+                            {mutedUntil
+                                ? t('chatThread.mutedUntil', {
+                                      date: new Date(mutedUntil).toLocaleString(
+                                          intlLocale,
+                                      ),
+                                  })
+                                : t('chatThread.muted')}
                         </p>
                     ) : (
                         <>
@@ -408,7 +425,7 @@ export default function ChatThread({
                                 value={body}
                                 onChange={(e) => setBody(e.target.value)}
                                 onKeyDown={handleComposerKeyDown}
-                                placeholder="Say something…"
+                                placeholder={t('chatThread.placeholder')}
                                 rows={2}
                                 maxLength={MAX_MESSAGE_LENGTH}
                                 className="w-full flex-1 resize-none rounded-none border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition outline-none placeholder:text-gray-400 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/20"
@@ -423,8 +440,10 @@ export default function ChatThread({
                                 className="self-end rounded-none bg-yellow-400 px-4 py-2 text-sm font-semibold text-black hover:bg-yellow-300 disabled:opacity-50"
                             >
                                 {cooldownRemaining > 0
-                                    ? `Wait ${cooldownRemaining}s`
-                                    : 'Send'}
+                                    ? t('chatThread.wait', {
+                                          seconds: cooldownRemaining,
+                                      })
+                                    : t('chatThread.send')}
                             </button>
                         </>
                     )}

@@ -8,9 +8,11 @@ import {
     StatusMessage,
     TextInput,
 } from '@/components/form-controls';
+import { useTranslation } from '@/lib/i18n/context';
 import AuthLayout from '@/layouts/auth-layout';
 
 export default function Login({ status }: { status?: string }) {
+    const { t } = useTranslation();
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
@@ -26,14 +28,14 @@ export default function Login({ status }: { status?: string }) {
 
     return (
         <AuthLayout
-            title="Log in"
-            description="Enter your email and password to sign in."
+            title={t('auth.login.title')}
+            description={t('auth.login.description')}
         >
             <StatusMessage status={status} />
 
             <form onSubmit={submit} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t('auth.email')}</Label>
                     <TextInput
                         id="email"
                         // Not type="email": the browser's own built-in
@@ -53,9 +55,9 @@ export default function Login({ status }: { status?: string }) {
 
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
-                        <Label htmlFor="password">Password</Label>
+                        <Label htmlFor="password">{t('auth.password')}</Label>
                         <AuthLink href="/forgot-password">
-                            Forgot password?
+                            {t('auth.login.forgotPassword')}
                         </AuthLink>
                     </div>
                     <TextInput
@@ -74,7 +76,7 @@ export default function Login({ status }: { status?: string }) {
                         checked={data.remember}
                         onChange={(e) => setData('remember', e.target.checked)}
                     />
-                    Remember me
+                    {t('auth.login.rememberMe')}
                 </label>
 
                 <PrimaryButton
@@ -82,13 +84,13 @@ export default function Login({ status }: { status?: string }) {
                     disabled={processing}
                     className="mt-2"
                 >
-                    Log in
+                    {t('auth.login.submit')}
                 </PrimaryButton>
             </form>
 
             <p className="mt-6 text-sm text-gray-500">
-                Don't have an account?{' '}
-                <AuthLink href="/register">Sign up</AuthLink>
+                {t('auth.login.noAccount')}{' '}
+                <AuthLink href="/register">{t('auth.login.signUp')}</AuthLink>
             </p>
         </AuthLayout>
     );

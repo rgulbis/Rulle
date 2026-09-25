@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { PrimaryButton, StatusMessage } from '@/components/form-controls';
 import AppLayout from '@/layouts/app-layout';
+import { useTranslation } from '@/lib/i18n/context';
 
 type Plan = {
     id: number;
@@ -37,15 +38,6 @@ type Props = {
     status?: string;
 };
 
-function formatPrice(cents: number, interval: Plan['billing_interval']) {
-    const amount = (cents / 100).toFixed(2) + ' €';
-
-    if (interval === 'month') return `${amount} / month`;
-    if (interval === 'year') return `${amount} / year`;
-
-    return amount;
-}
-
 function formatEuros(cents: number) {
     return (cents / 100).toFixed(2) + ' €';
 }
@@ -57,16 +49,24 @@ export default function Subscriptions({
     priceChange,
     status,
 }: Props) {
+    const { t, intlLocale } = useTranslation();
+
+    const formatPrice = (cents: number, interval: Plan['billing_interval']) => {
+        const amount = formatEuros(cents);
+
+        if (interval === 'month')
+            return t('subscriptions.perMonth', { amount });
+        if (interval === 'year') return t('subscriptions.perYear', { amount });
+
+        return amount;
+    };
+
     const subscribe = (planId: number) => {
         router.post(`/subscriptions/${planId}/checkout`);
     };
 
     const cancelSubscription = () => {
-        if (
-            confirm(
-                "Cancel your subscription? You'll keep access until the current billing period ends.",
-            )
-        ) {
+        if (confirm(t('subscriptions.confirmCancel'))) {
             router.delete('/subscriptions/subscription');
         }
     };
@@ -78,61 +78,63 @@ export default function Subscriptions({
     const hasActiveSubscription =
         !!activeSubscription && !activeSubscription.canceled;
 
+    const statusMessages: Record<string, string | undefined> = {
+        'purchase-incomplete': t('subscriptions.statusPurchaseIncomplete'),
+        'purchase-cancelled': t('subscriptions.statusPurchaseCancelled'),
+        'subscription-cancelled': t(
+            'subscriptions.statusSubscriptionCancelled',
+        ),
+    };
+
     return (
         <AppLayout>
-            <Head title="Subscriptions" />
+            <Head title={t('nav.subscriptions')} />
             <div className="p-6">
                 <div className="mx-auto max-w-3xl">
                     <h1 className="mb-6 text-xl font-semibold text-gray-900">
-                        Subscriptions
+                        {t('subscriptions.title')}
                     </h1>
 
                     {status === 'purchase-complete' && (
-                        <StatusMessage status="Purchase complete — your access is now active." />
-                    )}
-                    {status === 'purchase-incomplete' && (
-                        <p className="mb-4 rounded-none border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                            That checkout wasn't completed, so nothing was
-                            activated.
-                        </p>
-                    )}
-                    {status === 'purchase-cancelled' && (
-                        <p className="mb-4 rounded-none border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                            Checkout was cancelled.
-                        </p>
-                    )}
-                    {status === 'subscription-cancelled' && (
-                        <p className="mb-4 rounded-none border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                            Your subscription has been cancelled.
-                        </p>
+                        <StatusMessage
+                            status={t('subscriptions.statusPurchaseComplete')}
+                        />
                     )}
                     {status === 'price-updated' && (
-                        <StatusMessage status="Your subscription now uses the new price." />
+                        <StatusMessage
+                            status={t('subscriptions.statusPriceUpdated')}
+                        />
+                    )}
+                    {status && statusMessages[status] && (
+                        <p className="mb-4 rounded-none border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                            {statusMessages[status]}
+                        </p>
                     )}
 
                     {activeSubscription && (
                         <div className="mb-6 flex items-center justify-between rounded-none border border-gray-200 bg-white p-4 shadow-sm">
                             {activeSubscription.canceled ? (
                                 <p className="text-sm font-medium text-gray-600">
-                                    Cancelled — access ends{' '}
-                                    {activeSubscription.ends_at
-                                        ? new Date(
-                                              activeSubscription.ends_at,
-                                          ).toLocaleDateString()
-                                        : 'at period end'}
-                                    .
+                                    {t('subscriptions.cancelledUntil', {
+                                        date: activeSubscription.ends_at
+                                            ? new Date(
+                                                  activeSubscription.ends_at,
+                                              ).toLocaleDateString(intlLocale)
+                                            : t('subscriptions.periodEnd'),
+                                    })}
                                 </p>
                             ) : (
                                 <>
                                     <p className="text-sm font-medium text-green-600">
-                                        Active subscription (
-                                        {activeSubscription.stripe_status})
+                                        {t('subscriptions.active', {
+                                            status: activeSubscription.stripe_status,
+                                        })}
                                     </p>
                                     <button
                                         onClick={cancelSubscription}
                                         className="text-sm font-medium text-red-600 hover:text-red-500"
                                     >
-                                        Cancel subscription
+                                        {t('subscriptions.cancelSubscription')}
                                     </button>
                                 </>
                             )}
@@ -142,13 +144,17 @@ export default function Subscriptions({
                     {priceChange && (
                         <div className="mb-6 flex items-center justify-between rounded-none border border-gray-200 bg-white p-4 shadow-sm">
                             <p className="text-sm text-gray-600">
-                                This plan's price has changed: you're on{' '}
-                                {formatEuros(priceChange.current_price_cents)},
-                                the current price is{' '}
-                                {formatEuros(priceChange.new_price_cents)}.
+                                {t('subscriptions.priceChanged', {
+                                    current: formatEuros(
+                                        priceChange.current_price_cents,
+                                    ),
+                                    new: formatEuros(
+                                        priceChange.new_price_cents,
+                                    ),
+                                })}
                             </p>
                             <PrimaryButton onClick={swapToNewPrice}>
-                                Switch to new price
+                                {t('subscriptions.switchToNewPrice')}
                             </PrimaryButton>
                         </div>
                     )}
@@ -158,8 +164,12 @@ export default function Subscriptions({
                             <p className="text-sm font-medium text-green-600">
                                 {activePurchase.subscription_type
                                     .unlimited_entries
-                                    ? 'Unlimited entries today'
-                                    : `${activePurchase.visits_remaining} visit(s) remaining`}
+                                    ? t('subscriptions.unlimitedToday')
+                                    : t('subscriptions.visitsRemaining', {
+                                          count:
+                                              activePurchase.visits_remaining ??
+                                              0,
+                                      })}
                             </p>
                         </div>
                     )}
@@ -186,12 +196,14 @@ export default function Subscriptions({
                                 </p>
                                 {plan.unlimited_entries ? (
                                     <p className="text-sm text-gray-500">
-                                        Unlimited entries, same day
+                                        {t('subscriptions.unlimitedSameDay')}
                                     </p>
                                 ) : (
                                     plan.visit_limit && (
                                         <p className="text-sm text-gray-500">
-                                            {plan.visit_limit} visits
+                                            {t('subscriptions.visitsCount', {
+                                                count: plan.visit_limit,
+                                            })}
                                         </p>
                                     )
                                 )}
@@ -201,7 +213,7 @@ export default function Subscriptions({
                                         disabled
                                         className="mt-4 cursor-not-allowed rounded-none border border-gray-200 px-4 py-2 text-sm font-medium text-gray-400"
                                     >
-                                        Already subscribed
+                                        {t('subscriptions.alreadySubscribed')}
                                     </button>
                                 ) : (
                                     <PrimaryButton
@@ -209,8 +221,8 @@ export default function Subscriptions({
                                         onClick={() => subscribe(plan.id)}
                                     >
                                         {plan.billing_interval === 'one_time'
-                                            ? 'Buy'
-                                            : 'Subscribe'}
+                                            ? t('subscriptions.buy')
+                                            : t('subscriptions.subscribe')}
                                     </PrimaryButton>
                                 )}
                             </div>
@@ -218,7 +230,7 @@ export default function Subscriptions({
 
                         {plans.length === 0 && (
                             <p className="text-sm text-gray-500">
-                                No plans are available yet.
+                                {t('subscriptions.none')}
                             </p>
                         )}
                     </div>

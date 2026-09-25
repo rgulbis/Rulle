@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useTranslation } from '@/lib/i18n/context';
 
 type TimeRange = {
     id: number;
@@ -11,23 +12,38 @@ type Props = {
     onSelectDate?: (date: string) => void;
 };
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
 function toDateKey(d: Date): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function formatTime(dateTime: string): string {
-    return new Date(dateTime).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-    });
 }
 
 export default function ReservationCalendar({
     reservations,
     onSelectDate,
 }: Props) {
+    const { t, intlLocale } = useTranslation();
+
+    // Derived from the locale rather than a hardcoded English list, so it
+    // automatically follows along whichever language is picked — including
+    // getting the Monday-first order right, which a plain array of labels
+    // wouldn't on its own.
+    const weekdays = useMemo(() => {
+        // A known Monday (2024-01-01) — only its weekday position is used.
+        const monday = new Date(2024, 0, 1);
+
+        return Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+
+            return d.toLocaleDateString(intlLocale, { weekday: 'short' });
+        });
+    }, [intlLocale]);
+
+    const formatTime = (dateTime: string): string =>
+        new Date(dateTime).toLocaleTimeString(intlLocale, {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -70,12 +86,12 @@ export default function ReservationCalendar({
                     type="button"
                     onClick={() => setViewDate(new Date(year, month - 1, 1))}
                     className="px-2 text-sm text-gray-500 hover:text-gray-900"
-                    aria-label="Previous month"
+                    aria-label={t('reservations.previousMonth')}
                 >
                     ‹
                 </button>
                 <p className="text-sm font-semibold text-gray-900">
-                    {firstOfMonth.toLocaleDateString([], {
+                    {firstOfMonth.toLocaleDateString(intlLocale, {
                         month: 'long',
                         year: 'numeric',
                     })}
@@ -84,15 +100,15 @@ export default function ReservationCalendar({
                     type="button"
                     onClick={() => setViewDate(new Date(year, month + 1, 1))}
                     className="px-2 text-sm text-gray-500 hover:text-gray-900"
-                    aria-label="Next month"
+                    aria-label={t('reservations.nextMonth')}
                 >
                     ›
                 </button>
             </div>
 
             <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-400">
-                {WEEKDAYS.map((day) => (
-                    <div key={day} className="py-1">
+                {weekdays.map((day, i) => (
+                    <div key={i} className="py-1">
                         {day}
                     </div>
                 ))}
@@ -153,8 +169,8 @@ export default function ReservationCalendar({
                 ) : (
                     <p className="text-sm text-gray-500">
                         {selected
-                            ? 'No reservations that day.'
-                            : 'Select a day to see reserved times.'}
+                            ? t('reservations.noneThatDay')
+                            : t('reservations.selectDayHint')}
                     </p>
                 )}
             </div>

@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useEffect, useRef, useState } from 'react';
 import { getCsrfToken } from '@/lib/csrf';
+import { useTranslation } from '@/lib/i18n/context';
 import AppLayout from '@/layouts/app-layout';
 
 type ScanResult =
@@ -12,6 +13,7 @@ type ScanResult =
 type Mode = 'entry' | 'exit';
 
 export default function Scan() {
+    const { t } = useTranslation();
     const busyRef = useRef(false);
     const [mode, setMode] = useState<Mode>('entry');
     const modeRef = useRef<Mode>(mode);
@@ -44,7 +46,7 @@ export default function Scan() {
 
                 setResult(await response.json());
             } catch {
-                setError('Could not reach the server.');
+                setError(t('scan.unreachable'));
             }
         };
 
@@ -71,14 +73,15 @@ export default function Scan() {
         return () => {
             scanner.stop().catch(() => {});
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- runs the scanner setup once; `t` is intentionally not a dependency here.
     }, []);
 
     return (
         <AppLayout>
-            <Head title="Scan" />
+            <Head title={t('nav.scan')} />
             <div className="flex flex-col items-center gap-6 p-6">
                 <h1 className="text-xl font-semibold text-gray-900">
-                    Scan a member QR code
+                    {t('scan.title')}
                 </h1>
 
                 <div className="flex w-full max-w-sm rounded-none border border-gray-200">
@@ -91,7 +94,7 @@ export default function Scan() {
                                 : 'bg-white text-gray-500 hover:bg-gray-50'
                         }`}
                     >
-                        Entry
+                        {t('scan.entry')}
                     </button>
                     <button
                         type="button"
@@ -102,7 +105,7 @@ export default function Scan() {
                                 : 'bg-white text-gray-500 hover:bg-gray-50'
                         }`}
                     >
-                        Exit
+                        {t('scan.exit')}
                     </button>
                 </div>
 
@@ -128,8 +131,8 @@ export default function Scan() {
                                     }
                                 >
                                     {result.checked_in
-                                        ? 'Checked in'
-                                        : 'Checked out'}
+                                        ? t('scan.checkedIn')
+                                        : t('scan.checkedOut')}
                                 </p>
                             </>
                         )}
