@@ -15,10 +15,22 @@ class SubscriptionTypeForm
         return $schema
             ->components([
                 TextInput::make('name')
+                    ->label('Name (English)')
                     ->required()
                     ->maxLength(255),
 
+                TextInput::make('name_lv')
+                    ->label('Name (Latvian)')
+                    ->helperText('Leave blank to show the English name on the Latvian site.')
+                    ->maxLength(255),
+
                 Textarea::make('description')
+                    ->label('Description (English)')
+                    ->columnSpanFull(),
+
+                Textarea::make('description_lv')
+                    ->label('Description (Latvian)')
+                    ->helperText('Leave blank to show the English description on the Latvian site.')
                     ->columnSpanFull(),
 
                 TextInput::make('price_cents')

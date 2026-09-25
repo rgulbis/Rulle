@@ -7,6 +7,8 @@ type Plan = {
     id: number;
     name: string;
     description: string | null;
+    name_lv: string | null;
+    description_lv: string | null;
     price_cents: number;
     billing_interval: 'one_time' | 'month' | 'year';
     visit_limit: number | null;
@@ -49,7 +51,16 @@ export default function Subscriptions({
     priceChange,
     status,
 }: Props) {
-    const { t, intlLocale } = useTranslation();
+    const { t, locale, intlLocale } = useTranslation();
+
+    // Falls back to the English field when no Latvian translation has been
+    // filled in for a plan yet, rather than showing blank.
+    const planName = (plan: Plan) =>
+        locale === 'lv' && plan.name_lv ? plan.name_lv : plan.name;
+    const planDescription = (plan: Plan) =>
+        locale === 'lv' && plan.description_lv
+            ? plan.description_lv
+            : plan.description;
 
     const formatPrice = (cents: number, interval: Plan['billing_interval']) => {
         const amount = formatEuros(cents);
@@ -181,11 +192,11 @@ export default function Subscriptions({
                                 className="flex flex-col rounded-none border border-gray-200 bg-white p-6 shadow-sm"
                             >
                                 <h2 className="text-base font-semibold text-gray-900">
-                                    {plan.name}
+                                    {planName(plan)}
                                 </h2>
-                                {plan.description && (
+                                {planDescription(plan) && (
                                     <p className="mt-1 text-sm text-gray-500">
-                                        {plan.description}
+                                        {planDescription(plan)}
                                     </p>
                                 )}
                                 <p className="mt-4 text-lg font-semibold text-gray-900">

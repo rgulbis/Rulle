@@ -10,6 +10,8 @@ use Laravel\Cashier\Cashier;
  * @property int $id
  * @property string $name
  * @property string|null $description
+ * @property string|null $name_lv
+ * @property string|null $description_lv
  * @property int $price_cents
  * @property string $billing_interval
  * @property int|null $visit_limit
@@ -18,7 +20,7 @@ use Laravel\Cashier\Cashier;
  * @property string|null $stripe_price_id
  * @property bool $active
  */
-#[Fillable(['name', 'description', 'price_cents', 'billing_interval', 'visit_limit', 'unlimited_entries', 'active'])]
+#[Fillable(['name', 'description', 'name_lv', 'description_lv', 'price_cents', 'billing_interval', 'visit_limit', 'unlimited_entries', 'active'])]
 class SubscriptionType extends Model
 {
     protected function casts(): array
