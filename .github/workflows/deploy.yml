@@ -10,7 +10,7 @@ jobs:
     env:
       COMPOSE_PROJECT_NAME: skatepark
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           clean: false
 
