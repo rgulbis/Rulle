@@ -19,6 +19,7 @@ use Laravel\Cashier\Billable;
 /**
  * @property int $id
  * @property string $name
+ * @property string|null $pending_name
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string $password
@@ -34,7 +35,7 @@ use Laravel\Cashier\Billable;
 // array built from request input. The admin panel (the only place a role is
 // meant to change) sets it via forceFill/forceCreate instead — see
 // App\Filament\Resources\Users\Pages\CreateUser and EditUser.
-#[Fillable(['name', 'email', 'password', 'email_verified_at', 'chat_muted_until'])]
+#[Fillable(['name', 'pending_name', 'email', 'password', 'email_verified_at', 'chat_muted_until'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {

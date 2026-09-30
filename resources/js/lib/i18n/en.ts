@@ -388,6 +388,10 @@ const en = {
         "Your email is also your login, so it can't be changed here.",
     'settings.profile.submit': 'Save',
     'settings.profile.updated': 'Your name has been updated.',
+    'settings.profile.pendingSubmitted':
+        "Name change submitted — it'll show up once an admin approves it.",
+    'settings.profile.pendingNotice':
+        'Waiting on admin approval: "{name}". Your current name still shows everywhere until then.',
 
     // Toasts
     'toast.tooManyRequests': "Slow down a little — that's a lot of clicks.",

@@ -2,12 +2,15 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Models\User;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 
 class UsersTable
@@ -17,6 +20,11 @@ class UsersTable
         return $table
             ->columns([
                 TextColumn::make('name')
+                    ->searchable(),
+                TextColumn::make('pending_name')
+                    ->label('Requested name')
+                    ->placeholder('—')
+                    ->color('warning')
                     ->searchable(),
                 TextColumn::make('email')
                     ->label('Email address')
@@ -44,8 +52,28 @@ class UsersTable
                         'employee' => 'Employee',
                         'user' => 'User',
                     ]),
+                TernaryFilter::make('pending_name')
+                    ->label('Name change requested')
+                    ->trueLabel('Pending review')
+                    ->falseLabel('None')
+                    ->nullable(),
             ])
             ->recordActions([
+                Action::make('approveName')
+                    ->label('Approve name')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->visible(fn (User $record) => $record->pending_name !== null)
+                    ->action(fn (User $record) => $record->update([
+                        'name' => $record->pending_name,
+                        'pending_name' => null,
+                    ])),
+                Action::make('rejectName')
+                    ->label('Reject name')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->visible(fn (User $record) => $record->pending_name !== null)
+                    ->action(fn (User $record) => $record->update(['pending_name' => null])),
                 EditAction::make(),
             ])
             ->toolbarActions([

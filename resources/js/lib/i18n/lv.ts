@@ -395,6 +395,10 @@ const lv: Record<TranslationKey, string> = {
         'Jūsu e-pasts ir arī jūsu lietotājvārds, tāpēc to šeit nevar mainīt.',
     'settings.profile.submit': 'Saglabāt',
     'settings.profile.updated': 'Jūsu vārds ir atjaunināts.',
+    'settings.profile.pendingSubmitted':
+        'Vārda maiņa iesniegta — tā parādīsies, tiklīdz administrators to apstiprinās.',
+    'settings.profile.pendingNotice':
+        'Gaida administratora apstiprinājumu: "{name}". Līdz tam visur redzams jūsu pašreizējais vārds.',
 
     // Toasts
     'toast.tooManyRequests': 'Palēnini nedaudz — tas ir daudz klikšķu.',

@@ -14,7 +14,13 @@ import AppLayout, { PageContainer } from '@/layouts/app-layout';
 import { useTranslation } from '@/lib/i18n/context';
 import type { Auth } from '@/types/auth';
 
-export default function Profile({ status }: { status?: string }) {
+export default function Profile({
+    status,
+    pendingName,
+}: {
+    status?: string;
+    pendingName: string | null;
+}) {
     const { t } = useTranslation();
     const { auth } = usePage<{ auth: Auth }>().props;
     const { data, setData, patch, processing, errors, isDirty } = useForm({
@@ -39,6 +45,20 @@ export default function Profile({ status }: { status?: string }) {
                 <div className="border-ink bg-paper shadow-hard-lg border-2 p-6 lg:p-8">
                     {status === 'profile-updated' && (
                         <StatusMessage status={t('settings.profile.updated')} />
+                    )}
+                    {status === 'profile-pending' && (
+                        <StatusMessage
+                            tone="warning"
+                            status={t('settings.profile.pendingSubmitted')}
+                        />
+                    )}
+                    {pendingName && status !== 'profile-pending' && (
+                        <StatusMessage
+                            tone="warning"
+                            status={t('settings.profile.pendingNotice', {
+                                name: pendingName,
+                            })}
+                        />
                     )}
 
                     <form onSubmit={submit} className="flex flex-col gap-5">
