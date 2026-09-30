@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from '@/lib/i18n/context';
 
 type TimeRange = {
@@ -68,6 +69,13 @@ export default function ReservationTimeline({
     const { t } = useTranslation();
     const svgRef = useRef<SVGSVGElement>(null);
     const [hover, setHover] = useState<number | null>(null);
+    // A 15-minute step is only a few screen pixels wide once the timeline is
+    // squeezed onto a phone, far too thin to land on with a single tap. So on
+    // top of tap-to-place, dragging a finger (or the mouse) across the bar
+    // continuously extends the selection with the same live preview line
+    // mouse users get for free from hovering — the drag itself does the
+    // precise positioning instead of the tap location having to.
+    const draggingRef = useRef(false);
 
     const openMin = timeToMinutes(openingTime);
     const closeMin = timeToMinutes(closingTime);
@@ -99,29 +107,63 @@ export default function ReservationTimeline({
         return Math.min(closeMin, Math.max(pastCutoff, snapped));
     };
 
-    const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-        setHover(positionToMinutes(e.clientX));
+    const handlePointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
+        svgRef.current?.setPointerCapture(e.pointerId);
+        draggingRef.current = true;
+
+        const clicked = positionToMinutes(e.clientX);
+        setHover(clicked);
+        onChange({ start: clicked, end: null });
     };
 
-    const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
-        const clicked = positionToMinutes(e.clientX);
+    const handlePointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+        const pos = positionToMinutes(e.clientX);
+        setHover(pos);
 
-        if (value.start === null || value.end !== null) {
-            onChange({ start: clicked, end: null });
+        if (!draggingRef.current || value.start === null) {
             return;
         }
 
-        if (clicked <= value.start) {
-            onChange({ start: clicked, end: null });
+        if (pos <= value.start) {
+            onChange({ start: pos, end: null });
             return;
         }
 
         const end = Math.min(
             closeMin,
-            Math.max(value.start + minDurationMinutes, clicked),
+            Math.max(value.start + minDurationMinutes, pos),
             value.start + maxDurationMinutes,
         );
         onChange({ start: value.start, end });
+    };
+
+    const endDrag = (e: ReactPointerEvent<SVGSVGElement>) => {
+        if (!draggingRef.current) {
+            return;
+        }
+
+        draggingRef.current = false;
+        svgRef.current?.releasePointerCapture(e.pointerId);
+
+        // A tap with no drag leaves `end` unset — there's no separate
+        // "second click" on a touchscreen, so default straight to the
+        // shortest bookable block instead of stranding the user on a start
+        // time they can't finish selecting.
+        if (value.start !== null && value.end === null) {
+            const end = Math.min(closeMin, value.start + minDurationMinutes);
+
+            onChange(
+                end > value.start
+                    ? { start: value.start, end }
+                    : {
+                          start: Math.max(
+                              pastCutoff,
+                              closeMin - minDurationMinutes,
+                          ),
+                          end: closeMin,
+                      },
+            );
+        }
     };
 
     const maxPeak = Math.max(1, ...peakHours);
@@ -155,9 +197,11 @@ export default function ReservationTimeline({
                 ref={svgRef}
                 viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
                 className="w-full cursor-pointer touch-none select-none"
-                onClick={handleClick}
-                onMouseMove={handleMouseMove}
-                onMouseLeave={() => setHover(null)}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+                onPointerLeave={() => setHover(null)}
             >
                 <polyline
                     points={peakPoints}

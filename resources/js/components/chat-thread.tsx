@@ -79,6 +79,10 @@ export default function ChatThread({
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [pinnedOpen, setPinnedOpen] = useState(false);
+    // The pin/mute/delete bar normally only reveals on hover/focus — there's
+    // no hover on a touchscreen, so staff on a phone had no way to ever see
+    // it. Below the `lg` breakpoint a per-message button toggles it instead.
+    const [openActionsFor, setOpenActionsFor] = useState<number | null>(null);
     // Confirms a moderation action (right now: muting) actually went
     // through — muteUser() used to fire-and-forget with no feedback at all.
     const [moderationNotice, setModerationNotice] = useState<string | null>(
@@ -612,75 +616,124 @@ export default function ChatThread({
                                         </div>
 
                                         {moderation && (
-                                            <div className="border-ink bg-paper shadow-hard absolute -top-4 right-4 z-10 hidden items-stretch border-2 text-xs font-semibold group-focus-within:flex group-hover:flex">
+                                            <>
                                                 <button
                                                     type="button"
                                                     onClick={() =>
-                                                        togglePin(
-                                                            message.id,
-                                                            message.pinned,
+                                                        setOpenActionsFor(
+                                                            (current) =>
+                                                                current ===
+                                                                message.id
+                                                                    ? null
+                                                                    : message.id,
                                                         )
                                                     }
-                                                    className="hover:bg-accent hover:text-accent-ink flex min-h-9 items-center gap-1.5 px-2.5"
+                                                    aria-label={t(
+                                                        'chatThread.moreActions',
+                                                    )}
+                                                    aria-expanded={
+                                                        openActionsFor ===
+                                                        message.id
+                                                    }
+                                                    className="border-ink bg-paper absolute top-1 right-1 z-20 flex size-8 items-center justify-center border-2 lg:hidden"
                                                 >
-                                                    <PinIcon size={14} />
-                                                    {message.pinned
-                                                        ? t('chatThread.unpin')
-                                                        : t('chatThread.pin')}
+                                                    {openActionsFor ===
+                                                    message.id ? (
+                                                        <CrossIcon size={14} />
+                                                    ) : (
+                                                        <MoreIcon />
+                                                    )}
                                                 </button>
-                                                {canPenalise && (
-                                                    <>
-                                                        {MUTE_OPTIONS.map(
-                                                            (option) => (
-                                                                <button
-                                                                    key={
-                                                                        option.hours
-                                                                    }
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        muteUser(
-                                                                            message
-                                                                                .user
-                                                                                .id,
-                                                                            message
-                                                                                .user
-                                                                                .name,
-                                                                            option.hours,
-                                                                            t(
-                                                                                option.labelKey,
-                                                                            ),
-                                                                        )
-                                                                    }
-                                                                    className="border-line hover:bg-accent hover:text-accent-ink border-l-2 px-2.5"
-                                                                >
-                                                                    {t(
-                                                                        'chatThread.mute',
-                                                                        {
-                                                                            duration:
+                                                <div
+                                                    className={`border-ink bg-paper shadow-hard absolute top-10 right-1 z-10 items-stretch border-2 text-xs font-semibold lg:-top-4 lg:right-4 lg:group-focus-within:flex lg:group-hover:flex ${
+                                                        openActionsFor ===
+                                                        message.id
+                                                            ? 'flex'
+                                                            : 'hidden'
+                                                    }`}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            togglePin(
+                                                                message.id,
+                                                                message.pinned,
+                                                            );
+                                                            setOpenActionsFor(
+                                                                null,
+                                                            );
+                                                        }}
+                                                        className="hover:bg-accent hover:text-accent-ink flex min-h-9 items-center gap-1.5 px-2.5"
+                                                    >
+                                                        <PinIcon size={14} />
+                                                        {message.pinned
+                                                            ? t(
+                                                                  'chatThread.unpin',
+                                                              )
+                                                            : t(
+                                                                  'chatThread.pin',
+                                                              )}
+                                                    </button>
+                                                    {canPenalise && (
+                                                        <>
+                                                            {MUTE_OPTIONS.map(
+                                                                (option) => (
+                                                                    <button
+                                                                        key={
+                                                                            option.hours
+                                                                        }
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            muteUser(
+                                                                                message
+                                                                                    .user
+                                                                                    .id,
+                                                                                message
+                                                                                    .user
+                                                                                    .name,
+                                                                                option.hours,
                                                                                 t(
                                                                                     option.labelKey,
                                                                                 ),
-                                                                        },
-                                                                    )}
-                                                                </button>
-                                                            ),
-                                                        )}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                deleteMessage(
-                                                                    message.id,
-                                                                )
-                                                            }
-                                                            className="border-line text-danger hover:bg-danger-fill border-l-2 px-2.5 hover:text-white"
-                                                        >
-                                                            {t(
-                                                                'chatThread.delete',
+                                                                            );
+                                                                            setOpenActionsFor(
+                                                                                null,
+                                                                            );
+                                                                        }}
+                                                                        className="border-line hover:bg-accent hover:text-accent-ink border-l-2 px-2.5"
+                                                                    >
+                                                                        {t(
+                                                                            'chatThread.mute',
+                                                                            {
+                                                                                duration:
+                                                                                    t(
+                                                                                        option.labelKey,
+                                                                                    ),
+                                                                            },
+                                                                        )}
+                                                                    </button>
+                                                                ),
                                                             )}
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    deleteMessage(
+                                                                        message.id,
+                                                                    );
+                                                                    setOpenActionsFor(
+                                                                        null,
+                                                                    );
+                                                                }}
+                                                                className="border-line text-danger hover:bg-danger-fill border-l-2 px-2.5 hover:text-white"
+                                                            >
+                                                                {t(
+                                                                    'chatThread.delete',
+                                                                )}
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </>
                                         )}
                                     </div>
                                 </li>
@@ -843,6 +896,22 @@ function PinIcon({ size = 16 }: { size?: number }) {
             aria-hidden="true"
         >
             <path d="M9 3h6l-1 6 4 4H6l4-4zM12 13v8" />
+        </svg>
+    );
+}
+
+function MoreIcon({ size = 16 }: { size?: number }) {
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+        >
+            <circle cx="5" cy="12" r="2.2" />
+            <circle cx="12" cy="12" r="2.2" />
+            <circle cx="19" cy="12" r="2.2" />
         </svg>
     );
 }

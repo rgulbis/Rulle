@@ -138,6 +138,7 @@ const en = {
     'chatThread.pinned': 'Pinned',
     'chatThread.unpin': 'Unpin',
     'chatThread.pin': 'Pin',
+    'chatThread.moreActions': 'More actions',
     'chatThread.noMessages': 'No messages yet — say something.',
     'chatThread.mute': 'Mute {duration}',
     'chatThread.muteHour': '1 hour',
@@ -266,7 +267,7 @@ const en = {
     'home.heroQueue': 'Queue',
     'home.heroHighlight': 'less.',
     'home.intro':
-        'Buy your pass online, walk in with a QR code, and check how busy the park is before you leave home.',
+        'Ramps, bowls and rails for every skill level — from your first jump to the hardest tricks. An indoor park, open every day whatever the weather.',
     'home.seePasses': 'See passes',
     'home.watchLive': 'Watch the park live',
     'home.parkRightNow': 'The park right now',

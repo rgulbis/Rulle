@@ -64,16 +64,13 @@ class UsersTable
                     ->color('success')
                     ->requiresConfirmation()
                     ->visible(fn (User $record) => $record->pending_name !== null)
-                    ->action(fn (User $record) => $record->update([
-                        'name' => $record->pending_name,
-                        'pending_name' => null,
-                    ])),
+                    ->action(fn (User $record) => $record->approvePendingName()),
                 Action::make('rejectName')
                     ->label('Reject name')
                     ->color('danger')
                     ->requiresConfirmation()
                     ->visible(fn (User $record) => $record->pending_name !== null)
-                    ->action(fn (User $record) => $record->update(['pending_name' => null])),
+                    ->action(fn (User $record) => $record->rejectPendingName()),
                 EditAction::make(),
             ])
             ->toolbarActions([

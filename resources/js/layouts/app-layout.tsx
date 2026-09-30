@@ -26,24 +26,30 @@ function NavLink({
         url.startsWith(`${href}?`) ||
         url.startsWith(`${href}/`) ||
         (activePrefix !== undefined && url.startsWith(`${activePrefix}/`));
-    const className = `flex min-h-11 items-center gap-2 border-b-[3px] text-base ${
+    // The row itself stays full-width so mobile keeps a generous tap target,
+    // but the underline sits on an inner inline element — otherwise a
+    // column-flex mobile menu stretches every link to the container's width
+    // and the indicator runs edge-to-edge under the label instead of hugging
+    // it like it does in the row-flex desktop nav.
+    const rowClassName = 'flex min-h-11 w-full items-center text-base';
+    const labelClassName = `inline-flex items-center gap-2 border-b-[3px] ${
         active
             ? 'border-accent font-semibold text-ink'
-            : 'border-transparent font-medium text-ink hover:border-line'
+            : 'border-transparent font-medium text-ink group-hover:border-line'
     }`;
 
     // The Filament admin panel is a separate app, not an Inertia page.
     return external ? (
-        <a href={href} className={className}>
-            {children}
+        <a href={href} className={`group ${rowClassName}`}>
+            <span className={labelClassName}>{children}</span>
         </a>
     ) : (
         <Link
             href={href}
-            className={className}
+            className={`group ${rowClassName}`}
             aria-current={active ? 'page' : undefined}
         >
-            {children}
+            <span className={labelClassName}>{children}</span>
         </Link>
     );
 }
@@ -61,10 +67,10 @@ export function OpenStatus({ park }: { park: Park }) {
     const { t } = useTranslation();
 
     return (
-        <p className="flex items-center gap-2 font-mono text-xs font-semibold tracking-[0.08em] uppercase">
+        <p className="flex shrink-0 items-center gap-2 font-mono text-xs font-semibold tracking-[0.08em] whitespace-nowrap uppercase">
             <span
                 aria-hidden="true"
-                className={`size-2.5 ${park.is_open ? 'bg-ok' : 'bg-faint'}`}
+                className={`size-2.5 shrink-0 ${park.is_open ? 'bg-ok' : 'bg-faint'}`}
             />
             {park.is_open
                 ? t('park.openUntil', { time: park.closing_time })

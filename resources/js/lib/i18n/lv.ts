@@ -141,6 +141,7 @@ const lv: Record<TranslationKey, string> = {
     'chatThread.pinned': 'Piespraustās',
     'chatThread.unpin': 'Atspraust',
     'chatThread.pin': 'Piespraust',
+    'chatThread.moreActions': 'Vairāk darbību',
     'chatThread.noMessages': 'Vēl nav ziņu — uzrakstiet kaut ko.',
     'chatThread.mute': 'Apklusināt {duration}',
     'chatThread.muteHour': '1 stundu',
@@ -271,7 +272,7 @@ const lv: Record<TranslationKey, string> = {
     'home.heroQueue': 'Gaidiet',
     'home.heroHighlight': 'mazāk.',
     'home.intro':
-        'Nopērciet abonementu tiešsaistē, ienāciet ar QR kodu un pārbaudiet, cik parkā ir cilvēku, pirms izejat no mājām.',
+        'Rampas, bowls un rails visiem līmeņiem — no pirmā lēciena līdz sarežģītākajiem trikiem. Iekštelpu parks, atvērts katru dienu neatkarīgi no laika apstākļiem.',
     'home.seePasses': 'Skatīt abonementus',
     'home.watchLive': 'Skatīties tiešraidi',
     'home.parkRightNow': 'Parks šobrīd',

@@ -85,6 +85,16 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $this->chat_muted_until !== null && $this->chat_muted_until->isFuture();
     }
 
+    public function approvePendingName(): void
+    {
+        $this->update(['name' => $this->pending_name, 'pending_name' => null]);
+    }
+
+    public function rejectPendingName(): void
+    {
+        $this->update(['pending_name' => null]);
+    }
+
     /**
      * For showing an email address to someone other than its owner (e.g.
      * disambiguating same-named results in a customer search) without
