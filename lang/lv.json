@@ -10,5 +10,6 @@
     "That time overlaps with an existing reservation.": "Šis laiks pārklājas ar esošu rezervāciju.",
     "This reservation is already at its paid group size.": "Šī rezervācija jau ir sasniegusi apmaksāto grupas lielumu.",
     "You are muted from chat.": "Jūs esat apklusināts tērzētavā.",
+    "You are muted from this group chat.": "Jūs esat apklusināts šajā grupas tērzētavā.",
     "That contains language that isn't allowed here.": "Tas satur valodu, kas šeit nav atļauta."
 }

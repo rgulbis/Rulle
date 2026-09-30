@@ -43,6 +43,17 @@ export function CheckIcon(props: SVGProps<SVGSVGElement> & { size?: number }) {
     );
 }
 
+export function CalendarIcon(
+    props: SVGProps<SVGSVGElement> & { size?: number },
+) {
+    return (
+        <Icon {...props}>
+            <rect x="3" y="5" width="18" height="16" />
+            <path d="M3 9h18M8 3v4M16 3v4" />
+        </Icon>
+    );
+}
+
 export function CrossIcon(props: SVGProps<SVGSVGElement> & { size?: number }) {
     return (
         <Icon strokeWidth={2.6} {...props}>

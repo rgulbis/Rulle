@@ -90,7 +90,11 @@ export default function ChatThread({
     );
     // New messages that arrived while scrolled up reading older ones.
     const [unseen, setUnseen] = useState(0);
+    // Briefly flashed on whichever message was just jumped to from the
+    // pinned list, so landing on it doesn't feel like nothing happened.
+    const [justJumpedTo, setJustJumpedTo] = useState<number | null>(null);
     const scrollerRef = useRef<HTMLDivElement>(null);
+    const messageRefs = useRef<Record<number, HTMLLIElement | null>>({});
     const composerRef = useRef<HTMLTextAreaElement>(null);
     const stickToBottom = useRef(true);
     const seenCount = useRef(initialMessages.length);
@@ -183,6 +187,29 @@ export default function ChatThread({
             behavior: 'smooth',
         });
     };
+
+    // A pinned message can be much older than the ~100 recent ones this
+    // page loaded, in which case it simply isn't in the DOM to scroll to —
+    // silently doing nothing is the right fallback there rather than an
+    // error, since there's nowhere sensible to jump.
+    const jumpToMessage = (messageId: number) => {
+        setPinnedOpen(false);
+        messageRefs.current[messageId]?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+        });
+        setJustJumpedTo(messageId);
+    };
+
+    useEffect(() => {
+        if (justJumpedTo === null) {
+            return;
+        }
+
+        const id = setTimeout(() => setJustJumpedTo(null), 1500);
+
+        return () => clearTimeout(id);
+    }, [justJumpedTo]);
 
     // The composer grows with what's typed, up to a few lines.
     const resizeComposer = () => {
@@ -473,14 +500,18 @@ export default function ChatThread({
                                 className="flex gap-3 px-4 py-3"
                             >
                                 <Avatar user={message.user} size="sm" />
-                                <div className="min-w-0 flex-1">
+                                <button
+                                    type="button"
+                                    onClick={() => jumpToMessage(message.id)}
+                                    className="hover:bg-line/40 min-w-0 flex-1 rounded-none text-left"
+                                >
                                     <p className="text-sm font-semibold">
                                         {message.user.name}
                                     </p>
                                     <p className="text-base break-words whitespace-pre-wrap">
                                         {message.body}
                                     </p>
-                                </div>
+                                </button>
                                 {moderation && (
                                     <button
                                         type="button"
@@ -535,7 +566,12 @@ export default function ChatThread({
                                 message.user.role === 'user';
 
                             return (
-                                <li key={message.id}>
+                                <li
+                                    key={message.id}
+                                    ref={(el) => {
+                                        messageRefs.current[message.id] = el;
+                                    }}
+                                >
                                     {newDay && (
                                         <div
                                             role="separator"
@@ -547,11 +583,15 @@ export default function ChatThread({
                                         </div>
                                     )}
                                     <div
-                                        className={`group hover:bg-paper focus-within:bg-paper relative flex gap-4 border-l-4 px-4 lg:px-6 ${
+                                        className={`group hover:bg-paper focus-within:bg-paper relative flex gap-4 border-l-4 px-4 transition-colors lg:px-6 ${
                                             startsGroup
                                                 ? 'mt-3 pt-1 pb-0.5'
                                                 : 'py-0.5'
-                                        } ${message.pinned ? 'border-accent' : 'border-transparent'}`}
+                                        } ${message.pinned ? 'border-accent' : 'border-transparent'} ${
+                                            justJumpedTo === message.id
+                                                ? 'bg-accent/20'
+                                                : ''
+                                        }`}
                                     >
                                         <div className="w-10 shrink-0">
                                             {startsGroup ? (

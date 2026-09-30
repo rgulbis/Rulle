@@ -20,7 +20,11 @@ class ChatMessagePinChanged implements ShouldBroadcastNow
      */
     public function broadcastOn(): array
     {
-        return [new PrivateChannel('chat')];
+        $channel = $this->message->reservation_id
+            ? "reservation.{$this->message->reservation_id}.chat"
+            : 'chat';
+
+        return [new PrivateChannel($channel)];
     }
 
     public function broadcastAs(): string

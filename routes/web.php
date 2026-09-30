@@ -74,6 +74,11 @@ Route::middleware(['auth', 'customer-only', 'verified', 'throttle:30,1'])->group
 
     Route::get('reservations/{reservation}/chat', [ReservationChatController::class, 'show'])->name('reservations.chat.show');
     Route::post('reservations/{reservation}/chat', [ReservationChatController::class, 'store'])->name('reservations.chat.store');
+    Route::delete('reservations/{reservation}/chat/{message}', [ReservationChatController::class, 'destroy'])->name('reservations.chat.destroy');
+    Route::post('reservations/{reservation}/chat/{message}/pin', [ReservationChatController::class, 'pin'])->name('reservations.chat.pin');
+    Route::delete('reservations/{reservation}/chat/{message}/pin', [ReservationChatController::class, 'unpin'])->name('reservations.chat.unpin');
+    Route::post('reservations/{reservation}/chat/users/{user}/mute', [ReservationChatController::class, 'mute'])->name('reservations.chat.mute');
+    Route::post('reservations/{reservation}/chat/users/{user}/unmute', [ReservationChatController::class, 'unmute'])->name('reservations.chat.unmute');
 });
 
 Route::middleware(['auth', 'can-scan'])->group(function () {

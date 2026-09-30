@@ -9,6 +9,7 @@ import {
     StatusMessage,
     TextInput,
 } from '@/components/form-controls';
+import { CalendarIcon } from '@/components/icons';
 import ReservationCalendar from '@/components/reservation-calendar';
 import ReservationTimeline, {
     minutesToTime,
@@ -295,12 +296,14 @@ export default function ReservationsIndex({
                                 <Label htmlFor="starts_at_date">
                                     {t('reservations.date')}
                                 </Label>
-                                {/* iOS Safari's native date control can render
-                                wider than its own box and bleed out past the
-                                card instead of respecting `width: 100%` —
-                                this clips that overflow instead of trying to
-                                out-guess WebKit's internal sizing. */}
-                                <div className="w-full overflow-x-hidden">
+                                {/* iOS Safari's native date control ignores
+                                `width: 100%` unless its own appearance is
+                                stripped — clipping the overflow instead (an
+                                earlier attempt here) just clipped the box's
+                                own border along with it. This is the same
+                                fix already confirmed working for the
+                                duration <Select> below. */}
+                                <div className="relative">
                                     <TextInput
                                         id="starts_at_date"
                                         type="date"
@@ -313,6 +316,11 @@ export default function ReservationsIndex({
                                         onChange={(e) =>
                                             chooseDate(e.target.value)
                                         }
+                                        className="appearance-none pr-11 [&::-webkit-calendar-picker-indicator]:hidden"
+                                    />
+                                    <CalendarIcon
+                                        aria-hidden="true"
+                                        className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2"
                                     />
                                 </div>
                             </div>

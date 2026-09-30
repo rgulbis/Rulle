@@ -14,13 +14,21 @@ type Props = {
         ends_at: string;
     };
     messages: ChatMessage[];
+    pinned: ChatMessage[];
     chatGroups: ChatGroup[];
+    canModerate: boolean;
+    muted: boolean;
+    mutedUntil: string | null;
 };
 
 export default function ReservationChat({
     reservation,
     messages,
+    pinned,
     chatGroups,
+    canModerate,
+    muted,
+    mutedUntil,
 }: Props) {
     const { t } = useTranslation();
     const groupName = useGroupChannelName();
@@ -38,7 +46,22 @@ export default function ReservationChat({
                     title={groupName(reservation)}
                     description={t('reservationChat.subtitle')}
                     initialMessages={messages}
+                    initialPinned={pinned}
                     postUrl={`/reservations/${reservation.id}/chat`}
+                    muted={muted}
+                    mutedUntil={mutedUntil}
+                    moderation={
+                        canModerate
+                            ? {
+                                  deleteUrl: (id) =>
+                                      `/reservations/${reservation.id}/chat/${id}`,
+                                  muteUrl: (userId) =>
+                                      `/reservations/${reservation.id}/chat/users/${userId}/mute`,
+                                  pinUrl: (id) =>
+                                      `/reservations/${reservation.id}/chat/${id}/pin`,
+                              }
+                            : undefined
+                    }
                 />
             </ChatShell>
         </AppLayout>

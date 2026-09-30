@@ -49,13 +49,21 @@ class Reservation extends Model
      */
     public function participants(): BelongsToMany
     {
-        return $this->belongsToMany(User::class)->withTimestamps();
+        return $this->belongsToMany(User::class)
+            ->using(ReservationParticipant::class)
+            ->withTimestamps()
+            ->withPivot('chat_muted_until');
     }
 
     public function includesParticipant(User $user): bool
     {
         return $this->user_id === $user->id
             || $this->participants()->whereKey($user->id)->exists();
+    }
+
+    public function isOwnedBy(User $user): bool
+    {
+        return $this->user_id === $user->id;
     }
 
     /**

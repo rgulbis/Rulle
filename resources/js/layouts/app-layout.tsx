@@ -141,7 +141,7 @@ export default function AppLayout({
             <button
                 type="button"
                 onClick={() => router.post('/logout')}
-                className="text-ink min-h-11 text-base font-medium underline underline-offset-4"
+                className="text-ink min-h-11 shrink-0 text-base font-medium whitespace-nowrap underline underline-offset-4"
             >
                 {t('nav.logOut')}
             </button>
