@@ -38,9 +38,20 @@ return [
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
+            // Left at SQLite's own defaults (all null) before, which meant:
+            // no journal_mode override -> the default rollback-journal mode,
+            // which locks the *entire database file* during any write, not
+            // just the row/table being touched, blocking every other
+            // request's reads too (sessions get written on every request,
+            // so this affects literally every page, not just whichever one
+            // is under load) -> a burst of concurrent requests looked like
+            // the whole site hanging. WAL lets reads proceed without
+            // waiting on a write; busy_timeout makes a genuine write/write
+            // conflict wait and retry for a bit instead of failing
+            // immediately with "database is locked".
+            'busy_timeout' => 5000,
+            'journal_mode' => 'wal',
+            'synchronous' => 'normal',
             'transaction_mode' => 'DEFERRED',
         ],
 
