@@ -388,6 +388,9 @@ const en = {
         "Your email is also your login, so it can't be changed here.",
     'settings.profile.submit': 'Save',
     'settings.profile.updated': 'Your name has been updated.',
+
+    // Toasts
+    'toast.tooManyRequests': "Slow down a little — that's a lot of clicks.",
 } as const;
 
 export default en;

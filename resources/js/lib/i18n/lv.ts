@@ -395,6 +395,9 @@ const lv: Record<TranslationKey, string> = {
         'Jūsu e-pasts ir arī jūsu lietotājvārds, tāpēc to šeit nevar mainīt.',
     'settings.profile.submit': 'Saglabāt',
     'settings.profile.updated': 'Jūsu vārds ir atjaunināts.',
+
+    // Toasts
+    'toast.tooManyRequests': 'Palēnini nedaudz — tas ir daudz klikšķu.',
 };
 
 export default lv;
