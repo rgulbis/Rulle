@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -93,6 +94,25 @@ class Reservation extends Model
      * The reservation currently blocking general entry, if any. Used by the
      * scanner to know whether the park is privately reserved right now.
      */
+    /**
+     * The reservation group chats a user can open — ones they own or were
+     * added to, not cancelled, and not long over — for the chat sidebar.
+     *
+     * @return Collection<int, self>
+     */
+    public static function chatGroupsFor(User $user): Collection
+    {
+        return self::query()
+            ->where(function (Builder $query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->orWhereHas('participants', fn ($q) => $q->whereKey($user->id));
+            })
+            ->where('status', '!=', 'cancelled')
+            ->where('ends_at', '>', now()->subDays(7))
+            ->orderBy('starts_at')
+            ->get(['id', 'starts_at', 'ends_at']);
+    }
+
     public static function activeNow(): ?self
     {
         $now = now();

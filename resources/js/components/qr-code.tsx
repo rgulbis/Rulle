@@ -11,7 +11,9 @@ export default function QrCode({
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
-        if (!canvasRef.current) {
+        // No code yet (e.g. a seeded account) — draw nothing rather than
+        // letting the library throw on empty input.
+        if (!canvasRef.current || !value) {
             return;
         }
 
@@ -21,5 +23,9 @@ export default function QrCode({
         });
     }, [value, size]);
 
-    return <canvas ref={canvasRef} className="rounded-none" />;
+    // Drawn at `size` but allowed to shrink with its container on narrow
+    // phones, rather than pushing the page wider than the screen.
+    return (
+        <canvas ref={canvasRef} className="h-auto max-w-full rounded-none" />
+    );
 }

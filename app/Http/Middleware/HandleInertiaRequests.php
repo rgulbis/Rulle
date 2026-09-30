@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\ReservationSetting;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -52,6 +53,27 @@ class HandleInertiaRequests extends Middleware
                     'checked_in' => $user->isCurrentlyCheckedIn(),
                 ] : null,
             ],
+            // The language picked with the frontend's toggle (its cookie),
+            // so a server-side render comes out in the same language the
+            // browser then hydrates it in. Null = not chosen yet; the
+            // frontend falls back to its own default.
+            'locale' => in_array($request->cookie('locale'), SetLocale::SUPPORTED, true)
+                ? $request->cookie('locale')
+                : null,
+            // Opening hours for the nav's "open until…" badge on every page.
+            // Whether it's open right now is decided here, in the app's
+            // timezone, rather than by the visitor's own clock.
+            'park' => function () {
+                $settings = ReservationSetting::current();
+                $minutes = now()->hour * 60 + now()->minute;
+
+                return [
+                    'opening_time' => $settings->opening_time,
+                    'closing_time' => $settings->closing_time,
+                    'is_open' => $minutes >= $settings->openingMinutes()
+                        && $minutes < $settings->closingMinutes(),
+                ];
+            },
         ];
     }
 }

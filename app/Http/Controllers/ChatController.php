@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ChatMessage;
+use App\Models\Reservation;
 use App\Models\User;
 use App\Support\ChatModeration;
 use App\Support\ChatSlowMode;
@@ -41,6 +42,7 @@ class ChatController extends Controller
             'canModerate' => $user->isEmployee(),
             'muted' => $user->isChatMuted(),
             'mutedUntil' => $user->chat_muted_until,
+            'chatGroups' => Reservation::chatGroupsFor($user),
         ]);
     }
 
@@ -52,7 +54,10 @@ class ChatController extends Controller
 
         if ($wait > 0) {
             return back()->withErrors([
-                'body' => "Slow mode is on — wait {$wait}s before sending another message.",
+                'body' => __('Slow mode is on — wait :secondss before sending another message.', ['seconds' => $wait]),
+                // The bare number too, so the chat can count it down live
+                // instead of showing a fixed "wait 8 s" that goes stale.
+                'slow_mode_wait' => (string) $wait,
             ]);
         }
 

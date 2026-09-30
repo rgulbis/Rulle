@@ -162,7 +162,7 @@ export default function ReservationTimeline({
                 <polyline
                     points={peakPoints}
                     fill="none"
-                    stroke="#6b7280"
+                    className="stroke-faint"
                     strokeWidth={2}
                     strokeDasharray="4 4"
                     strokeLinejoin="round"
@@ -173,7 +173,7 @@ export default function ReservationTimeline({
                         cx={xFor(hour * 60)}
                         cy={peakY(hour)}
                         r={2.5}
-                        fill="#6b7280"
+                        className="fill-faint"
                     />
                 ))}
 
@@ -182,8 +182,8 @@ export default function ReservationTimeline({
                     y={BAR_TOP}
                     width={WIDTH}
                     height={BAR_HEIGHT}
-                    fill="#f3f4f6"
-                    stroke="#e5e7eb"
+                    className="fill-paper stroke-ink"
+                    strokeWidth={2}
                 />
 
                 {pastCutoff > openMin && (
@@ -192,8 +192,8 @@ export default function ReservationTimeline({
                         y={BAR_TOP}
                         width={xFor(pastCutoff)}
                         height={BAR_HEIGHT}
-                        fill="#d1d5db"
-                        opacity={0.7}
+                        className="fill-line"
+                        opacity={0.8}
                     />
                 )}
 
@@ -204,8 +204,8 @@ export default function ReservationTimeline({
                         y={BAR_TOP}
                         width={xFor(range.end) - xFor(range.start)}
                         height={BAR_HEIGHT}
-                        fill="#fca5a5"
-                        opacity={0.6}
+                        className="fill-live"
+                        opacity={0.45}
                     />
                 ))}
 
@@ -217,8 +217,7 @@ export default function ReservationTimeline({
                             xFor(value.end ?? value.start) - xFor(value.start)
                         }
                         height={BAR_HEIGHT}
-                        fill="#facc15"
-                        opacity={0.85}
+                        className="fill-accent"
                     />
                 )}
 
@@ -229,7 +228,7 @@ export default function ReservationTimeline({
                             x2={xFor(hover)}
                             y1={PEAK_BASELINE - PEAK_HEIGHT}
                             y2={BAR_TOP + BAR_HEIGHT + 14}
-                            stroke="#f59e0b"
+                            className="stroke-ink"
                             strokeWidth={1}
                             strokeDasharray="3 3"
                         />
@@ -238,7 +237,7 @@ export default function ReservationTimeline({
                             cy={BAR_TOP + BAR_HEIGHT / 2}
                             r={5}
                             fill="none"
-                            stroke="#f59e0b"
+                            className="stroke-ink"
                             strokeWidth={2}
                         />
                     </>
@@ -249,7 +248,7 @@ export default function ReservationTimeline({
                         cx={xFor(value.start)}
                         cy={BAR_TOP + BAR_HEIGHT / 2}
                         r={6}
-                        fill="#18181b"
+                        className="fill-ink"
                     />
                 )}
                 {value.end !== null && (
@@ -257,7 +256,7 @@ export default function ReservationTimeline({
                         cx={xFor(value.end)}
                         cy={BAR_TOP + BAR_HEIGHT / 2}
                         r={6}
-                        fill="#18181b"
+                        className="fill-ink"
                     />
                 )}
 
@@ -268,26 +267,27 @@ export default function ReservationTimeline({
                             x2={xFor(hour * 60)}
                             y1={BAR_TOP}
                             y2={BAR_TOP + BAR_HEIGHT}
-                            stroke="#e5e7eb"
+                            className="stroke-line"
                         />
                         <text
                             x={xFor(hour * 60)}
                             y={BAR_TOP + BAR_HEIGHT + 18}
                             fontSize={11}
-                            fill={
-                                hour * 60 < pastCutoff ? '#d1d5db' : '#9ca3af'
-                            }
+                            className={`${
+                                hour * 60 < pastCutoff
+                                    ? 'fill-line'
+                                    : 'fill-muted'
+                            } ${
+                                i % 2 === 1 && i !== hours.length - 1
+                                    ? 'hidden sm:inline'
+                                    : ''
+                            }`}
                             textAnchor={
                                 i === 0
                                     ? 'start'
                                     : i === hours.length - 1
                                       ? 'end'
                                       : 'middle'
-                            }
-                            className={
-                                i % 2 === 1 && i !== hours.length - 1
-                                    ? 'hidden sm:inline'
-                                    : undefined
                             }
                         >
                             {hour}:00
@@ -297,7 +297,7 @@ export default function ReservationTimeline({
             </svg>
 
             <div className="mt-2 flex items-center justify-between text-sm">
-                <p className="text-gray-700">
+                <p className="text-ink font-medium">
                     {value.start !== null && value.end !== null
                         ? t('reservations.selectionSummary', {
                               start: minutesToTime(value.start),
@@ -314,7 +314,7 @@ export default function ReservationTimeline({
                     <button
                         type="button"
                         onClick={() => onChange({ start: null, end: null })}
-                        className="text-xs font-medium text-red-600 hover:text-red-500"
+                        className="text-danger min-h-11 px-2 font-semibold underline underline-offset-4"
                     >
                         {t('reservations.reset')}
                     </button>

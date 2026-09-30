@@ -80,17 +80,17 @@ export default function ReservationCalendar({
     };
 
     return (
-        <div className="rounded-none border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="border-ink bg-paper border-2 p-5">
             <div className="mb-3 flex items-center justify-between">
                 <button
                     type="button"
                     onClick={() => setViewDate(new Date(year, month - 1, 1))}
-                    className="px-2 text-sm text-gray-500 hover:text-gray-900"
+                    className="text-ink hover:bg-ground flex min-h-11 min-w-11 items-center justify-center text-lg font-semibold"
                     aria-label={t('reservations.previousMonth')}
                 >
                     ‹
                 </button>
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="font-display text-2xl font-black uppercase">
                     {firstOfMonth.toLocaleDateString(intlLocale, {
                         month: 'long',
                         year: 'numeric',
@@ -99,14 +99,14 @@ export default function ReservationCalendar({
                 <button
                     type="button"
                     onClick={() => setViewDate(new Date(year, month + 1, 1))}
-                    className="px-2 text-sm text-gray-500 hover:text-gray-900"
+                    className="text-ink hover:bg-ground flex min-h-11 min-w-11 items-center justify-center text-lg font-semibold"
                     aria-label={t('reservations.nextMonth')}
                 >
                     ›
                 </button>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-400">
+            <div className="text-muted grid grid-cols-7 gap-1 text-center font-mono text-xs font-semibold uppercase">
                 {weekdays.map((day, i) => (
                     <div key={i} className="py-1">
                         {day}
@@ -132,12 +132,12 @@ export default function ReservationCalendar({
                             disabled={isPast}
                             onClick={() => selectDay(date)}
                             className={
-                                'flex aspect-square flex-col items-center justify-center gap-0.5 rounded-none border text-sm transition ' +
+                                'flex aspect-square flex-col items-center justify-center gap-0.5 border-2 text-base transition ' +
                                 (isPast
-                                    ? 'cursor-not-allowed border-transparent text-gray-300'
+                                    ? 'text-line cursor-not-allowed border-transparent'
                                     : isSelected
-                                      ? 'border-yellow-500 bg-yellow-100 text-gray-900'
-                                      : 'border-transparent text-gray-700 hover:border-gray-300')
+                                      ? 'border-ink bg-accent text-accent-ink font-semibold'
+                                      : 'text-ink hover:border-ink border-transparent')
                             }
                         >
                             {date.getDate()}
@@ -145,9 +145,7 @@ export default function ReservationCalendar({
                                 <span
                                     className={
                                         'h-1.5 w-1.5 rounded-full ' +
-                                        (isPast
-                                            ? 'bg-gray-300'
-                                            : 'bg-amber-500')
+                                        (isPast ? 'bg-line' : 'bg-live')
                                     }
                                 />
                             )}
@@ -156,9 +154,9 @@ export default function ReservationCalendar({
                 })}
             </div>
 
-            <div className="mt-3 border-t border-gray-100 pt-3">
+            <div className="border-line mt-4 border-t-2 pt-4">
                 {selected && (byDate.get(selected)?.length ?? 0) > 0 ? (
-                    <ul className="flex flex-col gap-1 text-sm text-gray-700">
+                    <ul className="text-ink flex flex-col gap-1 font-mono text-base">
                         {byDate.get(selected)!.map((reservation) => (
                             <li key={reservation.id}>
                                 {formatTime(reservation.starts_at)} –{' '}
@@ -167,7 +165,7 @@ export default function ReservationCalendar({
                         ))}
                     </ul>
                 ) : (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-muted text-base">
                         {selected
                             ? t('reservations.noneThatDay')
                             : t('reservations.selectDayHint')}

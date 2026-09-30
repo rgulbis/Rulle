@@ -3,6 +3,7 @@ import {
     PropsWithChildren,
     useCallback,
     useContext,
+    useEffect,
     useMemo,
     useState,
 } from 'react';
@@ -83,10 +84,31 @@ function interpolate(
     );
 }
 
-export function LocaleProvider({ children }: PropsWithChildren) {
+export function LocaleProvider({
+    children,
+    initialLocale,
+}: PropsWithChildren<{
+    // What the server saw in the cookie (a shared Inertia prop). The server
+    // render has no `document` to read the cookie from itself, so without
+    // this it would always render the default language and then mismatch
+    // the browser's first render for anyone who picked the other one.
+    initialLocale?: Locale | null;
+}>) {
     const [locale, setLocaleState] = useState<Locale>(
-        () => readCookieLocale() ?? DEFAULT_LOCALE,
+        () => readCookieLocale() ?? initialLocale ?? DEFAULT_LOCALE,
     );
+
+    // Keep the cookie and <html lang> in step with what's on screen — the
+    // server reads the same cookie (SetLocale middleware) to pick the
+    // language of validation errors and other server-side messages, so a
+    // first-time visitor needs it written even before touching the toggle.
+    useEffect(() => {
+        if (readCookieLocale() !== locale) {
+            writeCookieLocale(locale);
+        }
+
+        document.documentElement.lang = locale;
+    }, [locale]);
 
     const setLocale = useCallback((next: Locale) => {
         setLocaleState(next);

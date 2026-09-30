@@ -1,100 +1,299 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode } from 'react';
+import { PropsWithChildren, ReactNode, useState } from 'react';
+import { buttonClasses } from '@/components/form-controls';
+import { MenuIcon, CrossIcon } from '@/components/icons';
 import LanguageToggle from '@/components/language-toggle';
 import { useTranslation } from '@/lib/i18n/context';
+import { cn } from '@/lib/utils';
+import type { Park } from '@/types';
 import type { User } from '@/types/auth';
 
-function NavLink({ href, children }: { href: string; children: ReactNode }) {
+function NavLink({
+    href,
+    children,
+    external = false,
+    activePrefix,
+}: {
+    href: string;
+    children: ReactNode;
+    external?: boolean;
+    /** Also highlight for every page under this path (e.g. /settings). */
+    activePrefix?: string;
+}) {
     const { url } = usePage();
-    const active = url === href || url.startsWith(`${href}?`);
+    const active =
+        url === href ||
+        url.startsWith(`${href}?`) ||
+        url.startsWith(`${href}/`) ||
+        (activePrefix !== undefined && url.startsWith(`${activePrefix}/`));
+    const className = `flex min-h-11 items-center gap-2 border-b-[3px] text-base ${
+        active
+            ? 'border-accent font-semibold text-ink'
+            : 'border-transparent font-medium text-ink hover:border-line'
+    }`;
 
-    return (
+    // The Filament admin panel is a separate app, not an Inertia page.
+    return external ? (
+        <a href={href} className={className}>
+            {children}
+        </a>
+    ) : (
         <Link
             href={href}
-            className={
-                active
-                    ? 'border-b-2 border-yellow-400 text-sm font-semibold text-gray-900'
-                    : 'text-sm font-medium text-gray-500 hover:text-gray-900'
-            }
+            className={className}
+            aria-current={active ? 'page' : undefined}
         >
             {children}
         </Link>
     );
 }
 
-export default function AppLayout({ children }: PropsWithChildren) {
-    // Wider than the app-wide `Auth` type on purpose: this is the one layout
-    // a guest can land on too (the public livestream page uses it), so the
-    // user here really can be null, unlike every other page that renders it.
-    const { auth } = usePage<{ auth: { user: User | null } }>().props;
-    const user = auth.user;
+export function LiveDot({ className = '' }: { className?: string }) {
+    return (
+        <span
+            aria-hidden="true"
+            className={`animate-live-pulse bg-live inline-block size-2 rounded-full ${className}`}
+        />
+    );
+}
+
+export function OpenStatus({ park }: { park: Park }) {
     const { t } = useTranslation();
 
     return (
-        <div className="min-h-screen bg-gray-50 text-gray-900">
-            <nav className="border-b border-gray-200 bg-white">
-                <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-4 px-6 py-4">
-                    <div className="flex flex-wrap items-center gap-6">
-                        <span className="font-semibold text-gray-900">
+        <p className="flex items-center gap-2 font-mono text-xs font-semibold tracking-[0.08em] uppercase">
+            <span
+                aria-hidden="true"
+                className={`size-2.5 ${park.is_open ? 'bg-ok' : 'bg-faint'}`}
+            />
+            {park.is_open
+                ? t('park.openUntil', { time: park.closing_time })
+                : t('park.closedOpensAt', { time: park.opening_time })}
+        </p>
+    );
+}
+
+export default function AppLayout({
+    children,
+    theme,
+    fullHeight = false,
+}: PropsWithChildren<{
+    // Pages can force a theme (the livestream is always dark). Otherwise
+    // staff and admins get the dark theme everywhere — their side of the
+    // site matches the Filament admin panel — and customers get light.
+    theme?: 'light' | 'dark';
+    // App-style pages (chat) fill exactly one screen: no footer, no page
+    // scroll — their own panels scroll instead.
+    fullHeight?: boolean;
+}>) {
+    // Wider than the app-wide `Auth` type on purpose: guests land on this
+    // layout too (the home and livestream pages), so the user really can be
+    // null here, unlike every other page that renders it.
+    const { auth, park } = usePage<{
+        auth: { user: User | null };
+        park: Park;
+    }>().props;
+    const user = auth.user;
+    const { t } = useTranslation();
+    const [menuOpen, setMenuOpen] = useState(false);
+
+    const isStaff = user?.role === 'admin' || user?.role === 'employee';
+    const dark = theme ? theme === 'dark' : isStaff;
+
+    const links = (
+        <>
+            {user?.role === 'user' && (
+                <>
+                    <NavLink href="/dashboard">{t('nav.dashboard')}</NavLink>
+                    <NavLink href="/subscriptions">
+                        {t('nav.subscriptions')}
+                    </NavLink>
+                    <NavLink href="/reservations">
+                        {t('nav.reservations')}
+                    </NavLink>
+                </>
+            )}
+            {isStaff && <NavLink href="/staff/scan">{t('nav.scan')}</NavLink>}
+            {user && <NavLink href="/chat">{t('nav.chat')}</NavLink>}
+            <NavLink href="/livestream">
+                <LiveDot />
+                {t('nav.livestream')}
+            </NavLink>
+            {user?.role === 'admin' && (
+                <NavLink href="/admin" external>
+                    {t('nav.admin')}
+                </NavLink>
+            )}
+        </>
+    );
+
+    const account = user ? (
+        <>
+            <NavLink href="/settings/profile" activePrefix="/settings">
+                {t('nav.account')}
+            </NavLink>
+            <button
+                type="button"
+                onClick={() => router.post('/logout')}
+                className="text-ink min-h-11 text-base font-medium underline underline-offset-4"
+            >
+                {t('nav.logOut')}
+            </button>
+        </>
+    ) : (
+        <>
+            <NavLink href="/login">{t('nav.logIn')}</NavLink>
+            <Link href="/register" className={buttonClasses('accent')}>
+                {t('nav.signUp')}
+            </Link>
+        </>
+    );
+
+    return (
+        <div
+            className={`bg-ground text-ink flex flex-col ${fullHeight ? 'h-dvh overflow-hidden' : 'min-h-screen'} ${dark ? 'theme-dark' : ''}`}
+        >
+            <header className="border-ink border-b-2">
+                <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-4 lg:px-10">
+                    <div className="flex items-center gap-10">
+                        <Link
+                            href="/"
+                            className={`font-display flex items-center gap-2 text-3xl font-black uppercase ${dark ? 'text-accent' : 'text-ink'}`}
+                        >
                             {t('nav.brand')}
-                        </span>
-                        {user?.role === 'user' && (
-                            <>
-                                <NavLink href="/dashboard">
-                                    {t('nav.dashboard')}
-                                </NavLink>
-                                <NavLink href="/subscriptions">
-                                    {t('nav.subscriptions')}
-                                </NavLink>
-                                <NavLink href="/reservations">
-                                    {t('nav.reservations')}
-                                </NavLink>
-                            </>
-                        )}
-                        {(user?.role === 'admin' ||
-                            user?.role === 'employee') && (
-                            <NavLink href="/staff/scan">
-                                {t('nav.scan')}
-                            </NavLink>
-                        )}
-                        {user && (
-                            <NavLink href="/chat">{t('nav.chat')}</NavLink>
-                        )}
-                        <NavLink href="/livestream">
-                            {t('nav.livestream')}
-                        </NavLink>
-                        {user?.role === 'admin' && (
-                            <a
-                                href="/admin"
-                                className="text-sm font-medium text-gray-500 hover:text-gray-900"
-                            >
-                                {t('nav.admin')}
-                            </a>
-                        )}
+                            {isStaff && (
+                                <span className="border-accent text-accent -rotate-3 border-[1.5px] px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-[0.12em]">
+                                    {t('nav.staffTag')}
+                                </span>
+                            )}
+                        </Link>
+                        <nav
+                            aria-label={t('nav.main')}
+                            className="hidden items-center gap-7 lg:flex"
+                        >
+                            {links}
+                        </nav>
                     </div>
 
-                    <div className="flex items-center gap-6">
+                    <div className="hidden items-center gap-6 lg:flex">
+                        <OpenStatus park={park} />
                         <LanguageToggle />
-                        {user ? (
-                            <>
-                                <NavLink href="/settings/password">
-                                    {t('nav.changePassword')}
-                                </NavLink>
-                                <button
-                                    onClick={() => router.post('/logout')}
-                                    className="text-sm font-medium text-red-600 hover:text-red-500"
-                                >
-                                    {t('nav.logOut')}
-                                </button>
-                            </>
-                        ) : (
-                            <NavLink href="/login">{t('nav.logIn')}</NavLink>
-                        )}
+                        {account}
                     </div>
-                </div>
-            </nav>
 
-            <main>{children}</main>
+                    <button
+                        type="button"
+                        onClick={() => setMenuOpen((open) => !open)}
+                        aria-expanded={menuOpen}
+                        aria-controls="mobile-menu"
+                        aria-label={
+                            menuOpen ? t('nav.closeMenu') : t('nav.openMenu')
+                        }
+                        className="flex size-11 items-center justify-center lg:hidden"
+                    >
+                        {menuOpen ? (
+                            <CrossIcon size={24} />
+                        ) : (
+                            <MenuIcon size={24} />
+                        )}
+                    </button>
+                </div>
+
+                {menuOpen && (
+                    <div
+                        id="mobile-menu"
+                        className="border-ink flex flex-col gap-5 border-t-2 px-5 pt-4 pb-6 lg:hidden"
+                    >
+                        <OpenStatus park={park} />
+                        <nav
+                            aria-label={t('nav.main')}
+                            className="flex flex-col gap-1"
+                        >
+                            {links}
+                        </nav>
+                        <div className="border-line flex flex-wrap items-center gap-4 border-t-2 pt-4">
+                            {account}
+                        </div>
+                        <LanguageToggle />
+                    </div>
+                )}
+            </header>
+
+            <main
+                className={
+                    fullHeight ? 'flex min-h-0 flex-1 flex-col' : 'flex-1'
+                }
+            >
+                {children}
+            </main>
+
+            {!fullHeight && (
+                <footer className="bg-[#16161a] text-[#f7f6f2]">
+                    <div className="mx-auto grid max-w-7xl gap-8 px-5 py-12 sm:grid-cols-3 lg:px-10">
+                        <p className="font-display text-5xl font-black uppercase">
+                            {t('nav.brand')}
+                        </p>
+                        <div className="flex flex-col gap-2">
+                            <p className="font-mono text-xs font-semibold tracking-[0.12em] text-[#b9b8b2] uppercase">
+                                {t('footer.hours')}
+                            </p>
+                            <p>
+                                {t('footer.everyDay', {
+                                    opening: park.opening_time,
+                                    closing: park.closing_time,
+                                })}
+                            </p>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <p className="font-mono text-xs font-semibold tracking-[0.12em] text-[#b9b8b2] uppercase">
+                                {t('footer.park')}
+                            </p>
+                            <Link
+                                href="/livestream"
+                                className="hover:text-accent"
+                            >
+                                {t('nav.livestream')}
+                            </Link>
+                            {!isStaff && (
+                                <>
+                                    <Link
+                                        href="/subscriptions"
+                                        className="hover:text-accent"
+                                    >
+                                        {t('nav.subscriptions')}
+                                    </Link>
+                                    <Link
+                                        href="/reservations"
+                                        className="hover:text-accent"
+                                    >
+                                        {t('nav.reservations')}
+                                    </Link>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </footer>
+            )}
+        </div>
+    );
+}
+
+/** Standard page width + padding for the customer and staff pages. */
+export function PageContainer({
+    children,
+    className = '',
+}: {
+    children: ReactNode;
+    className?: string;
+}) {
+    return (
+        <div
+            className={cn(
+                'mx-auto w-full max-w-7xl px-5 py-10 lg:px-10 lg:py-14',
+                className,
+            )}
+        >
+            {children}
         </div>
     );
 }

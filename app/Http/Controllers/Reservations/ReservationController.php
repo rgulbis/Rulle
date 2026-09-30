@@ -97,13 +97,13 @@ class ReservationController extends Controller
 
         if ($startMinutes < $settings->openingMinutes() || $endMinutes > $settings->closingMinutes()) {
             return back()->withErrors([
-                'starts_at' => "The park is only open {$settings->opening_time}–{$settings->closing_time}.",
+                'starts_at' => __('The park is only open :opening–:closing.', ['opening' => $settings->opening_time, 'closing' => $settings->closing_time]),
             ]);
         }
 
         if (Reservation::overlapping($startsAt, $endsAt)->exists()) {
             return back()->withErrors([
-                'starts_at' => 'That time overlaps with an existing reservation.',
+                'starts_at' => __('That time overlaps with an existing reservation.'),
             ]);
         }
 
@@ -248,7 +248,7 @@ class ReservationController extends Controller
 
         if (! $reservation->hasParticipantCapacity()) {
             return back()->withErrors([
-                'user_id' => 'This reservation is already at its paid group size.',
+                'user_id' => __('This reservation is already at its paid group size.'),
             ]);
         }
 

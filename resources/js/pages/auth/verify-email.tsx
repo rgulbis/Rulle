@@ -1,8 +1,13 @@
 import { router, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
-import { PrimaryButton, StatusMessage } from '@/components/form-controls';
+import {
+    Button,
+    PrimaryButton,
+    StatusMessage,
+} from '@/components/form-controls';
+import { MailIcon } from '@/components/icons';
 import { useTranslation } from '@/lib/i18n/context';
-import AuthLayout from '@/layouts/auth-layout';
+import AuthLayout, { TapedNote } from '@/layouts/auth-layout';
 
 export default function VerifyEmail({ status }: { status?: string }) {
     const { t } = useTranslation();
@@ -22,9 +27,21 @@ export default function VerifyEmail({ status }: { status?: string }) {
         <AuthLayout
             title={t('auth.verifyEmail.title')}
             description={t('auth.verifyEmail.description')}
+            heading={{
+                lead: t('auth.verifyEmail.heroLead'),
+                highlight: t('auth.verifyEmail.heroHighlight'),
+            }}
+            aside={
+                <TapedNote icon={<MailIcon size={40} />}>
+                    {t('auth.verifyEmail.note')}
+                </TapedNote>
+            }
         >
             {status === 'verification-link-sent' && (
-                <StatusMessage status={t('auth.verifyEmail.sent')} />
+                <StatusMessage
+                    status={t('auth.verifyEmail.sent')}
+                    className="-rotate-1"
+                />
             )}
 
             <form onSubmit={submit} className="flex flex-col gap-4">
@@ -33,13 +50,10 @@ export default function VerifyEmail({ status }: { status?: string }) {
                 </PrimaryButton>
             </form>
 
-            <form onSubmit={logout} className="mt-6">
-                <button
-                    type="submit"
-                    className="text-sm font-medium text-red-600 hover:text-red-500"
-                >
+            <form onSubmit={logout}>
+                <Button type="submit" variant="ghost" className="px-0">
                     {t('auth.verifyEmail.logOut')}
-                </button>
+                </Button>
             </form>
         </AuthLayout>
     );

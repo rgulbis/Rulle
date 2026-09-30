@@ -13,5 +13,7 @@ void createInertiaApp({
     // status text, etc.), so this wraps the whole app rather than each
     // layout wrapping its own — a page can't call useTranslation() itself
     // if the provider only exists inside the layout IT renders.
-    withApp: (app) => <LocaleProvider>{app}</LocaleProvider>,
+    withApp: (app, { page }) => (
+        <LocaleProvider initialLocale={page.props.locale}>{app}</LocaleProvider>
+    ),
 });

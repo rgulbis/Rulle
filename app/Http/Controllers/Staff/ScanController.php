@@ -32,7 +32,7 @@ class ScanController extends Controller
         if (! $user) {
             return response()->json([
                 'found' => false,
-                'message' => 'No user matches this QR code.',
+                'message' => __('No user matches this QR code.'),
             ], 404);
         }
 
@@ -47,7 +47,7 @@ class ScanController extends Controller
                 'found' => true,
                 'allowed' => false,
                 'name' => $user->name,
-                'message' => $entering ? 'Already checked in.' : 'Not currently checked in.',
+                'message' => $entering ? __('Already checked in.') : __('Not currently checked in.'),
             ], 409);
         }
 
@@ -57,7 +57,7 @@ class ScanController extends Controller
                     'found' => true,
                     'allowed' => false,
                     'name' => $user->name,
-                    'message' => 'Email not verified.',
+                    'message' => __('Email not verified.'),
                 ], 403);
             }
 
@@ -71,7 +71,7 @@ class ScanController extends Controller
                     'found' => true,
                     'allowed' => false,
                     'name' => $user->name,
-                    'message' => 'Park privately reserved until '.$activeReservation->ends_at->format('H:i').'.',
+                    'message' => __('Park privately reserved until :time.', ['time' => $activeReservation->ends_at->format('H:i')]),
                 ], 403);
             }
 
@@ -84,7 +84,7 @@ class ScanController extends Controller
                         'found' => true,
                         'allowed' => false,
                         'name' => $user->name,
-                        'message' => 'No active subscription.',
+                        'message' => __('No active subscription.'),
                     ], 403);
                 }
 

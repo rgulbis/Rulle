@@ -1,16 +1,17 @@
 <?php
 
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LivestreamController;
 use App\Http\Controllers\Reservations\ReservationChatController;
 use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\Settings\PasswordController;
+use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Staff\ScanController;
 use App\Http\Controllers\Subscriptions\SubscriptionController;
 use App\Models\ChatMessage;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 use Laravel\Cashier\Http\Controllers\WebhookController;
 
 // `{globalMessage}` only ever resolves a message from the global room. A
@@ -25,14 +26,12 @@ Route::post('stripe/webhook', [WebhookController::class, 'handleWebhook'])->name
 Route::get('livestream', [LivestreamController::class, 'index'])->name('livestream.index');
 
 Route::middleware(['auth', 'customer-only'])->group(function () {
-    Route::get('dashboard', function (Request $request) {
-        return Inertia::render('dashboard', [
-            'status' => $request->session()->get('status'),
-        ]);
-    })->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 });
 
 Route::middleware('auth')->group(function () {
+    Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('settings/password', [PasswordController::class, 'edit'])->name('password.edit');
     Route::put('settings/password', [PasswordController::class, 'update'])->name('password.update');
 });
@@ -78,6 +77,7 @@ Route::middleware(['auth', 'can-scan'])->group(function () {
 
 require __DIR__.'/auth.php';
 
-// The site's default landing page is now the public livestream/guest page,
-// not a login wall — logging in is still one click away via its own nav.
-Route::get('/', [LivestreamController::class, 'index'])->name('home');
+// The site's default landing page is public — the live camera, headcount,
+// passes and group booking info — not a login wall. Logging in is still one
+// click away via its own nav.
+Route::get('/', [HomeController::class, 'index'])->name('home');

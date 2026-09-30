@@ -2,8 +2,9 @@ import { Head } from '@inertiajs/react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useEffect, useRef, useState } from 'react';
 import { getCsrfToken } from '@/lib/csrf';
+import { CheckIcon, CrossIcon, EntryIcon, ExitIcon } from '@/components/icons';
 import { useTranslation } from '@/lib/i18n/context';
-import AppLayout from '@/layouts/app-layout';
+import AppLayout, { PageContainer } from '@/layouts/app-layout';
 
 type ScanResult =
     | { found: true; allowed: true; name: string; checked_in: boolean }
@@ -76,82 +77,104 @@ export default function Scan() {
         // eslint-disable-next-line react-hooks/exhaustive-deps -- runs the scanner setup once; `t` is intentionally not a dependency here.
     }, []);
 
+    const modeButton = (value: Mode) =>
+        `flex min-h-16 items-center justify-center gap-3 border-2 text-xl font-semibold transition active:translate-x-1 active:translate-y-1 ${
+            mode === value
+                ? 'border-accent bg-accent text-accent-ink shadow-hard'
+                : 'border-line text-ink hover:border-ink'
+        }`;
+
     return (
         <AppLayout>
             <Head title={t('nav.scan')} />
-            <div className="flex flex-col items-center gap-6 p-6">
-                <h1 className="text-xl font-semibold text-gray-900">
+            <PageContainer className="flex max-w-xl flex-col gap-6">
+                <h1 className="font-display text-5xl leading-none font-black uppercase">
                     {t('scan.title')}
                 </h1>
 
-                <div className="flex w-full max-w-sm rounded-none border border-gray-200">
+                <div
+                    role="group"
+                    aria-label={t('scan.mode')}
+                    className="grid grid-cols-2 gap-3"
+                >
                     <button
                         type="button"
                         onClick={() => setMode('entry')}
-                        className={`flex-1 py-2 text-sm font-semibold transition ${
-                            mode === 'entry'
-                                ? 'bg-yellow-400 text-black'
-                                : 'bg-white text-gray-500 hover:bg-gray-50'
-                        }`}
+                        aria-pressed={mode === 'entry'}
+                        className={modeButton('entry')}
                     >
+                        <EntryIcon />
                         {t('scan.entry')}
                     </button>
                     <button
                         type="button"
                         onClick={() => setMode('exit')}
-                        className={`flex-1 border-l border-gray-200 py-2 text-sm font-semibold transition ${
-                            mode === 'exit'
-                                ? 'bg-yellow-400 text-black'
-                                : 'bg-white text-gray-500 hover:bg-gray-50'
-                        }`}
+                        aria-pressed={mode === 'exit'}
+                        className={modeButton('exit')}
                     >
+                        <ExitIcon />
                         {t('scan.exit')}
                     </button>
                 </div>
 
+                {/* html5-qrcode draws its own video and scan box in here. */}
                 <div
                     id="reader"
-                    className="w-full max-w-sm overflow-hidden rounded-none border border-gray-200"
+                    className="border-accent bg-paper min-h-64 w-full overflow-hidden border-2"
                 />
+                <p className="text-muted text-center font-mono text-sm">
+                    {t('scan.hint')}
+                </p>
 
-                {error && <p className="text-sm text-red-600">{error}</p>}
-
-                {result && (
-                    <div className="w-full max-w-sm rounded-none border border-gray-200 bg-white p-4 text-center shadow-sm">
-                        {result.found && result.allowed && (
-                            <>
-                                <p className="font-medium text-gray-900">
-                                    {result.name}
-                                </p>
-                                <p
-                                    className={
-                                        result.checked_in
-                                            ? 'text-green-600'
-                                            : 'text-gray-500'
-                                    }
-                                >
-                                    {result.checked_in
-                                        ? t('scan.checkedIn')
-                                        : t('scan.checkedOut')}
-                                </p>
-                            </>
-                        )}
-
-                        {result.found && !result.allowed && (
-                            <>
-                                <p className="font-medium text-gray-900">
-                                    {result.name}
-                                </p>
-                                <p className="text-red-600">{result.message}</p>
-                            </>
-                        )}
-
-                        {!result.found && (
-                            <p className="text-red-600">{result.message}</p>
-                        )}
-                    </div>
+                {error && (
+                    <p role="alert" className="text-danger font-medium">
+                        {error}
+                    </p>
                 )}
-            </div>
+
+                <div aria-live="polite">
+                    {result ? (
+                        <ScanResultCard
+                            key={JSON.stringify(result)}
+                            result={result}
+                        />
+                    ) : (
+                        <p className="border-line text-muted flex items-center justify-center border-2 border-dashed px-5 py-7 text-base">
+                            {t('scan.waiting')}
+                        </p>
+                    )}
+                </div>
+            </PageContainer>
         </AppLayout>
+    );
+}
+
+function ScanResultCard({ result }: { result: ScanResult }) {
+    const { t } = useTranslation();
+    const allowed = result.found && result.allowed;
+
+    return (
+        <div
+            className={`animate-pop-in shadow-hard-accent flex -rotate-[1.5deg] flex-col gap-1.5 border-2 border-[#0e0e10] p-5 ${
+                allowed
+                    ? 'bg-ok-fill text-[#0e0e10]'
+                    : 'bg-danger-fill text-white'
+            }`}
+        >
+            <p className="font-display flex items-center gap-2.5 text-4xl leading-none font-black uppercase">
+                {allowed ? <CheckIcon size={30} /> : <CrossIcon size={30} />}
+                {allowed
+                    ? result.checked_in
+                        ? t('scan.checkedIn')
+                        : t('scan.checkedOut')
+                    : t('scan.notAllowed')}
+            </p>
+            {result.found && (
+                <p className="text-lg font-semibold">{result.name}</p>
+            )}
+            {'message' in result && (
+                <p className="text-base">{result.message}</p>
+            )}
+        </div>
     );
 }

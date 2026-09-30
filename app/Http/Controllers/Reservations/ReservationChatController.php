@@ -27,6 +27,7 @@ class ReservationChatController extends Controller
         return Inertia::render('reservations/chat', [
             'reservation' => $reservation->only(['id', 'starts_at', 'ends_at']),
             'messages' => ChatMessage::shapeForClient($messages),
+            'chatGroups' => Reservation::chatGroupsFor($request->user()),
         ]);
     }
 

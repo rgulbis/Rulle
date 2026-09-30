@@ -3,9 +3,150 @@
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
+/*
+ * Rullē's design tokens. Colours are semantic (ground/paper/ink…), not
+ * literal, so the `.theme-dark` scope below can swap every one of them at
+ * once — staff and admin pages, and the livestream, render dark from the
+ * same markup the light customer pages use.
+ */
 @theme {
     --font-sans:
-        'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+        'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
+    --font-display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+    /* Page background — raw concrete. */
+    --color-ground: #eceae4;
+    /* Cards, inputs, anything sitting on the ground. */
+    --color-paper: #f7f6f2;
+    /* Text, borders and the solid black blocks. */
+    --color-ink: #16161a;
+    /* Secondary text. */
+    --color-muted: #45443f;
+    /* Hints, disabled text. */
+    --color-faint: #6e6d68;
+    /* Hairlines and empty meter segments. */
+    --color-line: #d3d0c7;
+
+    --color-accent: #ffd400;
+    --color-accent-ink: #16161a;
+    --color-live: #d7261e;
+    --color-ok: #1f6b3a;
+    --color-ok-fill: #3ddc84;
+    --color-danger: #b3261e;
+    --color-danger-fill: #b3261e;
+}
+
+.theme-dark {
+    --color-ground: #111113;
+    --color-paper: #1a1a1e;
+    --color-ink: #f2f0ea;
+    --color-muted: #b9b8b2;
+    --color-faint: #8e8d87;
+    --color-line: #34343a;
+    --color-ok: #3ddc84;
+    --color-danger: #ff6b5e;
+}
+
+/*
+ * Height breakpoints, so full-screen pages (login, sign up) can tighten up
+ * on shorter laptop screens instead of making people scroll.
+ */
+@custom-variant short (@media (max-height: 860px));
+@custom-variant shorter (@media (max-height: 740px));
+
+/* The hard, offset "sticker" shadows the whole design leans on. */
+@utility shadow-hard {
+    box-shadow: 4px 4px 0 var(--color-ink);
+}
+
+@utility shadow-hard-lg {
+    box-shadow: 8px 8px 0 var(--color-ink);
+}
+
+@utility shadow-hard-accent {
+    box-shadow: 4px 4px 0 var(--color-accent);
+}
+
+@utility shadow-hard-accent-lg {
+    box-shadow: 8px 8px 0 var(--color-accent);
+}
+
+@utility shadow-hard-paper {
+    box-shadow: 4px 4px 0 var(--color-paper);
+}
+
+@layer base {
+    body {
+        background-color: var(--color-ground);
+        color: var(--color-ink);
+    }
+
+    ::selection {
+        background-color: var(--color-accent);
+        color: var(--color-accent-ink);
+    }
+
+    :focus-visible {
+        outline: 3px solid var(--color-accent);
+        outline-offset: 2px;
+    }
+}
+
+/* Scrolling status strip ("ticker") — duplicated content, shifted by half. */
+@keyframes ticker {
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+@keyframes live-pulse {
+    50% {
+        opacity: 0.25;
+    }
+}
+
+@keyframes slow-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes pop-in {
+    from {
+        opacity: 0;
+        scale: 0.9;
+    }
+    to {
+        opacity: 1;
+        scale: 1;
+    }
+}
+
+@utility animate-ticker {
+    animation: ticker 40s linear infinite;
+}
+
+@utility animate-live-pulse {
+    animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+@utility animate-slow-spin {
+    animation: slow-spin 20s linear infinite;
+}
+
+@utility animate-pop-in {
+    animation: pop-in 0.35s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }

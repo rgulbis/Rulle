@@ -1,8 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 import {
+    Button,
     InputError,
     Label,
+    PageHeader,
     PrimaryButton,
     StatusMessage,
     TextInput,
@@ -11,8 +13,9 @@ import ReservationCalendar from '@/components/reservation-calendar';
 import ReservationTimeline, {
     minutesToTime,
 } from '@/components/reservation-timeline';
-import AppLayout from '@/layouts/app-layout';
+import AppLayout, { PageContainer } from '@/layouts/app-layout';
 import { useTranslation } from '@/lib/i18n/context';
+import { useFormatEuros } from '@/lib/plans';
 
 type Settings = {
     price_cents_per_person_per_hour: number;
@@ -51,10 +54,6 @@ type Props = {
     status?: string;
 };
 
-function formatEuros(cents: number) {
-    return (cents / 100).toFixed(2) + ' €';
-}
-
 function priceFor(
     minutes: number,
     groupSize: number,
@@ -77,7 +76,7 @@ function AddParticipant({
 
     if (remainingCapacity <= 0) {
         return (
-            <p className="mt-2 text-xs text-gray-400">
+            <p className="text-muted mt-3 text-sm">
                 {t('reservations.groupFull')}
             </p>
         );
@@ -119,35 +118,35 @@ function AddParticipant({
     };
 
     return (
-        <div className="mt-2">
+        <div className="mt-3">
             <TextInput
                 value={query}
                 onChange={(e) => search(e.target.value)}
                 placeholder={t('reservations.searchPlaceholder')}
-                className="text-sm"
+                className="py-2.5 text-sm"
             />
             {searching && (
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="text-muted mt-1 text-sm">
                     {t('reservations.searching')}
                 </p>
             )}
             {results.length > 0 && (
-                <ul className="mt-1 divide-y divide-gray-100 border border-gray-200">
+                <ul className="divide-line border-ink bg-paper mt-2 divide-y border-2">
                     {results.map((result) => (
                         <li
                             key={result.id}
-                            className="flex items-center justify-between px-3 py-2 text-sm"
+                            className="flex items-center justify-between gap-3 px-4 py-2 text-sm"
                         >
                             <span>
                                 {result.name}{' '}
-                                <span className="text-gray-400">
+                                <span className="text-muted">
                                     {result.email}
                                 </span>
                             </span>
                             <button
                                 type="button"
                                 onClick={() => add(result.id)}
-                                className="text-sm font-semibold text-yellow-700 hover:text-yellow-600"
+                                className="hover:decoration-accent min-h-11 px-2 font-semibold underline decoration-2 underline-offset-4"
                             >
                                 {t('reservations.add')}
                             </button>
@@ -167,6 +166,7 @@ export default function ReservationsIndex({
     status,
 }: Props) {
     const { t, intlLocale } = useTranslation();
+    const formatEuros = useFormatEuros();
     const [date, setDate] = useState('');
     const [selection, setSelection] = useState<{
         start: number | null;
@@ -244,44 +244,38 @@ export default function ReservationsIndex({
         'reservation-slot-taken': t('reservations.statusSlotTaken'),
     };
 
+    const statusTone = (key: string) =>
+        key === 'reservation-incomplete' ||
+        key === 'reservation-cannot-cancel' ||
+        key === 'reservation-slot-taken'
+            ? 'error'
+            : key === 'reservation-cancelled-no-refund'
+              ? 'warning'
+              : 'info';
+
     return (
         <AppLayout>
             <Head title={t('nav.reservations')} />
-            <div className="p-6">
-                <div className="mx-auto max-w-3xl">
-                    <h1 className="mb-6 text-xl font-semibold text-gray-900">
-                        {t('reservations.title')}
-                    </h1>
+            <PageContainer>
+                <PageHeader title={t('reservations.title')} />
 
-                    {status === 'reservation-complete' && (
-                        <StatusMessage
-                            status={t('reservations.statusComplete')}
-                        />
-                    )}
-                    {status && statusMessages[status] && (
-                        <p
-                            className={
-                                'mb-4 rounded-none border px-3 py-2 text-sm ' +
-                                (status === 'reservation-incomplete' ||
-                                status === 'reservation-cannot-cancel' ||
-                                status === 'reservation-slot-taken'
-                                    ? 'border-red-200 bg-red-50 text-red-700'
-                                    : status ===
-                                        'reservation-cancelled-no-refund'
-                                      ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                      : 'border-gray-200 bg-gray-50 text-gray-600')
-                            }
-                        >
-                            {statusMessages[status]}
-                        </p>
-                    )}
+                {status === 'reservation-complete' && (
+                    <StatusMessage status={t('reservations.statusComplete')} />
+                )}
+                {status && statusMessages[status] && (
+                    <StatusMessage
+                        status={statusMessages[status]}
+                        tone={statusTone(status)}
+                    />
+                )}
 
-                    <div className="mb-8 rounded-none border border-gray-200 bg-white p-6 shadow-sm">
-                        <h2 className="mb-4 text-base font-semibold text-gray-900">
+                <div className="grid gap-10 lg:grid-cols-12">
+                    <section className="border-ink bg-paper shadow-hard-lg border-2 p-6 lg:col-span-7 lg:p-8">
+                        <h2 className="font-display mb-6 text-4xl font-black uppercase">
                             {t('reservations.reserveATime')}
                         </h2>
-                        <form onSubmit={submit} className="flex flex-col gap-4">
-                            <div className="flex flex-col gap-1">
+                        <form onSubmit={submit} className="flex flex-col gap-6">
+                            <div className="flex flex-col gap-2">
                                 <Label htmlFor="starts_at_date">
                                     {t('reservations.date')}
                                 </Label>
@@ -295,7 +289,7 @@ export default function ReservationsIndex({
                             </div>
 
                             {date && (
-                                <div className="flex flex-col gap-1">
+                                <div className="flex flex-col gap-2">
                                     <Label>{t('reservations.time')}</Label>
                                     <ReservationTimeline
                                         date={date}
@@ -312,7 +306,7 @@ export default function ReservationsIndex({
                                         value={selection}
                                         onChange={setSelection}
                                     />
-                                    <p className="text-xs text-gray-400">
+                                    <p className="text-muted text-sm">
                                         {t('reservations.timelineHint', {
                                             min: settings.min_duration_minutes,
                                             max: settings.max_duration_minutes,
@@ -323,7 +317,7 @@ export default function ReservationsIndex({
                             <InputError message={errors.starts_at} />
                             <InputError message={errors.duration_minutes} />
 
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-2">
                                 <Label htmlFor="group_size">
                                     {t('reservations.groupSize')}
                                 </Label>
@@ -335,8 +329,9 @@ export default function ReservationsIndex({
                                     onChange={(e) =>
                                         setGroupSize(Number(e.target.value))
                                     }
+                                    className="max-w-40"
                                 />
-                                <p className="text-xs text-gray-400">
+                                <p className="text-muted text-sm">
                                     {t('reservations.minGroupSizeHint', {
                                         min: settings.min_group_size,
                                     })}
@@ -344,151 +339,146 @@ export default function ReservationsIndex({
                                 <InputError message={errors.group_size} />
                             </div>
 
-                            <p className="text-sm font-medium text-gray-900">
-                                {t('reservations.price', {
-                                    amount: formatEuros(
-                                        priceFor(
-                                            durationMinutes,
-                                            groupSize,
-                                            settings.price_cents_per_person_per_hour,
+                            <div className="border-ink flex flex-wrap items-center justify-between gap-4 border-t-[3px] border-dashed pt-6">
+                                <p className="font-display text-4xl font-black">
+                                    {t('reservations.price', {
+                                        amount: formatEuros(
+                                            priceFor(
+                                                durationMinutes,
+                                                groupSize,
+                                                settings.price_cents_per_person_per_hour,
+                                            ),
                                         ),
-                                    ),
-                                })}
-                            </p>
-
-                            <PrimaryButton
-                                type="submit"
-                                disabled={
-                                    submitting ||
-                                    !date ||
-                                    selection.start === null ||
-                                    selection.end === null
-                                }
-                            >
-                                {t('reservations.reserveAndPay')}
-                            </PrimaryButton>
+                                    })}
+                                </p>
+                                <PrimaryButton
+                                    type="submit"
+                                    disabled={
+                                        submitting ||
+                                        !date ||
+                                        selection.start === null ||
+                                        selection.end === null
+                                    }
+                                >
+                                    {t('reservations.reserveAndPay')}
+                                </PrimaryButton>
+                            </div>
                         </form>
-                    </div>
+                    </section>
 
-                    <div className="mb-8">
-                        <h2 className="mb-3 text-base font-semibold text-gray-900">
+                    <section className="flex flex-col gap-3 lg:col-span-5">
+                        <h2 className="font-display text-4xl font-black uppercase">
                             {t('reservations.upcoming')}
                         </h2>
-                        <p className="mb-3 text-sm text-gray-500">
+                        <p className="text-muted text-base">
                             {t('reservations.upcomingHint')}
                         </p>
                         <ReservationCalendar
                             reservations={upcoming}
                             onSelectDate={chooseDate}
                         />
-                    </div>
+                    </section>
+                </div>
 
-                    <div>
-                        <h2 className="mb-3 text-base font-semibold text-gray-900">
-                            {t('reservations.mine')}
-                        </h2>
-                        {mine.length === 0 ? (
-                            <p className="text-sm text-gray-500">
-                                {t('reservations.noneUpcoming')}
-                            </p>
-                        ) : (
-                            <div className="flex flex-col gap-4">
-                                {mine.map((reservation) => (
-                                    <div
-                                        key={reservation.id}
-                                        className="rounded-none border border-gray-200 bg-white p-4 shadow-sm"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-sm font-medium text-gray-900">
-                                                {formatRange(
-                                                    reservation.starts_at,
-                                                    reservation.ends_at,
-                                                )}
-                                            </p>
-                                            <span
-                                                className={
-                                                    'text-xs font-semibold ' +
-                                                    (reservation.status ===
-                                                    'active'
-                                                        ? 'text-green-600'
-                                                        : 'text-amber-600')
-                                                }
-                                            >
-                                                {t(
-                                                    `reservations.status.${reservation.status}`,
-                                                )}
-                                            </span>
-                                        </div>
-                                        <p className="mt-1 text-sm text-gray-500">
-                                            {formatEuros(
-                                                reservation.price_cents,
-                                            )}{' '}
-                                            ·{' '}
-                                            {t('reservations.peopleCount', {
-                                                count: reservation.group_size,
-                                            })}
+                <section className="mt-16">
+                    <h2 className="font-display mb-6 text-5xl font-black uppercase">
+                        {t('reservations.mine')}
+                    </h2>
+                    {mine.length === 0 ? (
+                        <p className="text-muted text-lg">
+                            {t('reservations.noneUpcoming')}
+                        </p>
+                    ) : (
+                        <div className="grid gap-6 md:grid-cols-2">
+                            {mine.map((reservation) => (
+                                <article
+                                    key={reservation.id}
+                                    className="border-ink bg-paper flex flex-col border-2 p-6"
+                                >
+                                    <div className="flex items-start justify-between gap-4">
+                                        <p className="text-lg font-semibold">
+                                            {formatRange(
+                                                reservation.starts_at,
+                                                reservation.ends_at,
+                                            )}
                                         </p>
+                                        <span
+                                            className={
+                                                'shrink-0 px-2.5 py-1 font-mono text-xs font-semibold tracking-[0.08em] uppercase ' +
+                                                (reservation.status === 'active'
+                                                    ? 'bg-ok-fill text-[#0e0e10]'
+                                                    : 'bg-accent text-accent-ink')
+                                            }
+                                        >
+                                            {t(
+                                                `reservations.status.${reservation.status}`,
+                                            )}
+                                        </span>
+                                    </div>
+                                    <p className="text-muted mt-1 text-base">
+                                        {formatEuros(reservation.price_cents)} ·{' '}
+                                        {t('reservations.peopleCount', {
+                                            count: reservation.group_size,
+                                        })}
+                                    </p>
 
-                                        {reservation.participants.length >
-                                            0 && (
-                                            <ul className="mt-3 flex flex-col gap-1">
-                                                {reservation.participants.map(
-                                                    (participant) => (
-                                                        <li
-                                                            key={participant.id}
-                                                            className="flex items-center justify-between text-sm text-gray-700"
-                                                        >
-                                                            <span>
-                                                                {
-                                                                    participant.name
+                                    {reservation.participants.length > 0 && (
+                                        <ul className="divide-line border-line mt-4 flex flex-col divide-y border-y-2">
+                                            {reservation.participants.map(
+                                                (participant) => (
+                                                    <li
+                                                        key={participant.id}
+                                                        className="flex min-h-11 items-center justify-between gap-3 text-base"
+                                                    >
+                                                        <span>
+                                                            {participant.name}
+                                                        </span>
+                                                        {reservation.is_owner && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    removeParticipant(
+                                                                        reservation.id,
+                                                                        participant.id,
+                                                                    )
                                                                 }
-                                                            </span>
-                                                            {reservation.is_owner && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        removeParticipant(
-                                                                            reservation.id,
-                                                                            participant.id,
-                                                                        )
-                                                                    }
-                                                                    className="text-xs font-medium text-red-600 hover:text-red-500"
-                                                                >
-                                                                    {t(
-                                                                        'reservations.remove',
-                                                                    )}
-                                                                </button>
-                                                            )}
-                                                        </li>
-                                                    ),
-                                                )}
-                                            </ul>
-                                        )}
+                                                                className="text-danger min-h-11 px-2 text-sm font-semibold underline underline-offset-4"
+                                                            >
+                                                                {t(
+                                                                    'reservations.remove',
+                                                                )}
+                                                            </button>
+                                                        )}
+                                                    </li>
+                                                ),
+                                            )}
+                                        </ul>
+                                    )}
 
-                                        <p className="mt-2 text-xs text-gray-400">
-                                            {t('reservations.namedOf', {
-                                                named:
-                                                    reservation.participants
-                                                        .length + 1,
-                                                total: reservation.group_size,
-                                            })}
-                                        </p>
+                                    <p className="text-muted mt-3 font-mono text-xs font-semibold tracking-[0.08em] uppercase">
+                                        {t('reservations.namedOf', {
+                                            named:
+                                                reservation.participants
+                                                    .length + 1,
+                                            total: reservation.group_size,
+                                        })}
+                                    </p>
 
-                                        {reservation.is_owner && (
-                                            <AddParticipant
-                                                reservationId={reservation.id}
-                                                remainingCapacity={
-                                                    reservation.group_size -
-                                                    1 -
-                                                    reservation.participants
-                                                        .length
-                                                }
-                                            />
-                                        )}
+                                    {reservation.is_owner && (
+                                        <AddParticipant
+                                            reservationId={reservation.id}
+                                            remainingCapacity={
+                                                reservation.group_size -
+                                                1 -
+                                                reservation.participants.length
+                                            }
+                                        />
+                                    )}
 
+                                    <div className="border-ink mt-5 flex flex-wrap items-center gap-4 border-t-[3px] border-dashed pt-5">
                                         <Link
                                             href={`/reservations/${reservation.id}/chat`}
-                                            className="mt-3 inline-block text-sm font-semibold text-yellow-700 hover:text-yellow-600"
+                                            className="hover:decoration-accent font-semibold underline decoration-2 underline-offset-4"
                                         >
                                             {t('reservations.groupChat')}
                                         </Link>
@@ -496,59 +486,45 @@ export default function ReservationsIndex({
                                         {reservation.is_owner &&
                                             reservation.status ===
                                                 'pending' && (
-                                                <div className="mt-3 flex items-center gap-4">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            resumePayment(
-                                                                reservation.id,
-                                                            )
-                                                        }
-                                                        className="text-sm font-semibold text-yellow-700 hover:text-yellow-600"
-                                                    >
-                                                        {t(
-                                                            'reservations.finishPayment',
-                                                        )}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            cancelReservation(
-                                                                reservation.id,
-                                                            )
-                                                        }
-                                                        className="text-sm font-medium text-red-600 hover:text-red-500"
-                                                    >
-                                                        {t(
-                                                            'reservations.cancel',
-                                                        )}
-                                                    </button>
-                                                </div>
+                                                <Button
+                                                    variant="accent"
+                                                    onClick={() =>
+                                                        resumePayment(
+                                                            reservation.id,
+                                                        )
+                                                    }
+                                                >
+                                                    {t(
+                                                        'reservations.finishPayment',
+                                                    )}
+                                                </Button>
                                             )}
 
                                         {reservation.is_owner &&
-                                            reservation.status === 'active' &&
-                                            new Date(reservation.starts_at) >
-                                                new Date() && (
-                                                <button
-                                                    type="button"
+                                            (reservation.status === 'pending' ||
+                                                (reservation.status ===
+                                                    'active' &&
+                                                    new Date(
+                                                        reservation.starts_at,
+                                                    ) > new Date())) && (
+                                                <Button
+                                                    variant="danger"
                                                     onClick={() =>
                                                         cancelReservation(
                                                             reservation.id,
                                                         )
                                                     }
-                                                    className="mt-3 block text-sm font-medium text-red-600 hover:text-red-500"
                                                 >
                                                     {t('reservations.cancel')}
-                                                </button>
+                                                </Button>
                                             )}
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
+                                </article>
+                            ))}
+                        </div>
+                    )}
+                </section>
+            </PageContainer>
         </AppLayout>
     );
 }

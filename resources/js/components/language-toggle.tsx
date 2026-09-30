@@ -1,34 +1,45 @@
 import { useTranslation } from '@/lib/i18n/context';
+import type { Locale } from '@/lib/i18n/context';
 
-export default function LanguageToggle() {
-    const { locale, setLocale } = useTranslation();
+const LOCALES: Locale[] = ['lv', 'en'];
+
+export default function LanguageToggle({
+    onDark = false,
+}: {
+    // On a black panel (the auth pages' left side) the unselected button
+    // needs a light outline instead of the usual ink one.
+    onDark?: boolean;
+}) {
+    const { locale, setLocale, t } = useTranslation();
 
     return (
-        <div className="flex overflow-hidden rounded-none border border-gray-300 text-xs font-semibold">
-            <button
-                type="button"
-                onClick={() => setLocale('lv')}
-                aria-pressed={locale === 'lv'}
-                className={`px-2 py-1 transition ${
-                    locale === 'lv'
-                        ? 'bg-yellow-400 text-black'
-                        : 'bg-white text-gray-500 hover:bg-gray-50'
-                }`}
-            >
-                LV
-            </button>
-            <button
-                type="button"
-                onClick={() => setLocale('en')}
-                aria-pressed={locale === 'en'}
-                className={`border-l border-gray-300 px-2 py-1 transition ${
-                    locale === 'en'
-                        ? 'bg-yellow-400 text-black'
-                        : 'bg-white text-gray-500 hover:bg-gray-50'
-                }`}
-            >
-                EN
-            </button>
+        <div
+            role="group"
+            aria-label={t('nav.language')}
+            className="flex gap-1 font-mono text-sm font-semibold"
+        >
+            {LOCALES.map((option) => {
+                const active = locale === option;
+
+                return (
+                    <button
+                        key={option}
+                        type="button"
+                        onClick={() => setLocale(option)}
+                        aria-pressed={active}
+                        lang={option}
+                        className={`min-h-11 min-w-11 border-2 uppercase transition ${
+                            active
+                                ? 'border-accent bg-accent text-accent-ink'
+                                : onDark
+                                  ? 'border-[#6e6d68] text-[#f7f6f2] hover:border-[#f7f6f2]'
+                                  : 'border-ink text-ink hover:bg-paper'
+                        }`}
+                    >
+                        {option}
+                    </button>
+                );
+            })}
         </div>
     );
 }

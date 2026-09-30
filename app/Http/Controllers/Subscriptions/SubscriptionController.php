@@ -22,6 +22,7 @@ class SubscriptionController extends Controller
 
         return Inertia::render('subscriptions/index', [
             'plans' => SubscriptionType::where('active', true)->get(),
+            'mostPopularPlanId' => SubscriptionType::mostPopularId(),
             'activeSubscription' => $subscription ? [
                 'stripe_status' => $subscription->stripe_status,
                 'ends_at' => $subscription->ends_at,

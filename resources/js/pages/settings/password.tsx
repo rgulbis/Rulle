@@ -3,11 +3,16 @@ import { FormEventHandler } from 'react';
 import {
     InputError,
     Label,
+    PageHeader,
+    PasswordInput,
     PrimaryButton,
     StatusMessage,
-    TextInput,
 } from '@/components/form-controls';
-import AppLayout from '@/layouts/app-layout';
+import PasswordChecklist, {
+    PasswordMatch,
+} from '@/components/password-checklist';
+import SettingsTabs from '@/components/settings-tabs';
+import AppLayout, { PageContainer } from '@/layouts/app-layout';
 import { useTranslation } from '@/lib/i18n/context';
 
 export default function UpdatePassword({ status }: { status?: string }) {
@@ -31,31 +36,26 @@ export default function UpdatePassword({ status }: { status?: string }) {
     return (
         <AppLayout>
             <Head title={t('settings.password.title')} />
-            <div className="flex justify-center p-6">
-                <div className="w-full max-w-sm rounded-none border border-gray-200 bg-white p-8 shadow-sm">
-                    <div className="mb-6">
-                        <h1 className="text-xl font-semibold text-gray-900">
-                            {t('settings.password.title')}
-                        </h1>
-                        <p className="mt-1 text-sm text-gray-500">
-                            {t('settings.password.subtitle')}
-                        </p>
-                    </div>
-
+            <PageContainer className="max-w-2xl">
+                <PageHeader
+                    title={t('settings.password.title')}
+                    description={t('settings.password.subtitle')}
+                />
+                <SettingsTabs />
+                <div className="border-ink bg-paper shadow-hard-lg border-2 p-6 lg:p-8">
                     {status === 'password-updated' && (
                         <StatusMessage
                             status={t('settings.password.updated')}
                         />
                     )}
 
-                    <form onSubmit={submit} className="flex flex-col gap-4">
-                        <div className="flex flex-col gap-1">
+                    <form onSubmit={submit} className="flex flex-col gap-5">
+                        <div className="flex flex-col gap-2">
                             <Label htmlFor="current_password">
                                 {t('settings.password.current')}
                             </Label>
-                            <TextInput
+                            <PasswordInput
                                 id="current_password"
-                                type="password"
                                 autoFocus
                                 autoComplete="current-password"
                                 value={data.current_password}
@@ -66,29 +66,32 @@ export default function UpdatePassword({ status }: { status?: string }) {
                             <InputError message={errors.current_password} />
                         </div>
 
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-2">
                             <Label htmlFor="password">
                                 {t('settings.password.new')}
                             </Label>
-                            <TextInput
+                            <PasswordInput
                                 id="password"
-                                type="password"
                                 autoComplete="new-password"
+                                aria-describedby="password-rules"
                                 value={data.password}
                                 onChange={(e) =>
                                     setData('password', e.target.value)
                                 }
                             />
+                            <PasswordChecklist
+                                id="password-rules"
+                                password={data.password}
+                            />
                             <InputError message={errors.password} />
                         </div>
 
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-2">
                             <Label htmlFor="password_confirmation">
                                 {t('settings.password.confirm')}
                             </Label>
-                            <TextInput
+                            <PasswordInput
                                 id="password_confirmation"
-                                type="password"
                                 autoComplete="new-password"
                                 value={data.password_confirmation}
                                 onChange={(e) =>
@@ -98,6 +101,10 @@ export default function UpdatePassword({ status }: { status?: string }) {
                                     )
                                 }
                             />
+                            <PasswordMatch
+                                password={data.password}
+                                confirmation={data.password_confirmation}
+                            />
                             <InputError
                                 message={errors.password_confirmation}
                             />
@@ -106,13 +113,13 @@ export default function UpdatePassword({ status }: { status?: string }) {
                         <PrimaryButton
                             type="submit"
                             disabled={processing}
-                            className="mt-2"
+                            className="mt-2 self-start"
                         >
                             {t('settings.password.submit')}
                         </PrimaryButton>
                     </form>
                 </div>
-            </div>
+            </PageContainer>
         </AppLayout>
     );
 }

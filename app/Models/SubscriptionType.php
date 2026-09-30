@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Laravel\Cashier\Cashier;
 
 /**
@@ -40,6 +41,44 @@ class SubscriptionType extends Model
                 $type->syncToStripe();
             }
         });
+    }
+
+    /**
+     * The plan that has actually sold the most — what the "most picked"
+     * badge on the pass cards points at. One-time passes count completed
+     * purchases (not unfinished checkouts or refunds); subscriptions count
+     * by Stripe product, so a plan keeps its sales across price changes.
+     * No sales yet, or a tie at the top, means no badge at all.
+     */
+    public static function mostPopularId(): ?int
+    {
+        $sales = DB::table('purchases')
+            ->whereIn('status', ['active', 'used_up'])
+            ->selectRaw('subscription_type_id as type_id, count(*) as total')
+            ->groupBy('subscription_type_id')
+            ->pluck('total', 'type_id')
+            ->map(fn ($total) => (int) $total);
+
+        $subscriptionSales = DB::table('subscription_items')
+            ->join('subscriptions', 'subscriptions.id', '=', 'subscription_items.subscription_id')
+            ->join('subscription_types', 'subscription_types.stripe_product_id', '=', 'subscription_items.stripe_product')
+            ->whereNotIn('subscriptions.stripe_status', ['incomplete', 'incomplete_expired'])
+            ->selectRaw('subscription_types.id as type_id, count(*) as total')
+            ->groupBy('subscription_types.id')
+            ->pluck('total', 'type_id');
+
+        foreach ($subscriptionSales as $typeId => $total) {
+            $sales[$typeId] = ($sales[$typeId] ?? 0) + (int) $total;
+        }
+
+        $sales = $sales->sortDesc();
+        $top = $sales->first();
+
+        if (! $top || $sales->filter(fn ($total) => $total === $top)->count() > 1) {
+            return null;
+        }
+
+        return (int) $sales->keys()->first();
     }
 
     public function isRecurring(): bool

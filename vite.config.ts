@@ -12,9 +12,20 @@ export default defineConfig({
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
+            // latin-ext on all three: Latvian needs ā, č, ē, ģ, ī, ķ, ļ, ņ,
+            // š, ū, ž, which the default latin-only subset doesn't include.
             fonts: [
-                bunny('Instrument Sans', {
+                bunny('Big Shoulders Display', {
+                    weights: [700, 800, 900],
+                    subsets: ['latin', 'latin-ext'],
+                }),
+                bunny('IBM Plex Sans', {
                     weights: [400, 500, 600],
+                    subsets: ['latin', 'latin-ext'],
+                }),
+                bunny('IBM Plex Mono', {
+                    weights: [500, 600],
+                    subsets: ['latin', 'latin-ext'],
                 }),
             ],
         }),

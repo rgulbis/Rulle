@@ -1,13 +1,17 @@
-import { Head } from '@inertiajs/react';
-import Hls from 'hls.js';
-import { useEffect, useRef, useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { Head, usePage } from '@inertiajs/react';
+import { Eyebrow, LinkButton } from '@/components/form-controls';
+import {
+    busyLabelKey,
+    LiveBadge,
+    LiveVideo,
+    OccupancyMeter,
+    useFormatRanges,
+    useOccupancy,
+} from '@/components/live';
+import AppLayout, { PageContainer } from '@/layouts/app-layout';
 import { useTranslation } from '@/lib/i18n/context';
-
-// Same-origin: Cloudflare Tunnel proxies this path straight to MediaMTX's
-// HLS output (see docker/cloudflared-setup.sh), so there's no CORS to deal
-// with and this works identically in dev and production.
-const STREAM_URL = '/live-cam/index.m3u8';
+import type { Park } from '@/types';
+import type { User } from '@/types/auth';
 
 type TimeRange = {
     starts_at: string;
@@ -20,138 +24,91 @@ type Props = {
 };
 
 export default function Livestream({
-    checkedInCount: initialCount,
+    checkedInCount,
     todaysReservations,
 }: Props) {
-    const { t, tCount, intlLocale } = useTranslation();
-    const videoRef = useRef<HTMLVideoElement>(null);
-    // A key into the dictionary, not the formatted message itself — so
-    // switching language afterwards updates text that's already on screen,
-    // without needing to re-run the effect below (which would needlessly
-    // restart the stream) just because the locale changed.
-    const [error, setError] = useState<'offline' | 'unsupported' | null>(null);
-    const [checkedInCount, setCheckedInCount] = useState(initialCount);
-
-    const formatTime = (dateTime: string) =>
-        new Date(dateTime).toLocaleTimeString(intlLocale, {
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-
-    useEffect(() => {
-        // Public channel — no auth needed, matching this being a public
-        // page. A headcount isn't sensitive the way who's inside is.
-        const channel = window.Echo.channel('occupancy');
-
-        channel.listen('.occupancy.updated', (e: { count: number }) => {
-            setCheckedInCount(e.count);
-        });
-
-        return () => {
-            window.Echo.leave('occupancy');
-        };
-    }, []);
-
-    useEffect(() => {
-        const video = videoRef.current;
-
-        if (!video) {
-            return;
-        }
-
-        setError(null);
-
-        // Safari (and WebKit generally) plays HLS natively; every other
-        // browser needs hls.js to remux it into something <video>
-        // understands. The native path only reports failures through the
-        // element's own `error` event, not through hls.js, so it needs its
-        // own listener to show the same message instead of a silently
-        // stalled player.
-        if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            const handleNativeError = () => setError('offline');
-
-            video.addEventListener('error', handleNativeError);
-            video.src = STREAM_URL;
-
-            return () => video.removeEventListener('error', handleNativeError);
-        }
-
-        if (!Hls.isSupported()) {
-            setError('unsupported');
-
-            return;
-        }
-
-        const hls = new Hls();
-
-        hls.on(Hls.Events.ERROR, (_event, data) => {
-            if (data.fatal) {
-                setError('offline');
-            }
-        });
-
-        hls.loadSource(STREAM_URL);
-        hls.attachMedia(video);
-
-        return () => hls.destroy();
-    }, []);
+    const { t, tCount } = useTranslation();
+    const { auth, park } = usePage<{
+        auth: { user: User | null };
+        park: Park;
+    }>().props;
+    const count = useOccupancy(checkedInCount);
+    const formatRanges = useFormatRanges();
 
     return (
-        <AppLayout>
+        <AppLayout theme="dark">
             <Head title={t('livestream.title')} />
-            <div className="p-6">
-                <div className="mx-auto flex max-w-3xl flex-col gap-4">
-                    <h1 className="text-xl font-semibold text-gray-900">
-                        {t('livestream.title')}
-                    </h1>
-                    <p className="text-sm text-gray-500">
-                        {t('livestream.subtitle')}
-                    </p>
+            <PageContainer className="grid gap-8 lg:grid-cols-12">
+                <div className="flex flex-col gap-4 lg:col-span-9">
+                    <div className="border-line relative border-2">
+                        <LiveVideo className="aspect-video" />
+                        <div className="pointer-events-none absolute top-4 left-4 flex gap-3">
+                            <LiveBadge />
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <h1 className="font-display text-5xl font-black uppercase lg:text-6xl">
+                            {t('livestream.title')}
+                        </h1>
+                        <p className="text-muted text-base">
+                            {t('livestream.subtitle')}
+                        </p>
+                    </div>
+                </div>
 
-                    <div className="flex flex-wrap items-center gap-4 text-sm">
-                        <span className="inline-flex items-center gap-1.5 rounded-none border border-gray-200 bg-white px-3 py-1.5 font-medium text-gray-900">
-                            <span className="h-2 w-2 rounded-full bg-green-500" />
-                            {tCount(
-                                'livestream.checkedInCount',
-                                checkedInCount,
-                            )}
-                        </span>
-                        <span className="text-gray-500">
+                <aside className="flex flex-col gap-6 lg:col-span-3">
+                    <section className="flex flex-col gap-3 bg-[#f7f6f2] p-7 text-[#16161a]">
+                        <Eyebrow className="text-[#45443f]">
+                            {t('livestream.inParkNow')}
+                        </Eyebrow>
+                        <p className="font-display text-8xl leading-none font-black">
+                            {count}
+                        </p>
+                        <p className="text-lg font-semibold">
+                            {tCount('livestream.checkedInCount', count)} ·{' '}
+                            {t(busyLabelKey(count))}
+                        </p>
+                        <OccupancyMeter
+                            count={count}
+                            filled="bg-[#16161a]"
+                            empty="bg-[#d3d0c7]"
+                        />
+                    </section>
+
+                    <section className="border-line flex flex-col gap-2 border-2 p-7">
+                        <Eyebrow className="text-muted">
+                            {t('livestream.today')}
+                        </Eyebrow>
+                        <p className="text-lg font-semibold">
+                            {t('livestream.openHours', {
+                                opening: park.opening_time,
+                                closing: park.closing_time,
+                            })}
+                        </p>
+                        <p className="text-muted text-base">
                             {todaysReservations.length === 0
                                 ? t('livestream.noReservationsToday')
                                 : t('livestream.reservedToday', {
-                                      ranges: todaysReservations
-                                          .map(
-                                              (r) =>
-                                                  `${formatTime(r.starts_at)}–${formatTime(r.ends_at)}`,
-                                          )
-                                          .join(', '),
+                                      ranges: formatRanges(todaysReservations),
                                   })}
-                        </span>
-                    </div>
+                        </p>
+                    </section>
 
-                    <div className="aspect-video w-full rounded-none border border-gray-200 bg-black">
-                        {error ? (
-                            <p className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-300">
-                                {t(
-                                    error === 'offline'
-                                        ? 'livestream.offline'
-                                        : 'livestream.unsupportedBrowser',
-                                )}
+                    {!auth.user && (
+                        <section className="bg-accent text-accent-ink mt-auto flex flex-col gap-4 p-7">
+                            <p className="font-display text-4xl leading-none font-black uppercase">
+                                {t('livestream.cta')}
                             </p>
-                        ) : (
-                            <video
-                                ref={videoRef}
-                                controls
-                                autoPlay
-                                muted
-                                playsInline
-                                className="h-full w-full"
-                            />
-                        )}
-                    </div>
-                </div>
-            </div>
+                            <LinkButton
+                                href="/register"
+                                className="border-[#16161a] bg-[#16161a] text-[#f7f6f2] shadow-none"
+                            >
+                                {t('nav.signUp')}
+                            </LinkButton>
+                        </section>
+                    )}
+                </aside>
+            </PageContainer>
         </AppLayout>
     );
 }

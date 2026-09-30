@@ -114,6 +114,8 @@ test('during slow mode a customer has to wait between messages, then can post ag
 
     $blocked = $this->actingAs($customer)->post('/chat', ['body' => 'too soon']);
     $blocked->assertSessionHasErrors('body');
+    // The remaining wait as a plain number, for the live countdown.
+    expect((int) session('errors')->first('slow_mode_wait'))->toBeGreaterThan(0);
     expect(ChatMessage::where('body', 'too soon')->exists())->toBeFalse();
 
     $this->travel(11)->seconds();

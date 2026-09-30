@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureUserCanScan;
 use App\Http\Middleware\EnsureUserIsCustomer;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetSecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -31,7 +32,13 @@ return Application::configure(basePath: dirname(__DIR__))
             '192.168.0.0/16',
         ]);
 
+        // Written by the frontend's language toggle in plain JavaScript, so
+        // it can't carry Laravel's encryption — and it's only a display
+        // preference, nothing worth protecting.
+        $middleware->encryptCookies(except: ['locale']);
+
         $middleware->web(append: [
+            SetLocale::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             SetSecurityHeaders::class,

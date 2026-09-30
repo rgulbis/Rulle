@@ -3,9 +3,13 @@ import { FormEventHandler } from 'react';
 import {
     InputError,
     Label,
+    PasswordInput,
     PrimaryButton,
     TextInput,
 } from '@/components/form-controls';
+import PasswordChecklist, {
+    PasswordMatch,
+} from '@/components/password-checklist';
 import { useTranslation } from '@/lib/i18n/context';
 import AuthLayout from '@/layouts/auth-layout';
 
@@ -35,9 +39,17 @@ export default function ResetPassword({
         <AuthLayout
             title={t('auth.resetPassword.title')}
             description={t('auth.resetPassword.description')}
+            heading={{
+                lead: t('auth.resetPassword.heroLead'),
+                highlight: t('auth.resetPassword.heroHighlight'),
+            }}
+            blurb={t('auth.resetPassword.blurb')}
         >
-            <form onSubmit={submit} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
+            <form
+                onSubmit={submit}
+                className="short:lg:gap-3.5 flex flex-col gap-4 lg:gap-5"
+            >
+                <div className="flex flex-col gap-2">
                     <Label htmlFor="email">{t('auth.email')}</Label>
                     <TextInput
                         id="email"
@@ -48,47 +60,53 @@ export default function ResetPassword({
                         inputMode="email"
                         autoComplete="username"
                         value={data.email}
+                        aria-invalid={!!errors.email}
                         onChange={(e) => setData('email', e.target.value)}
                     />
                     <InputError message={errors.email} />
                 </div>
 
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-2">
                     <Label htmlFor="password">
                         {t('settings.password.new')}
                     </Label>
-                    <TextInput
+                    <PasswordInput
                         id="password"
-                        type="password"
                         autoFocus
                         autoComplete="new-password"
+                        aria-describedby="password-rules"
                         value={data.password}
+                        aria-invalid={!!errors.password}
                         onChange={(e) => setData('password', e.target.value)}
+                    />
+                    <PasswordChecklist
+                        id="password-rules"
+                        password={data.password}
                     />
                     <InputError message={errors.password} />
                 </div>
 
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-2">
                     <Label htmlFor="password_confirmation">
                         {t('auth.resetPassword.confirmPassword')}
                     </Label>
-                    <TextInput
+                    <PasswordInput
                         id="password_confirmation"
-                        type="password"
                         autoComplete="new-password"
                         value={data.password_confirmation}
+                        aria-invalid={!!errors.password_confirmation}
                         onChange={(e) =>
                             setData('password_confirmation', e.target.value)
                         }
                     />
+                    <PasswordMatch
+                        password={data.password}
+                        confirmation={data.password_confirmation}
+                    />
                     <InputError message={errors.password_confirmation} />
                 </div>
 
-                <PrimaryButton
-                    type="submit"
-                    disabled={processing}
-                    className="mt-2"
-                >
+                <PrimaryButton type="submit" disabled={processing}>
                     {t('auth.resetPassword.submit')}
                 </PrimaryButton>
             </form>
