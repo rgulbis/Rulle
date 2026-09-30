@@ -8,5 +8,7 @@
     "Slow mode is on — wait :secondss before sending another message.": "Ieslēgts lēnais režīms — pagaidiet :seconds s, pirms sūtāt nākamo ziņu.",
     "The park is only open :opening–:closing.": "Parks ir atvērts tikai :opening–:closing.",
     "That time overlaps with an existing reservation.": "Šis laiks pārklājas ar esošu rezervāciju.",
-    "This reservation is already at its paid group size.": "Šī rezervācija jau ir sasniegusi apmaksāto grupas lielumu."
+    "This reservation is already at its paid group size.": "Šī rezervācija jau ir sasniegusi apmaksāto grupas lielumu.",
+    "You are muted from chat.": "Jūs esat apklusināts tērzētavā.",
+    "That contains language that isn't allowed here.": "Tas satur valodu, kas šeit nav atļauta."
 }

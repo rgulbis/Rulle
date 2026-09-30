@@ -13,7 +13,9 @@ const TILTS = [
 /**
  * A pass drawn as a ticket: price up top, a dashed tear line with
  * punched-out notches, and the action on the stub. Tickets sit slightly
- * askew and straighten up on hover.
+ * askew and lift on hover — deliberately not de-rotating too: animating a
+ * rotated dashed border back to level makes the dashes visibly judder as
+ * the rotation transitions, most noticeable on this long a line.
  */
 export default function PassTicket({
     plan,
@@ -42,7 +44,7 @@ export default function PassTicket({
 
     return (
         <article
-            className={`border-ink flex flex-col border-2 transition duration-200 hover:-translate-x-1 hover:-translate-y-1 hover:rotate-0 ${TILTS[index % TILTS.length]} ${surface}`}
+            className={`border-ink flex flex-col border-2 transition duration-200 hover:-translate-x-1 hover:-translate-y-1 ${TILTS[index % TILTS.length]} ${surface}`}
         >
             <div className="flex flex-1 flex-col gap-6 p-7 lg:p-9">
                 <div className="flex items-center justify-between gap-3">

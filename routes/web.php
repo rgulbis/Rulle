@@ -49,7 +49,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('chat/users/{user}/unmute', [ChatController::class, 'unmute'])->name('chat.unmute');
 });
 
-Route::middleware(['auth', 'customer-only', 'verified'])->group(function () {
+// Every route in here can end up calling Stripe's API synchronously
+// (subscription/price lookups, checkout sessions, refunds) — throttled as a
+// backstop against someone spam-clicking (or scripting) their way into
+// hammering Stripe, since production has no queue workers to absorb that
+// load and a burst of slow, network-bound requests can stall the single
+// `php artisan serve` process for everyone, not just the one doing it.
+Route::middleware(['auth', 'customer-only', 'verified', 'throttle:30,1'])->group(function () {
     Route::get('subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
     Route::post('subscriptions/{subscriptionType}/checkout', [SubscriptionController::class, 'checkout'])->name('subscriptions.checkout');
     Route::get('subscriptions/success', [SubscriptionController::class, 'success'])->name('subscriptions.success');

@@ -79,6 +79,11 @@ export default function ChatThread({
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [pinnedOpen, setPinnedOpen] = useState(false);
+    // Confirms a moderation action (right now: muting) actually went
+    // through — muteUser() used to fire-and-forget with no feedback at all.
+    const [moderationNotice, setModerationNotice] = useState<string | null>(
+        null,
+    );
     // New messages that arrived while scrolled up reading older ones.
     const [unseen, setUnseen] = useState(0);
     const scrollerRef = useRef<HTMLDivElement>(null);
@@ -108,6 +113,16 @@ export default function ChatThread({
             ? Math.ceil((cooldownEndsAt - now) / 1000)
             : 0;
     const needsTicker = slowActive || cooldownEndsAt > now;
+
+    useEffect(() => {
+        if (!moderationNotice) {
+            return;
+        }
+
+        const id = setTimeout(() => setModerationNotice(null), 4000);
+
+        return () => clearTimeout(id);
+    }, [moderationNotice]);
 
     useEffect(() => {
         if (!needsTicker) {
@@ -297,14 +312,34 @@ export default function ChatThread({
         }
     };
 
-    const muteUser = (userId: number, hours: number) => {
-        if (moderation) {
-            router.post(
-                moderation.muteUrl(userId),
-                { hours },
-                { preserveScroll: true },
-            );
+    const muteUser = (
+        userId: number,
+        userName: string,
+        hours: number,
+        durationLabel: string,
+    ) => {
+        if (!moderation) {
+            return;
         }
+
+        router.post(
+            moderation.muteUrl(userId),
+            { hours },
+            {
+                preserveScroll: true,
+                onSuccess: () =>
+                    setModerationNotice(
+                        t('chatThread.muteSuccess', {
+                            name: userName,
+                            duration: durationLabel,
+                        }),
+                    ),
+                // Reachable in practice only via a stale UI (the buttons
+                // that lead here are already hidden for a disallowed
+                // target) — a generic message is enough for that edge case.
+                onError: () => setModerationNotice(t('chatThread.muteFailed')),
+            },
+        );
     };
 
     const togglePin = (messageId: number, isPinned: boolean) => {
@@ -399,6 +434,15 @@ export default function ChatThread({
                     </button>
                 )}
             </header>
+
+            {moderationNotice && (
+                <p
+                    role="status"
+                    className="bg-accent text-accent-ink border-ink border-b-2 px-4 py-1.5 text-center text-sm font-medium"
+                >
+                    {moderationNotice}
+                </p>
+            )}
 
             {pinnedOpen && pinned.length > 0 && (
                 <div
@@ -598,7 +642,13 @@ export default function ChatThread({
                                                                             message
                                                                                 .user
                                                                                 .id,
+                                                                            message
+                                                                                .user
+                                                                                .name,
                                                                             option.hours,
+                                                                            t(
+                                                                                option.labelKey,
+                                                                            ),
                                                                         )
                                                                     }
                                                                     className="border-line hover:bg-accent hover:text-accent-ink border-l-2 px-2.5"

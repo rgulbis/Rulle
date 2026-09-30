@@ -36,6 +36,15 @@ test('the name is required and length-limited', function () {
     expect($user->fresh()->name)->toBe('Keep Me');
 });
 
+test('an inappropriate name is rejected', function () {
+    $user = User::factory()->create(['name' => 'Keep Me']);
+
+    $this->actingAs($user)->patch('/settings/profile', ['name' => 'kurva'])
+        ->assertSessionHasErrors('name');
+
+    expect($user->fresh()->name)->toBe('Keep Me');
+});
+
 test('changing the name cannot change anything else', function () {
     $user = User::factory()->create(['role' => 'user']);
 

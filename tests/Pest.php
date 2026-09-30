@@ -70,6 +70,7 @@ function makeReservationSettings(array $attributes = []): ReservationSetting
         'id' => 1,
         'price_cents_per_person_per_hour' => 500,
         'min_group_size' => 3,
+        'max_group_size' => 50,
         'min_duration_minutes' => 30,
         'max_duration_minutes' => 240,
         'opening_time' => '08:00',

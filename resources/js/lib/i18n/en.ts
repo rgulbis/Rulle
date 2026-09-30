@@ -59,8 +59,8 @@ const en = {
     'reservations.timelineHint':
         '{min}–{max} minutes, in 15-minute steps. The dotted line shows typically busy hours; the red block is already reserved.',
     'reservations.groupSize': 'Group size (people)',
-    'reservations.minGroupSizeHint':
-        'Minimum {min} people — priced per person, per hour.',
+    'reservations.groupSizeHint':
+        '{min}–{max} people — priced per person, per hour.',
     'reservations.price': 'Price: {amount}',
     'reservations.reserveAndPay': 'Reserve and pay',
     'reservations.upcoming': 'Upcoming reservations',
@@ -143,6 +143,8 @@ const en = {
     'chatThread.muteHour': '1 hour',
     'chatThread.muteDay': '1 day',
     'chatThread.muteWeek': '1 week',
+    'chatThread.muteSuccess': 'Muted {name} for {duration}.',
+    'chatThread.muteFailed': 'Could not mute that person.',
     'chatThread.delete': 'Delete',
     'chatThread.slowModeStaff': "Slow mode is on — it doesn't apply to staff.",
     'chatThread.slowModeCustomer':

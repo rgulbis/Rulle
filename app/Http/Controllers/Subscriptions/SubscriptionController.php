@@ -7,6 +7,7 @@ use App\Models\Purchase;
 use App\Models\SubscriptionType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Cashier\Cashier;
@@ -55,19 +56,38 @@ class SubscriptionController extends Controller
             return null;
         }
 
-        $currentPrice = Cashier::stripe()->prices->retrieve($currentPriceId);
-        $type = SubscriptionType::where('stripe_product_id', $currentPrice->product)->first();
+        // This calls Stripe's API (twice, worst case) on every single load
+        // of /subscriptions for anyone with an active plan — cached briefly
+        // so reloading or repeatedly clicking back into this page doesn't
+        // re-trigger those network calls every time. Production runs a
+        // single `php artisan serve` process with no queue workers, so a
+        // burst of these synchronous, network-bound requests was enough to
+        // stall the whole site for every visitor, not just the one doing it.
+        // Wrapped in an array (not returned bare) because Cache::remember()
+        // can't distinguish "cached null" from "not cached yet" otherwise,
+        // and a plan with no price change at all — the common case — would
+        // never actually get cached.
+        $cached = Cache::remember(
+            "subscription-price-change:{$currentPriceId}",
+            now()->addMinutes(5),
+            function () use ($currentPriceId) {
+                $currentPrice = Cashier::stripe()->prices->retrieve($currentPriceId);
+                $type = SubscriptionType::where('stripe_product_id', $currentPrice->product)->first();
 
-        if (! $type || ! $type->stripe_price_id || $type->stripe_price_id === $currentPriceId) {
-            return null;
-        }
+                if (! $type || ! $type->stripe_price_id || $type->stripe_price_id === $currentPriceId) {
+                    return ['change' => null];
+                }
 
-        $newPrice = Cashier::stripe()->prices->retrieve($type->stripe_price_id);
+                $newPrice = Cashier::stripe()->prices->retrieve($type->stripe_price_id);
 
-        return [
-            'current_price_cents' => $currentPrice->unit_amount,
-            'new_price_cents' => $newPrice->unit_amount,
-        ];
+                return ['change' => [
+                    'current_price_cents' => $currentPrice->unit_amount,
+                    'new_price_cents' => $newPrice->unit_amount,
+                ]];
+            },
+        );
+
+        return $cached['change'];
     }
 
     public function swapToCurrentPrice(Request $request): RedirectResponse

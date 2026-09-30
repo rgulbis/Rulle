@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ChatMessage;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Rules\NoInappropriateContent;
 use App\Support\ChatModeration;
 use App\Support\ChatSlowMode;
 use Illuminate\Http\RedirectResponse;
@@ -48,7 +49,16 @@ class ChatController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        abort_if($request->user()->isChatMuted(), 403, 'You are muted from chat.');
+        // A plain abort() here would render Laravel's own error page rather
+        // than something Inertia can show inline — the composer is already
+        // hidden client-side while muted, so this only fires if a mute
+        // landed after the page loaded (no live push forces the composer
+        // to hide mid-session); same shape of response as slow mode below.
+        if ($request->user()->isChatMuted()) {
+            return back()->withErrors([
+                'body' => __('You are muted from chat.'),
+            ]);
+        }
 
         $wait = ChatSlowMode::secondsUntilMayPost($request->user());
 
@@ -62,7 +72,7 @@ class ChatController extends Controller
         }
 
         $validated = $request->validate([
-            'body' => ['required', 'string', 'max:500'],
+            'body' => ['required', 'string', 'max:500', new NoInappropriateContent],
         ]);
 
         ChatMessage::create([

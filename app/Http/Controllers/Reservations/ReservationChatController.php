@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Reservations;
 use App\Http\Controllers\Controller;
 use App\Models\ChatMessage;
 use App\Models\Reservation;
+use App\Rules\NoInappropriateContent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -36,7 +37,7 @@ class ReservationChatController extends Controller
         abort_unless($reservation->includesParticipant($request->user()), 403);
 
         $validated = $request->validate([
-            'body' => ['required', 'string', 'max:500'],
+            'body' => ['required', 'string', 'max:500', new NoInappropriateContent],
         ]);
 
         ChatMessage::create([

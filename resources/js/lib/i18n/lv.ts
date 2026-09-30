@@ -61,8 +61,8 @@ const lv: Record<TranslationKey, string> = {
     'reservations.timelineHint':
         '{min}–{max} minūtes, ar 15 minūšu soli. Punktētā līnija rāda parasti noslogotās stundas; sarkanais bloks jau ir rezervēts.',
     'reservations.groupSize': 'Grupas lielums (cilvēki)',
-    'reservations.minGroupSizeHint':
-        'Vismaz {min} cilvēki — cena tiek aprēķināta par personu, par stundu.',
+    'reservations.groupSizeHint':
+        '{min}–{max} cilvēki — cena tiek aprēķināta par personu, par stundu.',
     'reservations.price': 'Cena: {amount}',
     'reservations.reserveAndPay': 'Rezervēt un maksāt',
     'reservations.upcoming': 'Gaidāmās rezervācijas',
@@ -146,6 +146,8 @@ const lv: Record<TranslationKey, string> = {
     'chatThread.muteHour': '1 stundu',
     'chatThread.muteDay': '1 dienu',
     'chatThread.muteWeek': '1 nedēļu',
+    'chatThread.muteSuccess': 'Lietotājs {name} apklusināts uz {duration}.',
+    'chatThread.muteFailed': 'Neizdevās apklusināt šo personu.',
     'chatThread.delete': 'Dzēst',
     'chatThread.slowModeStaff':
         'Ir ieslēgts lēnais režīms — personālam tas neattiecas.',

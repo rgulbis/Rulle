@@ -52,7 +52,7 @@ test('muting someone only affects the global room, not their reservation group c
     $owner = User::factory()->create(['chat_muted_until' => now()->addDay()]);
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
 
-    $this->actingAs($owner)->post('/chat', ['body' => 'global'])->assertForbidden();
+    $this->actingAs($owner)->post('/chat', ['body' => 'global'])->assertSessionHasErrors('body');
     $this->actingAs($owner)->post("/reservations/{$reservation->id}/chat", ['body' => 'private'])->assertRedirect();
 
     expect(ChatMessage::where('reservation_id', $reservation->id)->count())->toBe(1);

@@ -20,6 +20,7 @@ import { useFormatEuros } from '@/lib/plans';
 type Settings = {
     price_cents_per_person_per_hour: number;
     min_group_size: number;
+    max_group_size: number;
     min_duration_minutes: number;
     max_duration_minutes: number;
     opening_time: string;
@@ -172,7 +173,19 @@ export default function ReservationsIndex({
         start: number | null;
         end: number | null;
     }>({ start: null, end: null });
-    const [groupSize, setGroupSize] = useState(settings.min_group_size);
+    // '' while the field is being edited (e.g. cleared to retype a value) —
+    // coercing that straight to a number would snap the box to showing "0"
+    // on every clear, which made retyping a value fiddly. It's clamped back
+    // to a valid size on blur instead, and only ever sent to the server as
+    // a real number (see submit()).
+    const [groupSize, setGroupSize] = useState<number | ''>(
+        settings.min_group_size,
+    );
+    const clampGroupSize = (size: number) =>
+        Math.min(
+            Math.max(size, settings.min_group_size),
+            settings.max_group_size,
+        );
     const [errors, setErrors] = useState<{
         starts_at?: string;
         duration_minutes?: string;
@@ -206,7 +219,10 @@ export default function ReservationsIndex({
             {
                 starts_at: `${date} ${minutesToTime(selection.start ?? 0)}`,
                 duration_minutes: durationMinutes,
-                group_size: groupSize,
+                group_size:
+                    groupSize === ''
+                        ? settings.min_group_size
+                        : clampGroupSize(groupSize),
             },
             {
                 onError: (formErrors) => setErrors(formErrors),
@@ -325,15 +341,29 @@ export default function ReservationsIndex({
                                     id="group_size"
                                     type="number"
                                     min={settings.min_group_size}
+                                    max={settings.max_group_size}
                                     value={groupSize}
-                                    onChange={(e) =>
-                                        setGroupSize(Number(e.target.value))
+                                    onChange={(e) => {
+                                        const raw = e.target.value;
+                                        setGroupSize(
+                                            raw === '' ? '' : Number(raw),
+                                        );
+                                    }}
+                                    onBlur={() =>
+                                        setGroupSize((current) =>
+                                            clampGroupSize(
+                                                current === ''
+                                                    ? settings.min_group_size
+                                                    : current,
+                                            ),
+                                        )
                                     }
                                     className="max-w-40"
                                 />
                                 <p className="text-muted text-sm">
-                                    {t('reservations.minGroupSizeHint', {
+                                    {t('reservations.groupSizeHint', {
                                         min: settings.min_group_size,
+                                        max: settings.max_group_size,
                                     })}
                                 </p>
                                 <InputError message={errors.group_size} />
@@ -345,7 +375,9 @@ export default function ReservationsIndex({
                                         amount: formatEuros(
                                             priceFor(
                                                 durationMinutes,
-                                                groupSize,
+                                                groupSize === ''
+                                                    ? 0
+                                                    : groupSize,
                                                 settings.price_cents_per_person_per_hour,
                                             ),
                                         ),
@@ -357,7 +389,8 @@ export default function ReservationsIndex({
                                         submitting ||
                                         !date ||
                                         selection.start === null ||
-                                        selection.end === null
+                                        selection.end === null ||
+                                        groupSize === ''
                                     }
                                 >
                                     {t('reservations.reserveAndPay')}

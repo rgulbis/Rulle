@@ -29,6 +29,7 @@ class ReservationController extends Controller
             'settings' => $settings->only([
                 'price_cents_per_person_per_hour',
                 'min_group_size',
+                'max_group_size',
                 'min_duration_minutes',
                 'max_duration_minutes',
                 'opening_time',
@@ -86,6 +87,7 @@ class ReservationController extends Controller
                 'required',
                 'integer',
                 "min:{$settings->min_group_size}",
+                "max:{$settings->max_group_size}",
             ],
         ]);
 

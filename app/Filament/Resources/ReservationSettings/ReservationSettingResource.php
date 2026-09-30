@@ -43,6 +43,13 @@ class ReservationSettingResource extends Resource
                     ->numeric()
                     ->minValue(1),
 
+                TextInput::make('max_group_size')
+                    ->label('Maximum group size')
+                    ->required()
+                    ->numeric()
+                    ->gte('min_group_size')
+                    ->helperText('Caps how many people a single reservation can be made for.'),
+
                 TextInput::make('min_duration_minutes')
                     ->label('Minimum reservation length (minutes)')
                     ->required()
@@ -86,6 +93,7 @@ class ReservationSettingResource extends Resource
                     ->label('Price per person/hour')
                     ->formatStateUsing(fn (int $state) => number_format($state / 100, 2).' €'),
                 TextColumn::make('min_group_size')->label('Min group size'),
+                TextColumn::make('max_group_size')->label('Max group size'),
                 TextColumn::make('min_duration_minutes')->label('Min length (min)'),
                 TextColumn::make('max_duration_minutes')->label('Max length (min)'),
                 TextColumn::make('opening_time')->label('Opens'),

@@ -56,6 +56,23 @@ test('rejects a group smaller than the configured minimum', function () {
     expect(Reservation::count())->toBe(0);
 });
 
+test('rejects a group larger than the configured maximum', function () {
+    makeReservationSettings(['max_group_size' => 50]);
+    $user = User::factory()->create();
+
+    // Previously unbounded: nothing stopped a reservation for an
+    // absurd number of people (e.g. three million), which also blows up
+    // the price calculation just as absurdly.
+    $response = $this->actingAs($user)->post('/reservations', [
+        'starts_at' => now()->addDay()->toDateTimeString(),
+        'duration_minutes' => 60,
+        'group_size' => 3_000_000,
+    ]);
+
+    $response->assertSessionHasErrors('group_size');
+    expect(Reservation::count())->toBe(0);
+});
+
 test('rejects a reservation outside operating hours', function () {
     makeReservationSettings(['opening_time' => '08:00', 'closing_time' => '23:00']);
     $user = User::factory()->create();

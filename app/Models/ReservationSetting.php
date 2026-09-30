@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property int $price_cents_per_person_per_hour
  * @property int $min_group_size
+ * @property int $max_group_size
  * @property int $min_duration_minutes
  * @property int $max_duration_minutes
  * @property string $opening_time
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Fillable([
     'price_cents_per_person_per_hour',
     'min_group_size',
+    'max_group_size',
     'min_duration_minutes',
     'max_duration_minutes',
     'opening_time',
@@ -32,6 +34,7 @@ class ReservationSetting extends Model
         return [
             'price_cents_per_person_per_hour' => 'integer',
             'min_group_size' => 'integer',
+            'max_group_size' => 'integer',
             'min_duration_minutes' => 'integer',
             'max_duration_minutes' => 'integer',
             'cancellation_cutoff_hours' => 'integer',
@@ -46,6 +49,7 @@ class ReservationSetting extends Model
         return static::firstOrCreate(['id' => 1], [
             'price_cents_per_person_per_hour' => 500,
             'min_group_size' => 3,
+            'max_group_size' => 50,
             'min_duration_minutes' => 30,
             'max_duration_minutes' => 240,
             'opening_time' => '08:00',

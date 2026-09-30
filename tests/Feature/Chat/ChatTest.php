@@ -44,6 +44,15 @@ test('a customer can post a chat message', function () {
     expect(ChatMessage::where('user_id', $user->id)->where('body', 'Hello park!')->exists())->toBeTrue();
 });
 
+test('a message containing profanity or crude ASCII art is rejected', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->post('/chat', ['body' => 'this park is shit']);
+
+    $response->assertSessionHasErrors('body');
+    expect(ChatMessage::count())->toBe(0);
+});
+
 test('an empty message is rejected', function () {
     $user = User::factory()->create();
 
@@ -85,7 +94,13 @@ test('a muted user cannot post a message', function () {
 
     $response = $this->actingAs($user)->post('/chat', ['body' => 'still trying to post']);
 
-    $response->assertForbidden();
+    // A redirect back with an inline error, not a hard abort — the
+    // composer is already hidden client-side while muted, so this is only
+    // reachable if the mute landed after the page loaded, and it should
+    // still be something the chat UI can show inline rather than a raw
+    // error page.
+    $response->assertRedirect();
+    $response->assertSessionHasErrors('body');
     expect(ChatMessage::count())->toBe(0);
 });
 
@@ -130,7 +145,7 @@ test('an employee can mute a customer, which then blocks them from posting', fun
     expect($troublemaker->fresh()->isChatMuted())->toBeTrue();
 
     $postResponse = $this->actingAs($troublemaker->fresh())->post('/chat', ['body' => 'let me in']);
-    $postResponse->assertForbidden();
+    $postResponse->assertSessionHasErrors('body');
 });
 
 test('an employee cannot mute themselves', function () {

@@ -21,6 +21,18 @@ test('new users can register', function () {
     expect(User::where('email', 'test@example.com')->exists())->toBeTrue();
 });
 
+test('registration rejects an inappropriate display name', function () {
+    $response = $this->post('/register', [
+        'name' => 'fuck this',
+        'email' => 'test@example.com',
+        'password' => 'C0rrect!Horse42',
+        'password_confirmation' => 'C0rrect!Horse42',
+    ]);
+
+    $response->assertSessionHasErrors('name');
+    expect(User::where('email', 'test@example.com')->exists())->toBeFalse();
+});
+
 test('registration requires matching password confirmation', function () {
     $response = $this->post('/register', [
         'name' => 'Test User',
