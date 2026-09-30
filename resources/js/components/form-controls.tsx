@@ -24,8 +24,12 @@ export function Label({
 
 // Boxy field that "lifts" onto a yellow hard shadow when focused — the
 // same pressed/raised language the buttons use.
+// box-border + min-w-0 guard against a WebKit quirk where a native
+// input[type=date]'s own calendar-icon-plus-value rendering can ignore
+// `w-full` and overflow its box on iOS Safari (not reproducible in Chromium,
+// where this was caught only from a real-device screenshot).
 const inputClasses =
-    'w-full rounded-none border-2 border-ink bg-paper px-4 py-3 text-base text-ink shorter:py-2 outline-none transition placeholder:text-faint focus:-translate-x-0.5 focus:-translate-y-0.5 focus:shadow-hard-accent disabled:opacity-50 aria-invalid:border-danger';
+    'box-border w-full min-w-0 rounded-none border-2 border-ink bg-paper px-4 py-3 text-base text-ink shorter:py-2 outline-none transition placeholder:text-faint focus:-translate-x-0.5 focus:-translate-y-0.5 focus:shadow-hard-accent disabled:opacity-50 aria-invalid:border-danger';
 
 export function TextInput({
     className = '',
