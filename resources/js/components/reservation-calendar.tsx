@@ -25,7 +25,9 @@ export default function ReservationCalendar({
     // Derived from the locale rather than a hardcoded English list, so it
     // automatically follows along whichever language is picked — including
     // getting the Monday-first order right, which a plain array of labels
-    // wouldn't on its own.
+    // wouldn't on its own. 'narrow' (not 'short') on purpose: Latvian's
+    // short weekday names ("ceturtd.", "piektd.") are long enough to
+    // overflow a 7-column grid on a phone and run into each other.
     const weekdays = useMemo(() => {
         // A known Monday (2024-01-01) — only its weekday position is used.
         const monday = new Date(2024, 0, 1);
@@ -34,7 +36,7 @@ export default function ReservationCalendar({
             const d = new Date(monday);
             d.setDate(monday.getDate() + i);
 
-            return d.toLocaleDateString(intlLocale, { weekday: 'short' });
+            return d.toLocaleDateString(intlLocale, { weekday: 'narrow' });
         });
     }, [intlLocale]);
 
@@ -108,7 +110,7 @@ export default function ReservationCalendar({
 
             <div className="text-muted grid grid-cols-7 gap-1 text-center font-mono text-xs font-semibold uppercase">
                 {weekdays.map((day, i) => (
-                    <div key={i} className="py-1">
+                    <div key={i} className="min-w-0 truncate py-1">
                         {day}
                     </div>
                 ))}
