@@ -92,6 +92,10 @@ const lv: Record<TranslationKey, string> = {
     'reservations.chooseEnd': '{start} – noklikšķiniet uz beigu laika',
     'reservations.selectionSummary': '{start} – {end} ({minutes} min)',
     'reservations.reset': 'Atiestatīt',
+    'reservations.startTime': 'Sākuma laiks',
+    'reservations.duration': 'Ilgums',
+    'reservations.durationOption': '{minutes} min',
+    'reservations.durationPlaceholder': 'Vispirms izvēlieties sākuma laiku',
     'reservations.status.pending': 'gaida apmaksu',
     'reservations.status.active': 'aktīva',
     'reservations.status.cancelled': 'atcelta',
@@ -272,7 +276,7 @@ const lv: Record<TranslationKey, string> = {
     'home.heroQueue': 'Gaidiet',
     'home.heroHighlight': 'mazāk.',
     'home.intro':
-        'Rampas, bowls un rails visiem līmeņiem — no pirmā lēciena līdz sarežģītākajiem trikiem. Iekštelpu parks, atvērts katru dienu neatkarīgi no laika apstākļiem.',
+        'Rampas, bowls un rails visiem līmeņiem — no pirmā lēciena līdz sarežģītākajiem trikiem. Iekštelpu parks Cēsīs, atvērts katru dienu neatkarīgi no laika apstākļiem.',
     'home.seePasses': 'Skatīt abonementus',
     'home.watchLive': 'Skatīties tiešraidi',
     'home.parkRightNow': 'Parks šobrīd',
@@ -286,7 +290,7 @@ const lv: Record<TranslationKey, string> = {
     'home.ticker.howItWorks': 'Pērciet tiešsaistē · QR kods pie ieejas',
     'home.step1.title': 'Izvēlieties abonementu',
     'home.step1.text':
-        'Vienreizēja ieeja, mēneša vai gada abonements. Maksājiet tiešsaistē ar karti.',
+        'Izvēlieties vienu no pieejamiem ieejas veidiem. Maksājiet tiešsaistē ar karti.',
     'home.step2.title': 'QR kods pie ieejas',
     'home.step2.text':
         'Jūsu QR kods ir jūsu kontā. Darbinieks to noskenē, un varat iet iekšā.',

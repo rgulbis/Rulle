@@ -295,13 +295,26 @@ export default function ReservationsIndex({
                                 <Label htmlFor="starts_at_date">
                                     {t('reservations.date')}
                                 </Label>
-                                <TextInput
-                                    id="starts_at_date"
-                                    type="date"
-                                    value={date}
-                                    min={new Date().toISOString().split('T')[0]}
-                                    onChange={(e) => chooseDate(e.target.value)}
-                                />
+                                {/* iOS Safari's native date control can render
+                                wider than its own box and bleed out past the
+                                card instead of respecting `width: 100%` —
+                                this clips that overflow instead of trying to
+                                out-guess WebKit's internal sizing. */}
+                                <div className="w-full overflow-x-hidden">
+                                    <TextInput
+                                        id="starts_at_date"
+                                        type="date"
+                                        value={date}
+                                        min={
+                                            new Date()
+                                                .toISOString()
+                                                .split('T')[0]
+                                        }
+                                        onChange={(e) =>
+                                            chooseDate(e.target.value)
+                                        }
+                                    />
+                                </div>
                             </div>
 
                             {date && (

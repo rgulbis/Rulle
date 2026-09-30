@@ -88,6 +88,10 @@ const en = {
     'reservations.chooseEnd': '{start} – click an end time',
     'reservations.selectionSummary': '{start} – {end} ({minutes} min)',
     'reservations.reset': 'Reset',
+    'reservations.startTime': 'Start time',
+    'reservations.duration': 'Duration',
+    'reservations.durationOption': '{minutes} min',
+    'reservations.durationPlaceholder': 'Choose a start time first',
     'reservations.status.pending': 'pending',
     'reservations.status.active': 'active',
     'reservations.status.cancelled': 'cancelled',
@@ -267,7 +271,7 @@ const en = {
     'home.heroQueue': 'Queue',
     'home.heroHighlight': 'less.',
     'home.intro':
-        'Ramps, bowls and rails for every skill level — from your first jump to the hardest tricks. An indoor park, open every day whatever the weather.',
+        'Ramps, bowls and rails for every skill level — from your first jump to the hardest tricks. An indoor park in Cēsis, open every day whatever the weather.',
     'home.seePasses': 'See passes',
     'home.watchLive': 'Watch the park live',
     'home.parkRightNow': 'The park right now',
@@ -280,7 +284,8 @@ const en = {
     'home.ticker.noReservations': 'No private bookings today',
     'home.ticker.howItWorks': 'Buy online · scan at the door',
     'home.step1.title': 'Pick a pass',
-    'home.step1.text': 'Single entry, monthly or yearly. Pay online by card.',
+    'home.step1.text':
+        'Choose one of the available passes. Pay online by card.',
     'home.step2.title': 'Scan at the door',
     'home.step2.text':
         "Your QR code lives in your account. Staff scan it and you're in.",
