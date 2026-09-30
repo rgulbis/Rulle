@@ -41,9 +41,30 @@ export function Select({
     ...props
 }: SelectHTMLAttributes<HTMLSelectElement>) {
     return (
-        <select {...props} className={cn(inputClasses, className)}>
-            {children}
-        </select>
+        <div className="relative">
+            {/* A native <select> keeps its own OS chrome in Safari no matter
+            what border/background is set on it (unlike Chromium, which
+            mostly defers to custom styles) — appearance-none drops that
+            chrome everywhere so the box actually looks like our other
+            inputs, and this draws the dropdown arrow back in by hand. */}
+            <select
+                {...props}
+                className={cn(inputClasses, 'appearance-none pr-11', className)}
+            >
+                {children}
+            </select>
+            <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className={`pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 ${props.disabled ? 'opacity-50' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="square"
+            >
+                <path d="M6 9l6 6 6-6" />
+            </svg>
+        </div>
     );
 }
 
@@ -135,7 +156,7 @@ type Variant = 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger';
 
 // Every solid button sits on a hard shadow and presses flat when clicked.
 const buttonBase =
-    'inline-flex min-h-11 items-center justify-center gap-2 rounded-none border-2 px-5 py-3 text-base font-semibold transition hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-1 active:translate-y-1 active:shadow-none disabled:pointer-events-none disabled:opacity-50';
+    'inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-none border-2 px-5 py-3 text-base font-semibold whitespace-nowrap transition hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-1 active:translate-y-1 active:shadow-none disabled:pointer-events-none disabled:opacity-50';
 
 const variantClasses: Record<Variant, string> = {
     primary: 'border-ink bg-ink text-ground shadow-hard-accent',

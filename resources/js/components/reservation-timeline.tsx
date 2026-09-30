@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { Label, Select, TextInput } from '@/components/form-controls';
+import { Label, Select } from '@/components/form-controls';
 import { useTranslation } from '@/lib/i18n/context';
 
 type TimeRange = {
@@ -169,21 +169,18 @@ export default function ReservationTimeline({
 
     // Dragging the bar precisely is still awkward on a touchscreen no matter
     // how big it's drawn, since the visual size was never what made 15-minute
-    // increments hard to land on — a phone's most reliable input for this is
-    // its own native time picker. These feed the exact same value/onChange
-    // the drag interaction uses, so either one works.
+    // increments hard to land on. A native time input turned out just as
+    // fiddly in its own way (typing/spinning exact digits) — a plain list of
+    // valid times to pick from is the easiest option on any device. These
+    // feed the exact same value/onChange the drag interaction uses, so
+    // either one works.
     const handleStartTimeChange = (raw: string) => {
         if (!raw) {
             onChange({ start: null, end: null });
             return;
         }
 
-        const parsed = timeToMinutes(raw);
-        const snapped = Math.round(parsed / 15) * 15;
-        const start = Math.min(
-            Math.max(pastCutoff, closeMin - minDurationMinutes),
-            Math.max(pastCutoff, snapped),
-        );
+        const start = Number(raw);
         const currentDuration =
             value.start !== null && value.end !== null
                 ? value.end - value.start
@@ -207,6 +204,16 @@ export default function ReservationTimeline({
             end: Math.min(closeMin, value.start + Number(raw)),
         });
     };
+
+    const startTimeOptions: number[] = [];
+
+    for (
+        let minutes = pastCutoff;
+        minutes <= closeMin - minDurationMinutes;
+        minutes += 15
+    ) {
+        startTimeOptions.push(minutes);
+    }
 
     const durationOptions: number[] = [];
 
@@ -249,58 +256,68 @@ export default function ReservationTimeline({
 
     return (
         <div>
+            {/* min-w-0 on each grid item + overflow-x-hidden around each
+            native control: iOS Safari's own time/select chrome can ignore
+            the width its CSS grid cell assigned it, otherwise overlapping
+            into the next column instead of shrinking to fit — the same
+            WebKit quirk the date field above had. */}
             <div className="mb-3 grid grid-cols-2 gap-3 lg:hidden">
-                <div className="flex flex-col gap-1.5">
+                <div className="flex min-w-0 flex-col gap-1.5">
                     <Label htmlFor="timeline_start_time">
                         {t('reservations.startTime')}
                     </Label>
-                    <TextInput
-                        id="timeline_start_time"
-                        type="time"
-                        step={900}
-                        min={minutesToTime(pastCutoff)}
-                        max={minutesToTime(
-                            Math.max(pastCutoff, closeMin - minDurationMinutes),
-                        )}
-                        value={
-                            value.start !== null
-                                ? minutesToTime(value.start)
-                                : ''
-                        }
-                        onChange={(e) =>
-                            handleStartTimeChange(e.target.value)
-                        }
-                    />
+                    <div className="w-full overflow-x-hidden">
+                        <Select
+                            id="timeline_start_time"
+                            value={value.start ?? ''}
+                            onChange={(e) =>
+                                handleStartTimeChange(e.target.value)
+                            }
+                        >
+                            {value.start === null && (
+                                <option value="">
+                                    {t('reservations.startTimePlaceholder')}
+                                </option>
+                            )}
+                            {startTimeOptions.map((minutes) => (
+                                <option key={minutes} value={minutes}>
+                                    {minutesToTime(minutes)}
+                                </option>
+                            ))}
+                        </Select>
+                    </div>
                 </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex min-w-0 flex-col gap-1.5">
                     <Label htmlFor="timeline_duration">
                         {t('reservations.duration')}
                     </Label>
-                    <Select
-                        id="timeline_duration"
-                        disabled={value.start === null}
-                        value={
-                            value.start !== null && value.end !== null
-                                ? value.end - value.start
-                                : ''
-                        }
-                        onChange={(e) =>
-                            handleDurationChange(e.target.value)
-                        }
-                    >
-                        {(value.start === null || value.end === null) && (
-                            <option value="">
-                                {t('reservations.durationPlaceholder')}
-                            </option>
-                        )}
-                        {durationOptions.map((minutes) => (
-                            <option key={minutes} value={minutes}>
-                                {t('reservations.durationOption', {
-                                    minutes,
-                                })}
-                            </option>
-                        ))}
-                    </Select>
+                    <div className="w-full overflow-x-hidden">
+                        <Select
+                            id="timeline_duration"
+                            disabled={value.start === null}
+                            value={
+                                value.start !== null && value.end !== null
+                                    ? value.end - value.start
+                                    : ''
+                            }
+                            onChange={(e) =>
+                                handleDurationChange(e.target.value)
+                            }
+                        >
+                            {(value.start === null || value.end === null) && (
+                                <option value="">
+                                    {t('reservations.durationPlaceholder')}
+                                </option>
+                            )}
+                            {durationOptions.map((minutes) => (
+                                <option key={minutes} value={minutes}>
+                                    {t('reservations.durationOption', {
+                                        minutes,
+                                    })}
+                                </option>
+                            ))}
+                        </Select>
+                    </div>
                 </div>
             </div>
 

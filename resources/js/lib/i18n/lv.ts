@@ -93,6 +93,7 @@ const lv: Record<TranslationKey, string> = {
     'reservations.selectionSummary': '{start} – {end} ({minutes} min)',
     'reservations.reset': 'Atiestatīt',
     'reservations.startTime': 'Sākuma laiks',
+    'reservations.startTimePlaceholder': 'Izvēlieties sākuma laiku',
     'reservations.duration': 'Ilgums',
     'reservations.durationOption': '{minutes} min',
     'reservations.durationPlaceholder': 'Vispirms izvēlieties sākuma laiku',
@@ -298,7 +299,7 @@ const lv: Record<TranslationKey, string> = {
     'home.step3.text': 'Jautājumi? Rakstiet darbiniekiem čatā jebkurā laikā.',
     'home.passesTitle': 'Abonementi',
     'home.passesIntro':
-        'Katram abonementam ir personīgs QR kods. Mēneša un gada abonementi atjaunojas automātiski — atceliet jebkurā brīdī.',
+        'Jūsu kontam ir viens personīgs QR kods, kas darbojas neatkarīgi no tā, kuru abonementu izmantojat. Mēneša un gada abonementi atjaunojas automātiski — atceliet jebkurā brīdī.',
     'home.crewLead': 'Atvediet',
     'home.crewTail': 'savējos.',
     'home.crewText':

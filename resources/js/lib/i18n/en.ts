@@ -89,6 +89,7 @@ const en = {
     'reservations.selectionSummary': '{start} – {end} ({minutes} min)',
     'reservations.reset': 'Reset',
     'reservations.startTime': 'Start time',
+    'reservations.startTimePlaceholder': 'Choose a start time',
     'reservations.duration': 'Duration',
     'reservations.durationOption': '{minutes} min',
     'reservations.durationPlaceholder': 'Choose a start time first',
@@ -293,7 +294,7 @@ const en = {
     'home.step3.text': 'Questions? Message the staff in the chat any time.',
     'home.passesTitle': 'Passes',
     'home.passesIntro':
-        'Every pass comes with a personal QR code. Monthly and yearly passes renew automatically — cancel whenever.',
+        'Your account has one personal QR code that works for whichever pass you hold. Monthly and yearly passes renew automatically — cancel whenever.',
     'home.crewLead': 'Bring',
     'home.crewTail': 'the crew.',
     'home.crewText':
