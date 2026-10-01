@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Payments\Tables;
 
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -11,9 +12,16 @@ class PaymentsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->striped()
             ->columns([
                 TextColumn::make('type')
                     ->badge()
+                    ->icon(fn (string $state): Heroicon => match ($state) {
+                        'purchase' => Heroicon::OutlinedTicket,
+                        'reservation' => Heroicon::OutlinedCalendarDays,
+                        'subscription' => Heroicon::OutlinedCreditCard,
+                        default => Heroicon::OutlinedBanknotes,
+                    })
                     ->color(fn (string $state): string => match ($state) {
                         'purchase' => 'gray',
                         'reservation' => 'info',
@@ -30,10 +38,12 @@ class PaymentsTable
                     ->label('Customer')
                     ->searchable(),
                 TextColumn::make('description')
-                    ->label('What'),
+                    ->label('What')
+                    ->color('gray'),
                 TextColumn::make('amount_cents')
                     ->label('Amount')
                     ->formatStateUsing(fn (int $state): string => number_format($state / 100, 2).' €')
+                    ->weight('bold')
                     ->sortable(),
                 TextColumn::make('status')
                     ->badge()
@@ -41,6 +51,12 @@ class PaymentsTable
                     // subscription statuses, this app's purchase/reservation
                     // ones) — grouped by what they mean, not where they're
                     // from, so the colour is still meaningful across types.
+                    ->icon(fn (string $state): Heroicon => match ($state) {
+                        'active', 'trialing', 'used_up' => Heroicon::OutlinedCheckCircle,
+                        'pending', 'incomplete', 'past_due' => Heroicon::OutlinedClock,
+                        'refunded', 'cancelled', 'canceled', 'incomplete_expired', 'unpaid' => Heroicon::OutlinedXCircle,
+                        default => Heroicon::OutlinedClock,
+                    })
                     ->color(fn (string $state): string => match ($state) {
                         'active', 'trialing', 'used_up' => 'success',
                         'pending', 'incomplete', 'past_due' => 'warning',
@@ -50,6 +66,7 @@ class PaymentsTable
                 TextColumn::make('created_at')
                     ->label('Date')
                     ->dateTime('Y-m-d H:i')
+                    ->color('gray')
                     ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')

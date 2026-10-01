@@ -5,11 +5,14 @@ namespace App\Filament\Widgets;
 use App\Models\Purchase;
 use App\Models\Reservation;
 use App\Support\StripeRevenue;
+use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class RevenueStats extends StatsOverviewWidget
 {
+    protected static ?int $sort = 1;
+
     /**
      * Money comes from three independent sources that nothing else
      * combines: one-time passes and reservations are local (`purchases`,
@@ -45,17 +48,27 @@ class RevenueStats extends StatsOverviewWidget
 
         return [
             Stat::make('Total revenue', number_format($total / 100, 2).' €')
-                ->description('All time, across passes, subscriptions, and reservations'),
+                ->description('All time, across passes, subscriptions, and reservations')
+                ->color('primary')
+                ->icon(Heroicon::OutlinedBanknotes),
             Stat::make('This month', number_format($thisMonth / 100, 2).' €')
-                ->color('success'),
+                ->color('success')
+                ->icon(Heroicon::OutlinedChartBar),
             Stat::make('One-time passes', number_format($passesTotal / 100, 2).' €')
-                ->description('All time, excluding refunds'),
+                ->description('All time, excluding refunds')
+                ->color('info')
+                ->icon(Heroicon::OutlinedTicket),
             Stat::make('Subscriptions', number_format($subscriptionsTotal / 100, 2).' €')
-                ->description('All time, from Stripe'),
+                ->description('All time, from Stripe')
+                ->color('warning')
+                ->icon(Heroicon::OutlinedCreditCard),
             Stat::make('Reservations', number_format($reservationsTotal / 100, 2).' €')
-                ->description('All time'),
+                ->description('All time')
+                ->color('info')
+                ->icon(Heroicon::OutlinedCalendarDays),
             Stat::make('Refunded', number_format($refundedPasses / 100, 2).' €')
-                ->color('danger'),
+                ->color('danger')
+                ->icon(Heroicon::OutlinedArrowUturnLeft),
         ];
     }
 }

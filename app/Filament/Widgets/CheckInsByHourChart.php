@@ -8,6 +8,8 @@ use Illuminate\Support\Carbon;
 
 class CheckInsByHourChart extends ChartWidget
 {
+    protected static ?int $sort = 2;
+
     protected ?string $heading = 'Occupancy by Hour';
 
     protected ?string $pollingInterval = '30s';
