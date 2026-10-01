@@ -55,6 +55,7 @@ const lv: Record<TranslationKey, string> = {
         'Šī rezervācija jau ir sākusies, un to vairs nevar atcelt.',
     'reservations.statusSlotTaken':
         'Kāds cits šo laiku rezervēja pirmais, kamēr jūs maksājāt — nauda jums atmaksāta, un rezervācija atcelta. Izvēlieties citu laiku.',
+    'reservations.statusLeft': 'Jūs pametāt rezervāciju.',
     'reservations.reserveATime': 'Rezervēt laiku',
     'reservations.date': 'Datums',
     'reservations.time': 'Laiks',
@@ -77,6 +78,9 @@ const lv: Record<TranslationKey, string> = {
     'reservations.cancel': 'Atcelt rezervāciju',
     'reservations.confirmCancel': 'Atcelt šo rezervāciju?',
     'reservations.remove': 'Noņemt',
+    'reservations.leave': 'Pamest rezervāciju',
+    'reservations.confirmLeave':
+        'Pamest šo rezervāciju? Jūs zaudēsiet piekļuvi tās grupas čatam, un atpakaļ jūs var pievienot tikai īpašnieks.',
     'reservations.groupFull':
         'Šīs rezervācijas grupa ir pilna — noņemiet kādu vai izveidojiet jaunu rezervāciju vairāk cilvēkiem.',
     'reservations.searchPlaceholder':
@@ -149,9 +153,17 @@ const lv: Record<TranslationKey, string> = {
     'chatThread.moreActions': 'Vairāk darbību',
     'chatThread.noMessages': 'Vēl nav ziņu — uzrakstiet kaut ko.',
     'chatThread.mute': 'Apklusināt {duration}',
-    'chatThread.muteHour': '1 stundu',
-    'chatThread.muteDay': '1 dienu',
-    'chatThread.muteWeek': '1 nedēļu',
+    'chatThread.muteCustom': 'Apklusināt',
+    'chatThread.muteCustomTitle': 'Apklusināt {name}',
+    'chatThread.muteAmount': 'Daudzums',
+    'chatThread.muteUnit': 'Vienība',
+    'chatThread.muteUnitHours': 'Stundas',
+    'chatThread.muteUnitDays': 'Dienas',
+    'chatThread.muteUnitWeeks': 'Nedēļas',
+    'chatThread.muteCustomInvalid':
+        'Ievadiet ilgumu no 1 stundas līdz 1 gadam.',
+    'chatThread.muteCancel': 'Atcelt',
+    'chatThread.muteConfirm': 'Apklusināt',
     'chatThread.muteSuccess': 'Lietotājs {name} apklusināts uz {duration}.',
     'chatThread.muteFailed': 'Neizdevās apklusināt šo personu.',
     'chatThread.unmute': 'Atcelt apklusināšanu',
@@ -397,6 +409,7 @@ const lv: Record<TranslationKey, string> = {
     'chatThread.sendHint': 'Enter — nosūtīt · Shift+Enter — jauna rinda',
     'chatThread.you': 'jūs',
     'chatThread.closePinned': 'Aizvērt piespraustās ziņas',
+    'chatThread.mutedUserUntil': 'Apklusināts līdz {date}.',
     'chatThread.mutedUsersCount': 'Apklusināti ({count})',
     'chatThread.mutedUsers': 'Apklusinātie lietotāji',
     'chatThread.closeMutedUsers': 'Aizvērt apklusinātos lietotājus',
@@ -418,6 +431,28 @@ const lv: Record<TranslationKey, string> = {
 
     // Toasts
     'toast.tooManyRequests': 'Palēnini nedaudz — tas ir daudz klikšķu.',
+    // Errors
+    'error.403.heading': 'Pieeja liegta',
+    'error.403.body':
+        'Tev nav piekļuves šai lapai. Ja domā, ka tā ir kļūda, jautā parka darbiniekiem.',
+    'error.404.heading': 'Nokritām',
+    'error.404.body':
+        'Mēs neatradām šo lapu. Iespējams, tā ir pārvietota vai nekad nav bijusi.',
+    'error.419.heading': 'Sesija beigusies',
+    'error.419.body':
+        'Šī lapa bija atvērta pārāk ilgi. Atsvaidzini to un mēģini vēlreiz.',
+    'error.429.heading': 'Palēnini',
+    'error.429.body':
+        'Pārāk daudz pieprasījumu īsā laikā. Uzgaidi minūti un mēģini vēlreiz.',
+    'error.500.heading': 'Kaut kas salūza',
+    'error.500.body':
+        'Tā ir mūsu vaina, nevis tava. Mēģini vēlreiz pēc brīža — ja tas atkārtojas, pastāsti parka darbiniekiem.',
+    'error.503.heading': 'Drīz atgriezīsimies',
+    'error.503.body': 'Veicam apkopi. Mēģini vēlreiz pēc dažām minūtēm.',
+    'error.home': 'Atpakaļ uz sākumu',
+    'error.retry': 'Mēģināt vēlreiz',
+    'toast.requestFailed': 'Kaut kas nogāja greizi. Lūdzu, mēģini vēlreiz.',
+    'toast.forbidden': 'Tev nav atļaujas to darīt.',
 };
 
 export default lv;

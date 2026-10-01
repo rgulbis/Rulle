@@ -278,6 +278,23 @@ class ReservationController extends Controller
         return back()->with('status', 'participant-removed');
     }
 
+    /**
+     * A named participant taking themselves off someone else's reservation.
+     * The owner can't leave their own booking — that's what cancelling is.
+     */
+    public function leave(Request $request, Reservation $reservation): RedirectResponse
+    {
+        $user = $request->user();
+        abort_if($reservation->isOwnedBy($user), 403);
+        abort_unless($reservation->participants()->whereKey($user->id)->exists(), 403);
+
+        $reservation->participants()->detach($user->id);
+
+        // Not back(): leaving from the group chat page would bounce straight
+        // into a 403, since that chat is no longer theirs to view.
+        return to_route('reservations.index')->with('status', 'reservation-left');
+    }
+
     public function searchUsers(Request $request): JsonResponse
     {
         $validated = $request->validate([

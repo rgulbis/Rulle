@@ -10,6 +10,8 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -59,4 +61,29 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Laravel's stock error pages are plain and unstyled. For the site's
+        // own pages, show a proper on-brand one instead (and with the user's
+        // chosen language) — but leave the Filament admin, JSON clients, and
+        // local debugging (where the real stack trace is what you want) alone.
+        // Only full-page loads and Inertia page visits get it: a failed
+        // in-page action (a POST/DELETE) keeps its plain error response so
+        // the frontend can show a toast without navigating away.
+        $exceptions->respond(function (Response $response, Throwable $e, Request $request) {
+            $status = $response->getStatusCode();
+
+            if (
+                ! in_array($status, [403, 404, 419, 429, 500, 503], true)
+                || app()->hasDebugModeEnabled()
+                || $request->is('admin', 'admin/*', 'livewire/*', 'api/*')
+                || ($request->expectsJson() && ! $request->header('X-Inertia'))
+                || ($request->header('X-Inertia') && ! $request->isMethod('GET'))
+            ) {
+                return $response;
+            }
+
+            return Inertia::render('error', ['status' => $status])
+                ->toResponse($request)
+                ->setStatusCode($status);
+        });
     })->create();

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Reservations;
 use App\Http\Controllers\Controller;
 use App\Models\ChatMessage;
 use App\Models\Reservation;
+use App\Models\ReservationParticipant;
 use App\Models\User;
 use App\Rules\NoInappropriateContent;
 use App\Support\ReservationChatModeration;
@@ -54,13 +55,14 @@ class ReservationChatController extends Controller
             // Only for the owner — otherwise a participant muted with no
             // message in the visible window had no way to be found at all.
             'mutedParticipants' => $isOwner
-                ? $reservation->participants()
-                    ->wherePivot('chat_muted_until', '>', now())
-                    ->get(['users.id', 'users.name'])
-                    ->map(fn (User $participant) => [
-                        'id' => $participant->id,
-                        'name' => $participant->name,
-                        'chat_muted_until' => $participant->pivot->chat_muted_until,
+                ? ReservationParticipant::with('user:id,name')
+                    ->where('reservation_id', $reservation->id)
+                    ->where('chat_muted_until', '>', now())
+                    ->get()
+                    ->map(fn (ReservationParticipant $row) => [
+                        'id' => $row->user_id,
+                        'name' => $row->user->name,
+                        'chat_muted_until' => $row->chat_muted_until,
                     ])
                 : [],
         ]);

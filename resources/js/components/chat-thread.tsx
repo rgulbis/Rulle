@@ -8,6 +8,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { Button, Label, Select, TextInput } from '@/components/form-controls';
 import { ArrowRightIcon, CrossIcon } from '@/components/icons';
 import { useTranslation } from '@/lib/i18n/context';
 import type { Auth } from '@/types/auth';
@@ -66,11 +67,14 @@ type Props = {
     slowMode?: SlowMode;
 };
 
-const MUTE_OPTIONS = [
-    { hours: 1, labelKey: 'chatThread.muteHour' },
-    { hours: 24, labelKey: 'chatThread.muteDay' },
-    { hours: 168, labelKey: 'chatThread.muteWeek' },
+const CUSTOM_MUTE_UNITS = [
+    { hoursPer: 1, labelKey: 'chatThread.muteUnitHours' },
+    { hoursPer: 24, labelKey: 'chatThread.muteUnitDays' },
+    { hoursPer: 168, labelKey: 'chatThread.muteUnitWeeks' },
 ] as const;
+
+// Matches the server-side max:8760 on the mute endpoints (one year).
+const MAX_MUTE_HOURS = 8760;
 
 export default function ChatThread({
     channel,
@@ -95,6 +99,12 @@ export default function ChatThread({
     const [pinnedOpen, setPinnedOpen] = useState(false);
     const [mutedUsersOpen, setMutedUsersOpen] = useState(false);
     const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+    const [customMute, setCustomMute] = useState<{
+        id: number;
+        name: string;
+    } | null>(null);
+    const [customAmount, setCustomAmount] = useState('1');
+    const [customUnit, setCustomUnit] = useState<number>(1);
     // The pin/mute/delete bar normally only reveals on hover/focus — there's
     // no hover on a touchscreen, so staff on a phone had no way to ever see
     // it. Below the `lg` breakpoint a per-message button toggles it instead.
@@ -390,6 +400,30 @@ export default function ChatThread({
         );
     };
 
+    const customHours = Math.floor(Number(customAmount)) * customUnit;
+    const customMuteValid =
+        Number.isFinite(customHours) &&
+        customHours >= 1 &&
+        customHours <= MAX_MUTE_HOURS;
+
+    const submitCustomMute: FormEventHandler = (event) => {
+        event.preventDefault();
+
+        if (!customMute || !customMuteValid) {
+            return;
+        }
+
+        const unit = CUSTOM_MUTE_UNITS.find((u) => u.hoursPer === customUnit);
+
+        muteUser(
+            customMute.id,
+            customMute.name,
+            customHours,
+            `${Math.floor(Number(customAmount))} ${t(unit?.labelKey ?? 'chatThread.muteUnitHours').toLowerCase()}`,
+        );
+        setCustomMute(null);
+    };
+
     const unmuteUser = (userId: number, userName: string) => {
         if (!moderation) {
             return;
@@ -591,6 +625,91 @@ export default function ChatThread({
                 </div>
             )}
 
+            {customMute && (
+                <div
+                    className="bg-ink/50 fixed inset-0 z-50 flex items-center justify-center p-4"
+                    onClick={() => setCustomMute(null)}
+                >
+                    <form
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="custom-mute-title"
+                        onSubmit={submitCustomMute}
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Escape') {
+                                setCustomMute(null);
+                            }
+                        }}
+                        className="border-ink bg-paper shadow-hard-lg flex w-full max-w-sm flex-col gap-4 border-2 p-5"
+                    >
+                        <p
+                            id="custom-mute-title"
+                            className="font-mono text-sm font-semibold tracking-[0.12em] uppercase"
+                        >
+                            {t('chatThread.muteCustomTitle', {
+                                name: customMute.name,
+                            })}
+                        </p>
+                        <div className="flex gap-3">
+                            <div className="flex flex-1 flex-col gap-1.5">
+                                <Label htmlFor="custom-mute-amount">
+                                    {t('chatThread.muteAmount')}
+                                </Label>
+                                <TextInput
+                                    id="custom-mute-amount"
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    autoFocus
+                                    value={customAmount}
+                                    onChange={(e) =>
+                                        setCustomAmount(e.target.value)
+                                    }
+                                />
+                            </div>
+                            <div className="flex flex-1 flex-col gap-1.5">
+                                <Label htmlFor="custom-mute-unit">
+                                    {t('chatThread.muteUnit')}
+                                </Label>
+                                <Select
+                                    id="custom-mute-unit"
+                                    value={customUnit}
+                                    onChange={(e) =>
+                                        setCustomUnit(Number(e.target.value))
+                                    }
+                                >
+                                    {CUSTOM_MUTE_UNITS.map((u) => (
+                                        <option
+                                            key={u.hoursPer}
+                                            value={u.hoursPer}
+                                        >
+                                            {t(u.labelKey)}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </div>
+                        </div>
+                        {!customMuteValid && (
+                            <p className="text-danger text-sm">
+                                {t('chatThread.muteCustomInvalid')}
+                            </p>
+                        )}
+                        <div className="flex justify-end gap-3">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setCustomMute(null)}
+                            >
+                                {t('chatThread.muteCancel')}
+                            </Button>
+                            <Button type="submit" disabled={!customMuteValid}>
+                                {t('chatThread.muteConfirm')}
+                            </Button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
             {mutedUsersOpen && mutedUsers.length > 0 && (
                 <div
                     id="muted-users"
@@ -620,7 +739,7 @@ export default function ChatThread({
                                         {mutedUser.name}
                                     </p>
                                     <p className="text-muted text-sm">
-                                        {t('chatThread.mutedUntil', {
+                                        {t('chatThread.mutedUserUntil', {
                                             date: new Date(
                                                 mutedUser.chat_muted_until,
                                             ).toLocaleString(intlLocale),
@@ -704,7 +823,7 @@ export default function ChatThread({
                                             startsGroup
                                                 ? 'mt-3 pt-1 pb-0.5'
                                                 : 'py-0.5'
-                                        } ${message.pinned ? 'border-accent' : 'border-transparent'} ${
+                                        } ${openActionsFor === message.id ? 'z-30' : ''} ${message.pinned ? 'border-accent' : 'border-transparent'} ${
                                             justJumpedTo === message.id
                                                 ? 'bg-accent/20'
                                                 : ''
@@ -813,10 +932,10 @@ export default function ChatThread({
                                             aria-expanded={
                                                 openActionsFor === message.id
                                             }
-                                            className={`absolute top-1 right-1 z-20 flex size-8 items-center justify-center lg:hidden ${
+                                            className={`absolute top-1 right-1 flex size-8 items-center justify-center lg:hidden ${
                                                 openActionsFor === message.id
-                                                    ? 'border-ink bg-paper border-2'
-                                                    : 'text-faint'
+                                                    ? 'border-ink bg-paper z-40 border-2'
+                                                    : 'text-faint z-20'
                                             }`}
                                         >
                                             {openActionsFor === message.id ? (
@@ -826,7 +945,7 @@ export default function ChatThread({
                                             )}
                                         </button>
                                         <div
-                                            className={`border-ink bg-paper shadow-hard absolute top-10 right-1 z-10 items-stretch border-2 text-xs font-semibold lg:-top-4 lg:right-4 lg:group-focus-within:flex lg:group-hover:flex ${
+                                            className={`border-ink bg-paper shadow-hard absolute top-10 right-1 z-30 max-w-[calc(100%-0.5rem)] flex-wrap items-stretch gap-0.5 border-2 bg-line text-xs font-semibold lg:-top-4 lg:right-4 lg:group-focus-within:flex lg:group-hover:flex ${
                                                 openActionsFor === message.id
                                                     ? 'flex'
                                                     : 'hidden'
@@ -838,7 +957,7 @@ export default function ChatThread({
                                                     startReply(message);
                                                     setOpenActionsFor(null);
                                                 }}
-                                                className="hover:bg-accent hover:text-accent-ink flex min-h-9 items-center gap-1.5 px-2.5"
+                                                className="bg-paper hover:bg-accent hover:text-accent-ink flex min-h-9 flex-1 items-center justify-center gap-1.5 px-2.5"
                                             >
                                                 <ReplyIcon size={14} />
                                                 {t('chatThread.reply')}
@@ -853,7 +972,7 @@ export default function ChatThread({
                                                         );
                                                         setOpenActionsFor(null);
                                                     }}
-                                                    className="hover:bg-accent hover:text-accent-ink border-line flex min-h-9 items-center gap-1.5 border-l-2 px-2.5"
+                                                    className="bg-paper hover:bg-accent hover:text-accent-ink flex min-h-9 flex-1 items-center justify-center gap-1.5 px-2.5"
                                                 >
                                                     <PinIcon size={14} />
                                                     {message.pinned
@@ -863,60 +982,54 @@ export default function ChatThread({
                                             )}
                                             {canPenalise && (
                                                 <>
-                                                    {MUTE_OPTIONS.map(
-                                                        (option) => (
-                                                            <button
-                                                                key={
-                                                                    option.hours
-                                                                }
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    muteUser(
-                                                                        message
-                                                                            .user
-                                                                            .id,
-                                                                        message
-                                                                            .user
-                                                                            .name,
-                                                                        option.hours,
-                                                                        t(
-                                                                            option.labelKey,
-                                                                        ),
-                                                                    );
-                                                                    setOpenActionsFor(
-                                                                        null,
-                                                                    );
-                                                                }}
-                                                                className="border-line hover:bg-accent hover:text-accent-ink border-l-2 px-2.5"
-                                                            >
-                                                                {t(
-                                                                    'chatThread.mute',
-                                                                    {
-                                                                        duration:
-                                                                            t(
-                                                                                option.labelKey,
-                                                                            ),
-                                                                    },
-                                                                )}
-                                                            </button>
-                                                        ),
-                                                    )}
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            unmuteUser(
-                                                                message.user.id,
-                                                                message.user
-                                                                    .name,
+                                                            setCustomMute({
+                                                                id: message.user
+                                                                    .id,
+                                                                name: message
+                                                                    .user.name,
+                                                            });
+                                                            setCustomAmount(
+                                                                '1',
                                                             );
+                                                            setCustomUnit(1);
                                                             setOpenActionsFor(
                                                                 null,
                                                             );
                                                         }}
-                                                        className="border-line hover:bg-accent hover:text-accent-ink border-l-2 px-2.5"
+                                                        className="bg-paper hover:bg-accent hover:text-accent-ink min-h-9 flex-1 px-2.5"
                                                     >
-                                                        {t('chatThread.unmute')}
+                                                        {t(
+                                                            'chatThread.muteCustom',
+                                                        )}
                                                     </button>
+                                                    {mutedUsers.some(
+                                                        (u) =>
+                                                            u.id ===
+                                                            message.user.id,
+                                                    ) && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                unmuteUser(
+                                                                    message.user
+                                                                        .id,
+                                                                    message.user
+                                                                        .name,
+                                                                );
+                                                                setOpenActionsFor(
+                                                                    null,
+                                                                );
+                                                            }}
+                                                            className="bg-paper hover:bg-accent hover:text-accent-ink min-h-9 flex-1 px-2.5"
+                                                        >
+                                                            {t(
+                                                                'chatThread.unmute',
+                                                            )}
+                                                        </button>
+                                                    )}
                                                     <button
                                                         type="button"
                                                         onClick={() => {
@@ -927,7 +1040,7 @@ export default function ChatThread({
                                                                 null,
                                                             );
                                                         }}
-                                                        className="border-line text-danger hover:bg-danger-fill border-l-2 px-2.5 hover:text-white"
+                                                        className="bg-paper text-danger hover:bg-danger-fill min-h-9 flex-1 px-2.5 hover:text-white"
                                                     >
                                                         {t('chatThread.delete')}
                                                     </button>

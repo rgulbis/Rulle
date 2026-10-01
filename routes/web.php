@@ -71,6 +71,7 @@ Route::middleware(['auth', 'customer-only', 'verified', 'throttle:30,1'])->group
     Route::get('reservations/users/search', [ReservationController::class, 'searchUsers'])->name('reservations.users.search');
     Route::post('reservations/{reservation}/participants', [ReservationController::class, 'addParticipant'])->name('reservations.participants.add');
     Route::delete('reservations/{reservation}/participants/{participant}', [ReservationController::class, 'removeParticipant'])->name('reservations.participants.remove');
+    Route::post('reservations/{reservation}/leave', [ReservationController::class, 'leave'])->name('reservations.leave');
 
     Route::get('reservations/{reservation}/chat', [ReservationChatController::class, 'show'])->name('reservations.chat.show');
     Route::post('reservations/{reservation}/chat', [ReservationChatController::class, 'store'])->name('reservations.chat.store');

@@ -222,3 +222,24 @@ test('an employee can unmute a customer', function () {
     $response->assertRedirect();
     expect($muted->fresh()->isChatMuted())->toBeFalse();
 });
+
+test('employees get the list of currently muted customers, and only customers', function () {
+    $employee = User::factory()->create(['role' => 'employee']);
+    $mutedCustomer = User::factory()->create(['chat_muted_until' => now()->addDay()]);
+    User::factory()->create(['chat_muted_until' => now()->subHour()]);
+    User::factory()->create(['role' => 'employee', 'chat_muted_until' => now()->addDay()]);
+    User::factory()->create();
+
+    $this->actingAs($employee)->get('/chat')->assertInertia(fn ($page) => $page
+        ->has('mutedUsers', 1)
+        ->where('mutedUsers.0.id', $mutedCustomer->id)
+        ->where('mutedUsers.0.name', $mutedCustomer->name)
+    );
+});
+
+test('customers never receive the muted users list', function () {
+    $customer = User::factory()->create();
+    User::factory()->create(['chat_muted_until' => now()->addDay()]);
+
+    $this->actingAs($customer)->get('/chat')->assertInertia(fn ($page) => $page->has('mutedUsers', 0));
+});

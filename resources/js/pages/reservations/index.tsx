@@ -244,6 +244,12 @@ export default function ReservationsIndex({
         }
     };
 
+    const leaveReservation = (reservationId: number) => {
+        if (confirm(t('reservations.confirmLeave'))) {
+            router.post(`/reservations/${reservationId}/leave`);
+        }
+    };
+
     const resumePayment = (reservationId: number) => {
         router.post(`/reservations/${reservationId}/resume`);
     };
@@ -259,6 +265,7 @@ export default function ReservationsIndex({
         ),
         'reservation-cannot-cancel': t('reservations.statusCannotCancel'),
         'reservation-slot-taken': t('reservations.statusSlotTaken'),
+        'reservation-left': t('reservations.statusLeft'),
     };
 
     const statusTone = (key: string) =>
@@ -572,6 +579,19 @@ export default function ReservationsIndex({
                                                     {t('reservations.cancel')}
                                                 </Button>
                                             )}
+
+                                        {!reservation.is_owner && (
+                                            <Button
+                                                variant="danger"
+                                                onClick={() =>
+                                                    leaveReservation(
+                                                        reservation.id,
+                                                    )
+                                                }
+                                            >
+                                                {t('reservations.leave')}
+                                            </Button>
+                                        )}
                                     </div>
                                 </article>
                             ))}

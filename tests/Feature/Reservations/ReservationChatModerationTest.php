@@ -152,3 +152,36 @@ test('cross-reservation message ids 404 instead of leaking a 403', function () {
     $this->actingAs($ownerB)->delete("/reservations/{$reservationB->id}/chat/{$messageA->id}")->assertNotFound();
     $this->actingAs($ownerB)->post("/reservations/{$reservationB->id}/chat/{$messageA->id}/pin")->assertNotFound();
 });
+
+test('the owner gets the list of currently muted participants of this reservation only', function () {
+    $owner = User::factory()->create();
+    $muted = User::factory()->create();
+    $expired = User::factory()->create();
+    $fine = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour(), ['group_size' => 4]);
+    $reservation->participants()->attach($muted->id, ['chat_muted_until' => now()->addHour()]);
+    $reservation->participants()->attach($expired->id, ['chat_muted_until' => now()->subHour()]);
+    $reservation->participants()->attach($fine->id);
+
+    // Muted in a different reservation — must not show up here.
+    $elsewhere = makeReservation($owner, now()->addDays(2), now()->addDays(2)->addHour());
+    $elsewhere->participants()->attach($fine->id, ['chat_muted_until' => now()->addHour()]);
+
+    $this->actingAs($owner)->get("/reservations/{$reservation->id}/chat")->assertInertia(fn ($page) => $page
+        ->has('mutedParticipants', 1)
+        ->where('mutedParticipants.0.id', $muted->id)
+        ->where('mutedParticipants.0.name', $muted->name)
+        ->has('mutedParticipants.0.chat_muted_until')
+    );
+});
+
+test('a participant never receives the muted participants list', function () {
+    $owner = User::factory()->create();
+    $friend = User::factory()->create();
+    $muted = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour(), ['group_size' => 3]);
+    $reservation->participants()->attach($friend->id);
+    $reservation->participants()->attach($muted->id, ['chat_muted_until' => now()->addHour()]);
+
+    $this->actingAs($friend)->get("/reservations/{$reservation->id}/chat")->assertInertia(fn ($page) => $page->has('mutedParticipants', 0));
+});

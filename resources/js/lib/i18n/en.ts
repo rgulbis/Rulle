@@ -53,6 +53,7 @@ const en = {
         'That reservation has already started and can no longer be cancelled.',
     'reservations.statusSlotTaken':
         "Someone else booked that time first while you were paying — you've been refunded and the reservation was cancelled. Pick another time.",
+    'reservations.statusLeft': 'You left the reservation.',
     'reservations.reserveATime': 'Reserve a time',
     'reservations.date': 'Date',
     'reservations.time': 'Time',
@@ -75,6 +76,9 @@ const en = {
     'reservations.cancel': 'Cancel reservation',
     'reservations.confirmCancel': 'Cancel this reservation?',
     'reservations.remove': 'Remove',
+    'reservations.leave': 'Leave reservation',
+    'reservations.confirmLeave':
+        "Leave this reservation? You'll lose access to its group chat, and only the owner can add you back.",
     'reservations.groupFull':
         "This reservation's group size is full — remove someone or make a new reservation for more people.",
     'reservations.searchPlaceholder': 'Search by name or email to add a friend',
@@ -146,9 +150,17 @@ const en = {
     'chatThread.moreActions': 'More actions',
     'chatThread.noMessages': 'No messages yet — say something.',
     'chatThread.mute': 'Mute {duration}',
-    'chatThread.muteHour': '1 hour',
-    'chatThread.muteDay': '1 day',
-    'chatThread.muteWeek': '1 week',
+    'chatThread.muteCustom': 'Mute',
+    'chatThread.muteCustomTitle': 'Mute {name}',
+    'chatThread.muteAmount': 'Amount',
+    'chatThread.muteUnit': 'Unit',
+    'chatThread.muteUnitHours': 'Hours',
+    'chatThread.muteUnitDays': 'Days',
+    'chatThread.muteUnitWeeks': 'Weeks',
+    'chatThread.muteCustomInvalid':
+        'Enter a duration between 1 hour and 1 year.',
+    'chatThread.muteCancel': 'Cancel',
+    'chatThread.muteConfirm': 'Mute',
     'chatThread.muteSuccess': 'Muted {name} for {duration}.',
     'chatThread.muteFailed': 'Could not mute that person.',
     'chatThread.unmute': 'Unmute',
@@ -392,6 +404,7 @@ const en = {
     'chatThread.sendHint': 'Enter to send · Shift+Enter for a new line',
     'chatThread.you': 'you',
     'chatThread.closePinned': 'Close pinned messages',
+    'chatThread.mutedUserUntil': 'Muted until {date}.',
     'chatThread.mutedUsersCount': 'Muted ({count})',
     'chatThread.mutedUsers': 'Muted users',
     'chatThread.closeMutedUsers': 'Close muted users',
@@ -412,6 +425,29 @@ const en = {
 
     // Toasts
     'toast.tooManyRequests': "Slow down a little — that's a lot of clicks.",
+    // Errors
+    'error.403.heading': 'Off limits',
+    'error.403.body':
+        "You don't have access to this page. If you think that's a mistake, ask the park staff.",
+    'error.404.heading': 'Wipeout',
+    'error.404.body':
+        "We couldn't find that page. It may have moved or never existed.",
+    'error.419.heading': 'Session expired',
+    'error.419.body':
+        'This page sat open for too long. Refresh it and try again.',
+    'error.429.heading': 'Slow down',
+    'error.429.body':
+        'Too many requests in a short time. Give it a minute and try again.',
+    'error.500.heading': 'Something broke',
+    'error.500.body':
+        "That's on us, not you. Try again in a moment — if it keeps happening, let the park staff know.",
+    'error.503.heading': 'Back soon',
+    'error.503.body':
+        "We're doing some maintenance. Try again in a few minutes.",
+    'error.home': 'Back to home',
+    'error.retry': 'Try again',
+    'toast.requestFailed': 'Something went wrong. Please try again.',
+    'toast.forbidden': "You're not allowed to do that.",
 } as const;
 
 export default en;

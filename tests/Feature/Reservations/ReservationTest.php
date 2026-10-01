@@ -397,3 +397,47 @@ test('only the reservation owner can cancel it', function () {
 
     expect($reservation->fresh()->status)->toBe('active');
 });
+
+test('a participant can leave a reservation and loses access to its chat', function () {
+    $owner = User::factory()->create();
+    $friend = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addHour(), now()->addHours(2), ['group_size' => 3]);
+    $reservation->participants()->attach($friend->id);
+
+    $response = $this->actingAs($friend)->post("/reservations/{$reservation->id}/leave");
+
+    $response->assertRedirect(route('reservations.index'));
+    $response->assertSessionHas('status', 'reservation-left');
+    expect($reservation->participants()->whereKey($friend->id)->exists())->toBeFalse();
+    $this->actingAs($friend)->get("/reservations/{$reservation->id}/chat")->assertForbidden();
+});
+
+test('leaving frees the seat for the owner to add someone else', function () {
+    $owner = User::factory()->create();
+    $friend = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addHour(), now()->addHours(2), ['group_size' => 2]);
+    $reservation->participants()->attach($friend->id);
+    expect($reservation->hasParticipantCapacity())->toBeFalse();
+
+    $this->actingAs($friend)->post("/reservations/{$reservation->id}/leave");
+
+    expect($reservation->hasParticipantCapacity())->toBeTrue();
+});
+
+test('the owner cannot leave their own reservation', function () {
+    $owner = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addHour(), now()->addHours(2));
+
+    $this->actingAs($owner)->post("/reservations/{$reservation->id}/leave")->assertForbidden();
+});
+
+test('someone who is not a participant cannot leave', function () {
+    $owner = User::factory()->create();
+    $friend = User::factory()->create();
+    $stranger = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addHour(), now()->addHours(2), ['group_size' => 3]);
+    $reservation->participants()->attach($friend->id);
+
+    $this->actingAs($stranger)->post("/reservations/{$reservation->id}/leave")->assertForbidden();
+    expect($reservation->participants()->count())->toBe(1);
+});
