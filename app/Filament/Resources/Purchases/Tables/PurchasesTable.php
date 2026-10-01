@@ -53,6 +53,7 @@ class PurchasesTable
                         'active' => 'Active',
                         'used_up' => 'Used up',
                         'refunded' => 'Refunded',
+                        'abandoned' => 'Abandoned',
                     ]),
             ])
             ->recordActions([

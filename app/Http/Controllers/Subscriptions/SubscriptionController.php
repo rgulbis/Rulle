@@ -134,7 +134,7 @@ class SubscriptionController extends Controller
         }
 
         $successUrl = route('subscriptions.success').'?session_id={CHECKOUT_SESSION_ID}';
-        $cancelUrl = route('subscriptions.cancel');
+        $cancelUrl = route('subscriptions.cancel').'?session_id={CHECKOUT_SESSION_ID}';
 
         if ($subscriptionType->isRecurring()) {
             $session = $user->newSubscription('default', $subscriptionType->stripe_price_id)
@@ -190,8 +190,21 @@ class SubscriptionController extends Controller
             ->with('status', $completed ? 'purchase-complete' : 'purchase-incomplete');
     }
 
-    public function cancel(): RedirectResponse
+    public function cancel(Request $request): RedirectResponse
     {
+        // Marks it abandoned right away rather than waiting on
+        // StripeWebhookController's handleCheckoutSessionExpired, which
+        // only fires once Stripe's own session expiry (by default, 24
+        // hours) is reached — that's still the backstop for someone who
+        // just closes the tab instead of clicking back from Stripe.
+        $sessionId = $request->query('session_id');
+
+        if ($sessionId) {
+            Purchase::where('stripe_checkout_session_id', $sessionId)
+                ->where('status', 'pending')
+                ->update(['status' => 'abandoned']);
+        }
+
         return redirect()->route('subscriptions.index')->with('status', 'purchase-cancelled');
     }
 }

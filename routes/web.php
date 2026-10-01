@@ -9,17 +9,17 @@ use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Staff\ScanController;
+use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\Subscriptions\SubscriptionController;
 use App\Models\ChatMessage;
 use Illuminate\Support\Facades\Route;
-use Laravel\Cashier\Http\Controllers\WebhookController;
 
 // `{globalMessage}` only ever resolves a message from the global room. A
 // reservation's private group chat message id 404s on every global-chat route
 // by construction, so no controller method has to remember to check.
 Route::bind('globalMessage', fn (string $value) => ChatMessage::whereNull('reservation_id')->findOrFail($value));
 
-Route::post('stripe/webhook', [WebhookController::class, 'handleWebhook'])->name('cashier.webhook');
+Route::post('stripe/webhook', [StripeWebhookController::class, 'handleWebhook'])->name('cashier.webhook');
 
 // Public, no auth — guests get general info and the livestream per the
 // project spec.
