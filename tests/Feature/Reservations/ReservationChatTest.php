@@ -56,6 +56,41 @@ test('reservation group chat messages do not appear in the global chat feed', fu
     );
 });
 
+test('a reply within a reservation chat carries a quote of the original', function () {
+    $owner = User::factory()->create();
+    $friend = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
+    $reservation->participants()->attach($friend->id);
+    $original = ChatMessage::create(['user_id' => $owner->id, 'reservation_id' => $reservation->id, 'body' => 'bring your own pads']);
+
+    $this->actingAs($friend)->post("/reservations/{$reservation->id}/chat", [
+        'body' => 'got it, thanks',
+        'reply_to_message_id' => $original->id,
+    ])->assertRedirect();
+
+    $reply = ChatMessage::where('body', 'got it, thanks')->sole();
+    expect($reply->reply_to_message_id)->toBe($original->id);
+});
+
+test('a reply cannot point at a message from a different reservation or the global chat', function () {
+    $owner = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
+    $otherReservation = makeReservation($owner, now()->addDays(2), now()->addDays(2)->addHour());
+    $messageElsewhere = ChatMessage::create(['user_id' => $owner->id, 'reservation_id' => $otherReservation->id, 'body' => 'wrong room']);
+    $globalMessage = ChatMessage::create(['user_id' => $owner->id, 'body' => 'also wrong room']);
+
+    foreach ([$messageElsewhere->id, $globalMessage->id] as $targetId) {
+        $response = $this->actingAs($owner)->post("/reservations/{$reservation->id}/chat", [
+            'body' => 'sneaky reply',
+            'reply_to_message_id' => $targetId,
+        ]);
+
+        $response->assertSessionHasErrors('reply_to_message_id');
+    }
+
+    expect(ChatMessage::where('body', 'sneaky reply')->exists())->toBeFalse();
+});
+
 test('a group chat message broadcasts on the reservation-specific private channel', function () {
     Event::fake([ChatMessageSent::class]);
 

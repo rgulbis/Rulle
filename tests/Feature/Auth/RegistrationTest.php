@@ -33,6 +33,20 @@ test('registration rejects an inappropriate display name', function () {
     expect(User::where('email', 'test@example.com')->exists())->toBeFalse();
 });
 
+test('registration rejects a display name that is already taken', function () {
+    User::factory()->create(['name' => 'Taken Name']);
+
+    $response = $this->post('/register', [
+        'name' => 'Taken Name',
+        'email' => 'test@example.com',
+        'password' => 'C0rrect!Horse42',
+        'password_confirmation' => 'C0rrect!Horse42',
+    ]);
+
+    $response->assertSessionHasErrors('name');
+    expect(User::where('email', 'test@example.com')->exists())->toBeFalse();
+});
+
 test('registration requires matching password confirmation', function () {
     $response = $this->post('/register', [
         'name' => 'Test User',

@@ -45,6 +45,8 @@ export default function ChatIndex({
                                   deleteUrl: (id) => `/chat/${id}`,
                                   muteUrl: (userId) =>
                                       `/chat/users/${userId}/mute`,
+                                  unmuteUrl: (userId) =>
+                                      `/chat/users/${userId}/unmute`,
                                   pinUrl: (id) => `/chat/${id}/pin`,
                               }
                             : undefined

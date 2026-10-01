@@ -57,6 +57,8 @@ export default function ReservationChat({
                                       `/reservations/${reservation.id}/chat/${id}`,
                                   muteUrl: (userId) =>
                                       `/reservations/${reservation.id}/chat/users/${userId}/mute`,
+                                  unmuteUrl: (userId) =>
+                                      `/reservations/${reservation.id}/chat/users/${userId}/unmute`,
                                   pinUrl: (id) =>
                                       `/reservations/${reservation.id}/chat/${id}/pin`,
                               }

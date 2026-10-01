@@ -69,6 +69,26 @@ test('an inappropriate name is rejected before it even reaches pending review', 
     expect($user->fresh()->pending_name)->toBeNull();
 });
 
+test('a name change is rejected if another user already has that name', function () {
+    User::factory()->create(['name' => 'Taken Name']);
+    $user = User::factory()->create(['name' => 'Keep Me']);
+
+    $this->actingAs($user)->patch('/settings/profile', ['name' => 'Taken Name'])
+        ->assertSessionHasErrors('name');
+
+    expect($user->fresh()->pending_name)->toBeNull();
+});
+
+test('a name change is rejected if another user already requested that exact name', function () {
+    User::factory()->create(['name' => 'Someone Else', 'pending_name' => 'Trendy Name']);
+    $user = User::factory()->create(['name' => 'Keep Me']);
+
+    $this->actingAs($user)->patch('/settings/profile', ['name' => 'Trendy Name'])
+        ->assertSessionHasErrors('name');
+
+    expect($user->fresh()->pending_name)->toBeNull();
+});
+
 test('changing the name cannot change anything else', function () {
     $user = User::factory()->create(['role' => 'user']);
 

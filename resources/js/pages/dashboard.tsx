@@ -15,6 +15,7 @@ type Pass =
           billing_interval: 'month' | 'year' | null;
           canceled: boolean;
           ends_at: string | null;
+          renews_at: string | null;
       }
     | {
           kind: 'purchase';
@@ -179,14 +180,17 @@ function PassCard({ pass }: { pass: Pass | null }) {
     let detail: string | null = null;
 
     if (pass?.kind === 'subscription') {
-        detail =
-            pass.canceled && pass.ends_at
-                ? t('dashboard.accessEnds', {
-                      date: new Date(pass.ends_at).toLocaleDateString(
-                          intlLocale,
-                      ),
-                  })
-                : t('dashboard.renewsAutomatically');
+        if (pass.canceled && pass.ends_at) {
+            detail = t('dashboard.accessEnds', {
+                date: new Date(pass.ends_at).toLocaleDateString(intlLocale),
+            });
+        } else if (pass.renews_at) {
+            detail = t('dashboard.renewsOn', {
+                date: new Date(pass.renews_at).toLocaleDateString(intlLocale),
+            });
+        } else {
+            detail = t('dashboard.renewsAutomatically');
+        }
     } else if (pass?.kind === 'purchase') {
         detail = pass.unlimited_entries
             ? t('subscriptions.unlimitedToday')

@@ -167,6 +167,52 @@ test('a customer cannot mute anyone', function () {
     expect($target->fresh()->isChatMuted())->toBeFalse();
 });
 
+test('a message can reply to an earlier one, and the reply carries a quote of it', function () {
+    $author = User::factory()->create();
+    $original = ChatMessage::create(['user_id' => $author->id, 'body' => 'anyone around today?']);
+    $replier = User::factory()->create();
+
+    $response = $this->actingAs($replier)->post('/chat', [
+        'body' => 'yeah, heading there now',
+        'reply_to_message_id' => $original->id,
+    ]);
+
+    $response->assertRedirect();
+    $reply = ChatMessage::where('body', 'yeah, heading there now')->sole();
+    expect($reply->reply_to_message_id)->toBe($original->id);
+
+    $this->actingAs($replier)->get('/chat')->assertInertia(fn ($page) => $page
+        ->where('messages.1.reply_to.id', $original->id)
+        ->where('messages.1.reply_to.body', 'anyone around today?')
+        ->where('messages.1.reply_to.user.name', $author->name)
+    );
+});
+
+test('a reply cannot point at a message from a reservation group chat', function () {
+    $owner = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
+    $privateMessage = ChatMessage::create(['user_id' => $owner->id, 'reservation_id' => $reservation->id, 'body' => 'private']);
+
+    $response = $this->actingAs($owner)->post('/chat', [
+        'body' => 'sneaky reply',
+        'reply_to_message_id' => $privateMessage->id,
+    ]);
+
+    $response->assertSessionHasErrors('reply_to_message_id');
+    expect(ChatMessage::where('body', 'sneaky reply')->exists())->toBeFalse();
+});
+
+test('deleting the original message leaves the reply intact without its quote', function () {
+    $author = User::factory()->create();
+    $original = ChatMessage::create(['user_id' => $author->id, 'body' => 'will be deleted']);
+    $reply = ChatMessage::create(['user_id' => $author->id, 'body' => 'a reply', 'reply_to_message_id' => $original->id]);
+
+    $original->delete();
+
+    expect($reply->fresh()->reply_to_message_id)->toBeNull();
+    expect(ChatMessage::find($reply->id))->not->toBeNull();
+});
+
 test('an employee can unmute a customer', function () {
     $employee = User::factory()->create(['role' => 'employee']);
     $muted = User::factory()->create(['chat_muted_until' => now()->addDay()]);

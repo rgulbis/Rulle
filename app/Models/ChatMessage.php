@@ -17,13 +17,15 @@ use Illuminate\Support\Collection;
  * @property int $id
  * @property int $user_id
  * @property int|null $reservation_id
+ * @property int|null $reply_to_message_id
  * @property string $body
  * @property CarbonInterface|null $pinned_at
  * @property Carbon $created_at
  *
- * @phpstan-type ClientMessage array{id: int, body: string, created_at: Carbon, pinned: bool, user: array{id: int, name: string, role: string}}
+ * @phpstan-type ClientReplyTo array{id: int, body: string, user: array{name: string}}
+ * @phpstan-type ClientMessage array{id: int, body: string, created_at: Carbon, pinned: bool, user: array{id: int, name: string, role: string}, reply_to: ClientReplyTo|null}
  */
-#[Fillable(['user_id', 'reservation_id', 'body'])]
+#[Fillable(['user_id', 'reservation_id', 'body', 'reply_to_message_id'])]
 class ChatMessage extends Model
 {
     protected function casts(): array
@@ -64,6 +66,14 @@ class ChatMessage extends Model
         return $this->belongsTo(Reservation::class);
     }
 
+    /**
+     * @return BelongsTo<ChatMessage, $this>
+     */
+    public function replyTo(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reply_to_message_id');
+    }
+
     public function pin(): void
     {
         $this->pinned_at = now();
@@ -100,15 +110,32 @@ class ChatMessage extends Model
                 'name' => $this->user->name,
                 'role' => $this->user->role,
             ],
+            // Null once the quoted message is deleted (reply_to_message_id
+            // is set-null-on-delete) — the reply just stops showing a quote
+            // rather than breaking.
+            'reply_to' => $this->replyTo ? [
+                'id' => $this->replyTo->id,
+                'body' => $this->replyTo->body,
+                'user' => ['name' => $this->replyTo->user->name],
+            ] : null,
         ];
     }
 
     /**
      * @param  Collection<int, self>  $messages
-     * @return Collection<int, ClientMessage>
+     * @return Collection<int, mixed>
+     *
+     * Each element is actually shaped exactly like ClientMessage — see
+     * toClientArray(), which this just maps over and which PHPStan does
+     * check precisely. `mixed` here isn't a loss of real precision: for a
+     * nullable, nested @phpstan-type alias like this one, Collection's
+     * non-covariant TValue generic means PHPStan can't prove its own
+     * declared return type matches itself no matter how that generic is
+     * written, so a more specific declaration here only trades this
+     * (accurate) type for a false "type mismatch" at this line instead.
      */
     public static function shapeForClient(Collection $messages): Collection
     {
-        return $messages->map(fn (self $message) => $message->toClientArray());
+        return $messages->map(fn (ChatMessage $message): array => $message->toClientArray());
     }
 }

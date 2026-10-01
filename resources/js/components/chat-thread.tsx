@@ -26,6 +26,7 @@ export type ChatMessage = {
     created_at: string;
     pinned: boolean;
     user: ChatUser;
+    reply_to: { id: number; body: string; user: { name: string } } | null;
 };
 
 export type SlowMode = {
@@ -36,6 +37,7 @@ export type SlowMode = {
 type Moderation = {
     deleteUrl: (messageId: number) => string;
     muteUrl: (userId: number) => string;
+    unmuteUrl: (userId: number) => string;
     pinUrl: (messageId: number) => string;
 };
 
@@ -79,6 +81,7 @@ export default function ChatThread({
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [pinnedOpen, setPinnedOpen] = useState(false);
+    const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
     // The pin/mute/delete bar normally only reveals on hover/focus — there's
     // no hover on a touchscreen, so staff on a phone had no way to ever see
     // it. Below the `lg` breakpoint a per-message button toggles it instead.
@@ -273,12 +276,13 @@ export default function ChatThread({
 
         router.post(
             postUrl,
-            { body },
+            { body, reply_to_message_id: replyingTo?.id ?? null },
             {
                 preserveScroll: true,
                 onSuccess: () => {
                     setBody('');
                     setError(null);
+                    setReplyingTo(null);
                     requestAnimationFrame(() => {
                         resizeComposer();
                         composerRef.current?.focus();
@@ -371,6 +375,31 @@ export default function ChatThread({
                 onError: () => setModerationNotice(t('chatThread.muteFailed')),
             },
         );
+    };
+
+    const unmuteUser = (userId: number, userName: string) => {
+        if (!moderation) {
+            return;
+        }
+
+        router.post(
+            moderation.unmuteUrl(userId),
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () =>
+                    setModerationNotice(
+                        t('chatThread.unmuteSuccess', { name: userName }),
+                    ),
+                onError: () =>
+                    setModerationNotice(t('chatThread.unmuteFailed')),
+            },
+        );
+    };
+
+    const startReply = (message: ChatMessage) => {
+        setReplyingTo(message);
+        composerRef.current?.focus();
     };
 
     const togglePin = (messageId: number, isPinned: boolean) => {
@@ -650,131 +679,169 @@ export default function ChatThread({
                                                     </time>
                                                 </p>
                                             )}
+                                            {message.reply_to && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        jumpToMessage(
+                                                            message.reply_to!
+                                                                .id,
+                                                        )
+                                                    }
+                                                    className="border-line hover:border-ink mb-1 flex max-w-full items-baseline gap-1.5 border-l-2 py-0.5 pl-2 text-left text-sm"
+                                                >
+                                                    <span className="text-muted shrink-0 font-semibold">
+                                                        {
+                                                            message.reply_to
+                                                                .user.name
+                                                        }
+                                                    </span>
+                                                    <span className="text-muted truncate">
+                                                        {message.reply_to.body}
+                                                    </span>
+                                                </button>
+                                            )}
                                             <p className="text-base break-words whitespace-pre-wrap">
                                                 {message.body}
                                             </p>
                                         </div>
 
-                                        {moderation && (
-                                            <>
+                                        {/* Reply is for everyone, so this bar
+                                        always exists now — pin/mute/delete
+                                        are the only parts still gated by
+                                        moderation rights. */}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setOpenActionsFor((current) =>
+                                                    current === message.id
+                                                        ? null
+                                                        : message.id,
+                                                )
+                                            }
+                                            aria-label={t(
+                                                'chatThread.moreActions',
+                                            )}
+                                            aria-expanded={
+                                                openActionsFor === message.id
+                                            }
+                                            className="border-ink bg-paper absolute top-1 right-1 z-20 flex size-8 items-center justify-center border-2 lg:hidden"
+                                        >
+                                            {openActionsFor === message.id ? (
+                                                <CrossIcon size={14} />
+                                            ) : (
+                                                <MoreIcon />
+                                            )}
+                                        </button>
+                                        <div
+                                            className={`border-ink bg-paper shadow-hard absolute top-10 right-1 z-10 items-stretch border-2 text-xs font-semibold lg:-top-4 lg:right-4 lg:group-focus-within:flex lg:group-hover:flex ${
+                                                openActionsFor === message.id
+                                                    ? 'flex'
+                                                    : 'hidden'
+                                            }`}
+                                        >
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    startReply(message);
+                                                    setOpenActionsFor(null);
+                                                }}
+                                                className="hover:bg-accent hover:text-accent-ink flex min-h-9 items-center gap-1.5 px-2.5"
+                                            >
+                                                <ReplyIcon size={14} />
+                                                {t('chatThread.reply')}
+                                            </button>
+                                            {moderation && (
                                                 <button
                                                     type="button"
-                                                    onClick={() =>
-                                                        setOpenActionsFor(
-                                                            (current) =>
-                                                                current ===
-                                                                message.id
-                                                                    ? null
-                                                                    : message.id,
-                                                        )
-                                                    }
-                                                    aria-label={t(
-                                                        'chatThread.moreActions',
-                                                    )}
-                                                    aria-expanded={
-                                                        openActionsFor ===
-                                                        message.id
-                                                    }
-                                                    className="border-ink bg-paper absolute top-1 right-1 z-20 flex size-8 items-center justify-center border-2 lg:hidden"
+                                                    onClick={() => {
+                                                        togglePin(
+                                                            message.id,
+                                                            message.pinned,
+                                                        );
+                                                        setOpenActionsFor(null);
+                                                    }}
+                                                    className="hover:bg-accent hover:text-accent-ink border-line flex min-h-9 items-center gap-1.5 border-l-2 px-2.5"
                                                 >
-                                                    {openActionsFor ===
-                                                    message.id ? (
-                                                        <CrossIcon size={14} />
-                                                    ) : (
-                                                        <MoreIcon />
-                                                    )}
+                                                    <PinIcon size={14} />
+                                                    {message.pinned
+                                                        ? t('chatThread.unpin')
+                                                        : t('chatThread.pin')}
                                                 </button>
-                                                <div
-                                                    className={`border-ink bg-paper shadow-hard absolute top-10 right-1 z-10 items-stretch border-2 text-xs font-semibold lg:-top-4 lg:right-4 lg:group-focus-within:flex lg:group-hover:flex ${
-                                                        openActionsFor ===
-                                                        message.id
-                                                            ? 'flex'
-                                                            : 'hidden'
-                                                    }`}
-                                                >
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            togglePin(
-                                                                message.id,
-                                                                message.pinned,
-                                                            );
-                                                            setOpenActionsFor(
-                                                                null,
-                                                            );
-                                                        }}
-                                                        className="hover:bg-accent hover:text-accent-ink flex min-h-9 items-center gap-1.5 px-2.5"
-                                                    >
-                                                        <PinIcon size={14} />
-                                                        {message.pinned
-                                                            ? t(
-                                                                  'chatThread.unpin',
-                                                              )
-                                                            : t(
-                                                                  'chatThread.pin',
-                                                              )}
-                                                    </button>
-                                                    {canPenalise && (
-                                                        <>
-                                                            {MUTE_OPTIONS.map(
-                                                                (option) => (
-                                                                    <button
-                                                                        key={
-                                                                            option.hours
-                                                                        }
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            muteUser(
-                                                                                message
-                                                                                    .user
-                                                                                    .id,
-                                                                                message
-                                                                                    .user
-                                                                                    .name,
-                                                                                option.hours,
-                                                                                t(
-                                                                                    option.labelKey,
-                                                                                ),
-                                                                            );
-                                                                            setOpenActionsFor(
-                                                                                null,
-                                                                            );
-                                                                        }}
-                                                                        className="border-line hover:bg-accent hover:text-accent-ink border-l-2 px-2.5"
-                                                                    >
-                                                                        {t(
-                                                                            'chatThread.mute',
-                                                                            {
-                                                                                duration:
-                                                                                    t(
-                                                                                        option.labelKey,
-                                                                                    ),
-                                                                            },
-                                                                        )}
-                                                                    </button>
-                                                                ),
-                                                            )}
+                                            )}
+                                            {canPenalise && (
+                                                <>
+                                                    {MUTE_OPTIONS.map(
+                                                        (option) => (
                                                             <button
+                                                                key={
+                                                                    option.hours
+                                                                }
                                                                 type="button"
                                                                 onClick={() => {
-                                                                    deleteMessage(
-                                                                        message.id,
+                                                                    muteUser(
+                                                                        message
+                                                                            .user
+                                                                            .id,
+                                                                        message
+                                                                            .user
+                                                                            .name,
+                                                                        option.hours,
+                                                                        t(
+                                                                            option.labelKey,
+                                                                        ),
                                                                     );
                                                                     setOpenActionsFor(
                                                                         null,
                                                                     );
                                                                 }}
-                                                                className="border-line text-danger hover:bg-danger-fill border-l-2 px-2.5 hover:text-white"
+                                                                className="border-line hover:bg-accent hover:text-accent-ink border-l-2 px-2.5"
                                                             >
                                                                 {t(
-                                                                    'chatThread.delete',
+                                                                    'chatThread.mute',
+                                                                    {
+                                                                        duration:
+                                                                            t(
+                                                                                option.labelKey,
+                                                                            ),
+                                                                    },
                                                                 )}
                                                             </button>
-                                                        </>
+                                                        ),
                                                     )}
-                                                </div>
-                                            </>
-                                        )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            unmuteUser(
+                                                                message.user.id,
+                                                                message.user
+                                                                    .name,
+                                                            );
+                                                            setOpenActionsFor(
+                                                                null,
+                                                            );
+                                                        }}
+                                                        className="border-line hover:bg-accent hover:text-accent-ink border-l-2 px-2.5"
+                                                    >
+                                                        {t('chatThread.unmute')}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            deleteMessage(
+                                                                message.id,
+                                                            );
+                                                            setOpenActionsFor(
+                                                                null,
+                                                            );
+                                                        }}
+                                                        className="border-line text-danger hover:bg-danger-fill border-l-2 px-2.5 hover:text-white"
+                                                    >
+                                                        {t('chatThread.delete')}
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 </li>
                             );
@@ -815,45 +882,71 @@ export default function ChatThread({
                             : t('chatThread.muted')}
                     </p>
                 ) : (
-                    <form
-                        onSubmit={submit}
-                        className="border-ink bg-paper focus-within:shadow-hard-accent flex items-end gap-2 border-2 p-1.5 transition"
-                    >
-                        <textarea
-                            ref={composerRef}
-                            value={body}
-                            onChange={(e) => {
-                                setBody(e.target.value);
-                                resizeComposer();
-                            }}
-                            onKeyDown={handleComposerKeyDown}
-                            placeholder={t('chatThread.messageTo', {
-                                channel: title,
-                            })}
-                            aria-label={t('chatThread.messageTo', {
-                                channel: title,
-                            })}
-                            rows={1}
-                            maxLength={MAX_MESSAGE_LENGTH}
-                            className="placeholder:text-faint max-h-40 min-h-11 flex-1 resize-none bg-transparent px-3 py-2.5 text-base outline-none"
-                        />
-                        <button
-                            type="submit"
-                            disabled={
-                                sending || !body.trim() || cooldownRemaining > 0
-                            }
-                            aria-label={t('chatThread.send')}
-                            className="bg-ink text-ground flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 px-3 font-semibold transition disabled:opacity-40"
+                    <>
+                        {replyingTo && (
+                            <div className="border-ink bg-paper flex items-center gap-2 border-2 border-b-0 px-3 py-2">
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-muted font-mono text-[11px] font-semibold tracking-[0.08em] uppercase">
+                                        {t('chatThread.replyingTo', {
+                                            name: replyingTo.user.name,
+                                        })}
+                                    </p>
+                                    <p className="truncate text-sm">
+                                        {replyingTo.body}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setReplyingTo(null)}
+                                    aria-label={t('chatThread.cancelReply')}
+                                    className="flex size-8 shrink-0 items-center justify-center"
+                                >
+                                    <CrossIcon size={16} />
+                                </button>
+                            </div>
+                        )}
+                        <form
+                            onSubmit={submit}
+                            className="border-ink bg-paper focus-within:shadow-hard-accent flex items-end gap-2 border-2 p-1.5 transition"
                         >
-                            {cooldownRemaining > 0 ? (
-                                t('chatThread.wait', {
-                                    seconds: cooldownRemaining,
-                                })
-                            ) : (
-                                <ArrowRightIcon />
-                            )}
-                        </button>
-                    </form>
+                            <textarea
+                                ref={composerRef}
+                                value={body}
+                                onChange={(e) => {
+                                    setBody(e.target.value);
+                                    resizeComposer();
+                                }}
+                                onKeyDown={handleComposerKeyDown}
+                                placeholder={t('chatThread.messageTo', {
+                                    channel: title,
+                                })}
+                                aria-label={t('chatThread.messageTo', {
+                                    channel: title,
+                                })}
+                                rows={1}
+                                maxLength={MAX_MESSAGE_LENGTH}
+                                className="placeholder:text-faint max-h-40 min-h-11 flex-1 resize-none bg-transparent px-3 py-2.5 text-base outline-none"
+                            />
+                            <button
+                                type="submit"
+                                disabled={
+                                    sending ||
+                                    !body.trim() ||
+                                    cooldownRemaining > 0
+                                }
+                                aria-label={t('chatThread.send')}
+                                className="bg-ink text-ground flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 px-3 font-semibold transition disabled:opacity-40"
+                            >
+                                {cooldownRemaining > 0 ? (
+                                    t('chatThread.wait', {
+                                        seconds: cooldownRemaining,
+                                    })
+                                ) : (
+                                    <ArrowRightIcon />
+                                )}
+                            </button>
+                        </form>
+                    </>
                 )}
 
                 {cooldownRemaining > 0 ? (
@@ -920,6 +1013,24 @@ export function Avatar({
         >
             {initials || '?'}
         </span>
+    );
+}
+
+function ReplyIcon({ size = 16 }: { size?: number }) {
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="square"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <path d="M9 10L4 15l5 5M4 15h10a6 6 0 0 0 6-6V7" />
+        </svg>
     );
 }
 

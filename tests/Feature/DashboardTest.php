@@ -44,6 +44,31 @@ test("the dashboard shows the customer's usable one-time pass", function () {
     );
 });
 
+test('the dashboard tolerates a Stripe lookup failure when fetching the renewal date', function () {
+    $user = User::factory()->create(['stripe_id' => 'cus_test_dashboard']);
+    $subscription = $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_test_dashboard',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_test',
+    ]);
+    // An item that doesn't actually exist on Stripe, so looking it up fails
+    // the same way it would with no Stripe credentials configured at all —
+    // either way, the dashboard itself must still load.
+    $subscription->items()->create([
+        'stripe_id' => 'si_test_dashboard',
+        'stripe_product' => 'prod_test',
+        'stripe_price' => 'price_test',
+    ]);
+
+    $this->actingAs($user)->get('/dashboard')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('pass.kind', 'subscription')
+            ->where('pass.renews_at', null)
+        );
+});
+
 test('the dashboard shows the next reservation the customer is part of', function () {
     $owner = User::factory()->create();
     $participant = User::factory()->create();

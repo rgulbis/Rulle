@@ -10,6 +10,7 @@ use App\Support\ChatModeration;
 use App\Support\ChatSlowMode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,15 +20,20 @@ class ChatController extends Controller
     {
         $user = $request->user();
 
-        $messages = ChatMessage::with('user:id,name,role')
+        $messages = ChatMessage::with(['user:id,name,role', 'replyTo.user:id,name,role'])
             ->whereNull('reservation_id')
-            ->latest()
+            // latest('id'), not plain latest(): SQLite only stores
+            // created_at to the second, so two messages sent in the same
+            // second (a quick reply, especially) tie on created_at and sort
+            // unpredictably — id is already strictly insertion-ordered and
+            // never ties.
+            ->latest('id')
             ->limit(100)
             ->get()
             ->reverse()
             ->values();
 
-        $pinned = ChatMessage::with('user:id,name,role')
+        $pinned = ChatMessage::with(['user:id,name,role', 'replyTo.user:id,name,role'])
             ->whereNull('reservation_id')
             ->whereNotNull('pinned_at')
             ->orderByDesc('pinned_at')
@@ -73,11 +79,18 @@ class ChatController extends Controller
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:500', new NoInappropriateContent],
+            // Scoped to this same room — a reply can't point at a message
+            // from someone's private reservation chat, or vice versa.
+            'reply_to_message_id' => [
+                'nullable',
+                Rule::exists('chat_messages', 'id')->whereNull('reservation_id'),
+            ],
         ]);
 
         ChatMessage::create([
             'user_id' => $request->user()->id,
             'body' => $validated['body'],
+            'reply_to_message_id' => $validated['reply_to_message_id'] ?? null,
         ]);
 
         return back();

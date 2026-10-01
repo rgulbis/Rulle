@@ -10,6 +10,7 @@ use App\Rules\NoInappropriateContent;
 use App\Support\ReservationChatModeration;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,15 +21,20 @@ class ReservationChatController extends Controller
         $user = $request->user();
         abort_unless($reservation->includesParticipant($user), 403);
 
-        $messages = ChatMessage::with('user:id,name,role')
+        $messages = ChatMessage::with(['user:id,name,role', 'replyTo.user:id,name,role'])
             ->where('reservation_id', $reservation->id)
-            ->latest()
+            // latest('id'), not plain latest(): SQLite only stores
+            // created_at to the second, so two messages sent in the same
+            // second (a quick reply, especially) tie on created_at and sort
+            // unpredictably — id is already strictly insertion-ordered and
+            // never ties.
+            ->latest('id')
             ->limit(100)
             ->get()
             ->reverse()
             ->values();
 
-        $pinned = ChatMessage::with('user:id,name,role')
+        $pinned = ChatMessage::with(['user:id,name,role', 'replyTo.user:id,name,role'])
             ->where('reservation_id', $reservation->id)
             ->whereNotNull('pinned_at')
             ->orderByDesc('pinned_at')
@@ -64,12 +70,19 @@ class ReservationChatController extends Controller
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:500', new NoInappropriateContent],
+            // Scoped to this same reservation's room — a reply can't point
+            // at a message from the global chat or a different reservation.
+            'reply_to_message_id' => [
+                'nullable',
+                Rule::exists('chat_messages', 'id')->where('reservation_id', $reservation->id),
+            ],
         ]);
 
         ChatMessage::create([
             'user_id' => $user->id,
             'reservation_id' => $reservation->id,
             'body' => $validated['body'],
+            'reply_to_message_id' => $validated['reply_to_message_id'] ?? null,
         ]);
 
         return back();

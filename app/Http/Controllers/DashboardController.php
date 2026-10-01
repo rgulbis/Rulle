@@ -5,9 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Reservation;
 use App\Models\SubscriptionType;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Cashier\Subscription;
+use Stripe\Exception\ApiErrorException;
 
 class DashboardController extends Controller
 {
@@ -44,6 +49,7 @@ class DashboardController extends Controller
                 'billing_interval' => $type?->billing_interval,
                 'canceled' => $subscription->canceled(),
                 'ends_at' => $subscription->ends_at,
+                'renews_at' => $subscription->canceled() ? null : $this->nextRenewalDate($subscription),
             ];
         }
 
@@ -60,6 +66,37 @@ class DashboardController extends Controller
             'unlimited_entries' => $purchase->subscriptionType->unlimited_entries,
             'visits_remaining' => $purchase->visits_remaining,
         ];
+    }
+
+    /**
+     * When this subscription will next renew (and be charged) — Cashier
+     * doesn't mirror this locally, so it's a live Stripe lookup, cached: the
+     * dashboard loads on every visit, and production runs a single
+     * `php artisan serve` process with no queue workers, the same reasoning
+     * SubscriptionController::detectPriceChange() is cached for. Wrapped in
+     * an array for the same reason that one is too — Cache::remember()
+     * treats a cached `null` as "not cached" and would hit Stripe again on
+     * every call otherwise.
+     *
+     * A failed lookup degrades to no date shown (the card falls back to a
+     * plain "renews automatically") rather than a 500 for the customer's
+     * whole dashboard over what's ultimately a nice-to-have detail.
+     */
+    protected function nextRenewalDate(Subscription $subscription): ?CarbonInterface
+    {
+        try {
+            $cached = Cache::remember(
+                "subscription-renews-at:{$subscription->stripe_id}",
+                now()->addHour(),
+                fn () => ['date' => $subscription->currentPeriodEnd()],
+            );
+
+            return $cached['date'];
+        } catch (ApiErrorException $e) {
+            Log::warning('Could not fetch the next renewal date for a subscription.', ['exception' => $e]);
+
+            return null;
+        }
     }
 
     /**
