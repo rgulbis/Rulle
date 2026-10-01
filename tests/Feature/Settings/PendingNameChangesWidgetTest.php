@@ -4,16 +4,13 @@ use App\Filament\Widgets\PendingNameChanges;
 use App\Models\User;
 use Livewire\Livewire;
 
-test('the widget is hidden when nothing is pending review', function () {
+test('the widget stays on the dashboard even when nothing is pending', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
     User::factory()->create();
 
-    expect(PendingNameChanges::canView())->toBeFalse();
-});
+    $this->actingAs($admin);
 
-test('the widget appears as soon as something needs review', function () {
-    User::factory()->create(['name' => 'Old Name', 'pending_name' => 'New Name']);
-
-    expect(PendingNameChanges::canView())->toBeTrue();
+    Livewire::test(PendingNameChanges::class)->assertSee('Nothing pending');
 });
 
 test('the widget lists only users with a pending name change', function () {

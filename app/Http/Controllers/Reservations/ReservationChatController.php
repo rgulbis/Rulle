@@ -34,11 +34,7 @@ class ReservationChatController extends Controller
             ->orderByDesc('pinned_at')
             ->get();
 
-        // The owner is never a participant row, so there's nothing to look
-        // up for them — they moderate, they aren't moderated.
-        $mutedUntil = $reservation->isOwnedBy($user)
-            ? null
-            : $reservation->participants()->whereKey($user->id)->first()?->pivot->chat_muted_until;
+        $mutedUntil = $reservation->participantMutedUntil($user);
 
         return Inertia::render('reservations/chat', [
             'reservation' => $reservation->only(['id', 'starts_at', 'ends_at']),
@@ -57,7 +53,7 @@ class ReservationChatController extends Controller
         abort_unless($reservation->includesParticipant($user), 403);
 
         if (! $reservation->isOwnedBy($user)) {
-            $mutedUntil = $reservation->participants()->whereKey($user->id)->first()?->pivot->chat_muted_until;
+            $mutedUntil = $reservation->participantMutedUntil($user);
 
             if ($mutedUntil !== null && $mutedUntil->isFuture()) {
                 return back()->withErrors([

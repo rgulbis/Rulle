@@ -45,7 +45,7 @@ class Reservation extends Model
     /**
      * Everyone besides the owner who's part of this reservation.
      *
-     * @return BelongsToMany<User, $this>
+     * @return BelongsToMany<User, $this, ReservationParticipant>
      */
     public function participants(): BelongsToMany
     {
@@ -59,6 +59,18 @@ class Reservation extends Model
     {
         return $this->user_id === $user->id
             || $this->participants()->whereKey($user->id)->exists();
+    }
+
+    /**
+     * Null for the owner (never a participant row, so never mutable here)
+     * and for anyone with no active mute.
+     */
+    public function participantMutedUntil(User $user): ?CarbonInterface
+    {
+        /** @var ReservationParticipant|null $pivot */
+        $pivot = $this->participants()->whereKey($user->id)->first()?->pivot;
+
+        return $pivot?->chat_muted_until;
     }
 
     public function isOwnedBy(User $user): bool

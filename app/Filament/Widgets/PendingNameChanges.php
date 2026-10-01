@@ -15,18 +15,12 @@ class PendingNameChanges extends TableWidget
 
     protected int|string|array $columnSpan = 'full';
 
-    // Only takes up space on the dashboard when there's actually something
-    // for the admin to look at — otherwise it'd just be an empty table
-    // sitting there on every visit.
-    public static function canView(): bool
-    {
-        return User::whereNotNull('pending_name')->exists();
-    }
-
     public function table(Table $table): Table
     {
         return $table
             ->query(fn (): Builder => User::query()->whereNotNull('pending_name'))
+            ->emptyStateHeading('Nothing pending')
+            ->emptyStateDescription('No name changes are waiting for review right now.')
             ->columns([
                 TextColumn::make('name')
                     ->label('Current name'),
