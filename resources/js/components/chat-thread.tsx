@@ -34,6 +34,12 @@ export type SlowMode = {
     cooldown_seconds: number;
 };
 
+export type MutedUser = {
+    id: number;
+    name: string;
+    chat_muted_until: string;
+};
+
 type Moderation = {
     deleteUrl: (messageId: number) => string;
     muteUrl: (userId: number) => string;
@@ -52,6 +58,11 @@ type Props = {
     muted?: boolean;
     mutedUntil?: string | null;
     moderation?: Moderation;
+    /** Who this room's moderator can currently unmute — fed from the
+     * server rather than derived from messages, since a muted account
+     * with nothing in the visible message window would otherwise have no
+     * way to be found and unmuted at all. */
+    mutedUsers?: MutedUser[];
     slowMode?: SlowMode;
 };
 
@@ -71,6 +82,7 @@ export default function ChatThread({
     muted = false,
     mutedUntil = null,
     moderation,
+    mutedUsers = [],
     slowMode,
 }: Props) {
     const { auth } = usePage<{ auth: Auth }>().props;
@@ -81,6 +93,7 @@ export default function ChatThread({
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [pinnedOpen, setPinnedOpen] = useState(false);
+    const [mutedUsersOpen, setMutedUsersOpen] = useState(false);
     const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
     // The pin/mute/delete bar normally only reveals on hover/focus — there's
     // no hover on a touchscreen, so staff on a phone had no way to ever see
@@ -493,6 +506,26 @@ export default function ChatThread({
                         {t('chatThread.pinnedCount', { count: pinned.length })}
                     </button>
                 )}
+                {mutedUsers.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => setMutedUsersOpen((open) => !open)}
+                        aria-expanded={mutedUsersOpen}
+                        aria-controls="muted-users"
+                        className={`flex min-h-11 shrink-0 items-center gap-2 border-2 px-3 text-sm font-semibold transition ${
+                            pinned.length === 0 ? 'ml-auto' : ''
+                        } ${
+                            mutedUsersOpen
+                                ? 'border-ink bg-accent text-accent-ink'
+                                : 'border-line hover:border-ink'
+                        }`}
+                    >
+                        <MutedIcon />
+                        {t('chatThread.mutedUsersCount', {
+                            count: mutedUsers.length,
+                        })}
+                    </button>
+                )}
             </header>
 
             {moderationNotice && (
@@ -552,6 +585,61 @@ export default function ChatThread({
                                         {t('chatThread.unpin')}
                                     </button>
                                 )}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {mutedUsersOpen && mutedUsers.length > 0 && (
+                <div
+                    id="muted-users"
+                    className="border-ink bg-paper shadow-hard-lg absolute top-16 right-4 z-20 flex max-h-96 w-[min(28rem,calc(100%-2rem))] flex-col border-2"
+                >
+                    <div className="border-ink flex items-center justify-between border-b-2 px-4 py-1">
+                        <p className="font-mono text-xs font-semibold tracking-[0.12em] uppercase">
+                            {t('chatThread.mutedUsers')}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setMutedUsersOpen(false)}
+                            aria-label={t('chatThread.closeMutedUsers')}
+                            className="flex size-11 items-center justify-center"
+                        >
+                            <CrossIcon size={18} />
+                        </button>
+                    </div>
+                    <ul className="divide-line flex flex-col divide-y overflow-y-auto">
+                        {mutedUsers.map((mutedUser) => (
+                            <li
+                                key={mutedUser.id}
+                                className="flex items-center gap-3 px-4 py-3"
+                            >
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold">
+                                        {mutedUser.name}
+                                    </p>
+                                    <p className="text-muted text-sm">
+                                        {t('chatThread.mutedUntil', {
+                                            date: new Date(
+                                                mutedUser.chat_muted_until,
+                                            ).toLocaleString(intlLocale),
+                                        })}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        unmuteUser(
+                                            mutedUser.id,
+                                            mutedUser.name,
+                                        );
+                                        setMutedUsersOpen(false);
+                                    }}
+                                    className="shrink-0 self-start text-sm font-semibold underline underline-offset-4"
+                                >
+                                    {t('chatThread.unmute')}
+                                </button>
                             </li>
                         ))}
                     </ul>
@@ -725,7 +813,11 @@ export default function ChatThread({
                                             aria-expanded={
                                                 openActionsFor === message.id
                                             }
-                                            className="border-ink bg-paper absolute top-1 right-1 z-20 flex size-8 items-center justify-center border-2 lg:hidden"
+                                            className={`absolute top-1 right-1 z-20 flex size-8 items-center justify-center lg:hidden ${
+                                                openActionsFor === message.id
+                                                    ? 'border-ink bg-paper border-2'
+                                                    : 'text-faint'
+                                            }`}
                                         >
                                             {openActionsFor === message.id ? (
                                                 <CrossIcon size={14} />
@@ -1013,6 +1105,24 @@ export function Avatar({
         >
             {initials || '?'}
         </span>
+    );
+}
+
+function MutedIcon({ size = 16 }: { size?: number }) {
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="square"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <path d="M15 9V5a3 3 0 0 0-5.6-1.5M9 9v3a3 3 0 0 0 4.8 2.4M12 18v3M8 21h8M3 3l18 18" />
+        </svg>
     );
 }
 

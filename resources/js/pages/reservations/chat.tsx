@@ -3,7 +3,7 @@ import ChatShell, {
     ChatGroup,
     useGroupChannelName,
 } from '@/components/chat-shell';
-import ChatThread, { ChatMessage } from '@/components/chat-thread';
+import ChatThread, { ChatMessage, MutedUser } from '@/components/chat-thread';
 import AppLayout from '@/layouts/app-layout';
 import { useTranslation } from '@/lib/i18n/context';
 
@@ -19,6 +19,7 @@ type Props = {
     canModerate: boolean;
     muted: boolean;
     mutedUntil: string | null;
+    mutedParticipants: MutedUser[];
 };
 
 export default function ReservationChat({
@@ -29,6 +30,7 @@ export default function ReservationChat({
     canModerate,
     muted,
     mutedUntil,
+    mutedParticipants,
 }: Props) {
     const { t } = useTranslation();
     const groupName = useGroupChannelName();
@@ -50,6 +52,7 @@ export default function ReservationChat({
                     postUrl={`/reservations/${reservation.id}/chat`}
                     muted={muted}
                     mutedUntil={mutedUntil}
+                    mutedUsers={mutedParticipants}
                     moderation={
                         canModerate
                             ? {

@@ -50,6 +50,17 @@ class ChatController extends Controller
             'muted' => $user->isChatMuted(),
             'mutedUntil' => $user->chat_muted_until,
             'chatGroups' => Reservation::chatGroupsFor($user),
+            // Only for employees, and only customers — the one case this
+            // page's moderation can actually unmute (ChatModeration::canMute
+            // is rank-based: an employee can never touch a peer or admin's
+            // mute regardless). Otherwise an unmuted account with no message
+            // in the visible window had no way to be found at all.
+            'mutedUsers' => $user->isEmployee()
+                ? User::where('role', 'user')
+                    ->where('chat_muted_until', '>', now())
+                    ->orderBy('chat_muted_until')
+                    ->get(['id', 'name', 'chat_muted_until'])
+                : [],
         ]);
     }
 

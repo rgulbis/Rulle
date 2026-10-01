@@ -1,6 +1,10 @@
 import { Head } from '@inertiajs/react';
 import ChatShell, { ChatGroup } from '@/components/chat-shell';
-import ChatThread, { ChatMessage, SlowMode } from '@/components/chat-thread';
+import ChatThread, {
+    ChatMessage,
+    MutedUser,
+    SlowMode,
+} from '@/components/chat-thread';
 import AppLayout from '@/layouts/app-layout';
 import { useTranslation } from '@/lib/i18n/context';
 
@@ -12,6 +16,7 @@ type Props = {
     muted: boolean;
     mutedUntil: string | null;
     chatGroups: ChatGroup[];
+    mutedUsers: MutedUser[];
 };
 
 export default function ChatIndex({
@@ -22,6 +27,7 @@ export default function ChatIndex({
     muted,
     mutedUntil,
     chatGroups,
+    mutedUsers,
 }: Props) {
     const { t } = useTranslation();
 
@@ -38,6 +44,7 @@ export default function ChatIndex({
                     postUrl="/chat"
                     muted={muted}
                     mutedUntil={mutedUntil}
+                    mutedUsers={mutedUsers}
                     slowMode={slowMode}
                     moderation={
                         canModerate

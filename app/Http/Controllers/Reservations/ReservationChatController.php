@@ -41,15 +41,28 @@ class ReservationChatController extends Controller
             ->get();
 
         $mutedUntil = $reservation->participantMutedUntil($user);
+        $isOwner = $reservation->isOwnedBy($user);
 
         return Inertia::render('reservations/chat', [
             'reservation' => $reservation->only(['id', 'starts_at', 'ends_at']),
             'messages' => ChatMessage::shapeForClient($messages),
             'pinned' => ChatMessage::shapeForClient($pinned),
             'chatGroups' => Reservation::chatGroupsFor($user),
-            'canModerate' => $reservation->isOwnedBy($user),
+            'canModerate' => $isOwner,
             'muted' => $mutedUntil !== null && $mutedUntil->isFuture(),
             'mutedUntil' => $mutedUntil,
+            // Only for the owner — otherwise a participant muted with no
+            // message in the visible window had no way to be found at all.
+            'mutedParticipants' => $isOwner
+                ? $reservation->participants()
+                    ->wherePivot('chat_muted_until', '>', now())
+                    ->get(['users.id', 'users.name'])
+                    ->map(fn (User $participant) => [
+                        'id' => $participant->id,
+                        'name' => $participant->name,
+                        'chat_muted_until' => $participant->pivot->chat_muted_until,
+                    ])
+                : [],
         ]);
     }
 
