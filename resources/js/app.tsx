@@ -13,7 +13,14 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 // interrupting whatever they were doing. Full page visits never get here: the
 // server answers those with the styled error page instead.
 router.on('httpException', (event) => {
-    const status = event.detail.response.status;
+    const { status, headers } = event.detail.response;
+
+    // Inertia fires this for Inertia responses with an error status too —
+    // which is exactly the styled error page the server sends for a failed
+    // page visit. Let that render instead of hiding it behind a toast.
+    if (headers['x-inertia']) {
+        return;
+    }
 
     if (status === 429) {
         showGlobalToast('toast.tooManyRequests');

@@ -7,6 +7,7 @@ use App\Models\SubscriptionType;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -78,6 +79,10 @@ class DashboardController extends Controller
      * treats a cached `null` as "not cached" and would hit Stripe again on
      * every call otherwise.
      *
+     * Cached as a plain Unix timestamp, not a Carbon instance: the cache is
+     * configured with `serializable_classes => false`, so an object comes
+     * back out as __PHP_Incomplete_Class and every cache hit would 500.
+     *
      * A failed lookup degrades to no date shown (the card falls back to a
      * plain "renews automatically") rather than a 500 for the customer's
      * whole dashboard over what's ultimately a nice-to-have detail.
@@ -88,10 +93,10 @@ class DashboardController extends Controller
             $cached = Cache::remember(
                 "subscription-renews-at:{$subscription->stripe_id}",
                 now()->addHour(),
-                fn () => ['date' => $subscription->currentPeriodEnd()],
+                fn () => ['timestamp' => $subscription->currentPeriodEnd()?->getTimestamp()],
             );
 
-            return $cached['date'];
+            return $cached['timestamp'] !== null ? Carbon::createFromTimestamp($cached['timestamp']) : null;
         } catch (ApiErrorException $e) {
             Log::warning('Could not fetch the next renewal date for a subscription.', ['exception' => $e]);
 

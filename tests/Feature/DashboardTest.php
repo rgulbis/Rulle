@@ -3,6 +3,7 @@
 use App\Models\CheckInEvent;
 use App\Models\Purchase;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 
 test('the shared auth user prop reflects current check-in status', function () {
     $user = User::factory()->create();
@@ -66,6 +67,30 @@ test('the dashboard tolerates a Stripe lookup failure when fetching the renewal 
         ->assertInertia(fn ($page) => $page
             ->where('pass.kind', 'subscription')
             ->where('pass.renews_at', null)
+        );
+});
+
+test('the dashboard reads a cached renewal date back from a serializing cache store', function () {
+    // Production's file cache serializes values and, with
+    // `serializable_classes => false`, won't unserialize objects — the
+    // test suite's plain array store would hide that.
+    config(['cache.stores.array.serialize' => true]);
+    Cache::forgetDriver('array');
+
+    $user = User::factory()->create(['stripe_id' => 'cus_test_dashboard']);
+    $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_test_cached',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_test',
+    ]);
+    $renewsAt = now()->addMonth()->startOfSecond();
+    Cache::put('subscription-renews-at:sub_test_cached', ['timestamp' => $renewsAt->getTimestamp()], now()->addHour());
+
+    $this->actingAs($user)->get('/dashboard')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('pass.renews_at', $renewsAt->toJSON())
         );
 });
 
