@@ -1,5 +1,8 @@
 import { useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type {
+    MouseEvent as ReactMouseEvent,
+    PointerEvent as ReactPointerEvent,
+} from 'react';
 import { Label, Select } from '@/components/form-controls';
 import { useTranslation } from '@/lib/i18n/context';
 
@@ -70,14 +73,6 @@ export default function ReservationTimeline({
     const { t } = useTranslation();
     const svgRef = useRef<SVGSVGElement>(null);
     const [hover, setHover] = useState<number | null>(null);
-    // A 15-minute step is only a few screen pixels wide once the timeline is
-    // squeezed onto a phone, far too thin to land on with a single tap. So on
-    // top of tap-to-place, dragging a finger (or the mouse) across the bar
-    // continuously extends the selection with the same live preview line
-    // mouse users get for free from hovering — the drag itself does the
-    // precise positioning instead of the tap location having to.
-    const draggingRef = useRef(false);
-
     const openMin = timeToMinutes(openingTime);
     const closeMin = timeToMinutes(closingTime);
     const span = closeMin - openMin;
@@ -108,24 +103,14 @@ export default function ReservationTimeline({
         return Math.min(closeMin, Math.max(pastCutoff, snapped));
     };
 
-    const handlePointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
-        svgRef.current?.setPointerCapture(e.pointerId);
-        draggingRef.current = true;
-
-        const clicked = positionToMinutes(e.clientX);
-        setHover(clicked);
-        onChange({ start: clicked, end: null });
-    };
-
-    const handlePointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+    // Two clicks pick the range: the first sets the start, the second the
+    // end. Clicking again once a range is set (or clicking at/before the
+    // start) begins a new selection.
+    const handleClick = (e: ReactMouseEvent<SVGSVGElement>) => {
         const pos = positionToMinutes(e.clientX);
         setHover(pos);
 
-        if (!draggingRef.current || value.start === null) {
-            return;
-        }
-
-        if (pos <= value.start) {
+        if (value.start === null || value.end !== null || pos <= value.start) {
             onChange({ start: pos, end: null });
             return;
         }
@@ -138,42 +123,16 @@ export default function ReservationTimeline({
         onChange({ start: value.start, end });
     };
 
-    const endDrag = (e: ReactPointerEvent<SVGSVGElement>) => {
-        if (!draggingRef.current) {
-            return;
-        }
-
-        draggingRef.current = false;
-        svgRef.current?.releasePointerCapture(e.pointerId);
-
-        // A tap with no drag leaves `end` unset — there's no separate
-        // "second click" on a touchscreen, so default straight to the
-        // shortest bookable block instead of stranding the user on a start
-        // time they can't finish selecting.
-        if (value.start !== null && value.end === null) {
-            const end = Math.min(closeMin, value.start + minDurationMinutes);
-
-            onChange(
-                end > value.start
-                    ? { start: value.start, end }
-                    : {
-                          start: Math.max(
-                              pastCutoff,
-                              closeMin - minDurationMinutes,
-                          ),
-                          end: closeMin,
-                      },
-            );
-        }
+    const handlePointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+        setHover(positionToMinutes(e.clientX));
     };
 
-    // Dragging the bar precisely is still awkward on a touchscreen no matter
-    // how big it's drawn, since the visual size was never what made 15-minute
-    // increments hard to land on. A native time input turned out just as
-    // fiddly in its own way (typing/spinning exact digits) — a plain list of
-    // valid times to pick from is the easiest option on any device. These
-    // feed the exact same value/onChange the drag interaction uses, so
-    // either one works.
+    // Landing on an exact 15-minute mark by clicking the bar is awkward no
+    // matter how big it's drawn (on a phone a step is only a few pixels
+    // wide), and a native time input is just as fiddly in its own way. A
+    // plain list of valid times to pick from is the easiest option on any
+    // device. These feed the exact same value/onChange the clicks on the bar
+    // use, so either one works.
     const handleStartTimeChange = (raw: string) => {
         if (!raw) {
             onChange({ start: null, end: null });
@@ -261,7 +220,7 @@ export default function ReservationTimeline({
             the width its CSS grid cell assigned it, otherwise overlapping
             into the next column instead of shrinking to fit — the same
             WebKit quirk the date field above had. */}
-            <div className="mb-3 grid grid-cols-2 gap-3 lg:hidden">
+            <div className="mb-3 grid grid-cols-2 gap-3">
                 <div className="flex min-w-0 flex-col gap-1.5">
                     <Label htmlFor="timeline_start_time">
                         {t('reservations.startTime')}
@@ -324,11 +283,9 @@ export default function ReservationTimeline({
             <svg
                 ref={svgRef}
                 viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-                className="w-full cursor-pointer touch-none select-none"
-                onPointerDown={handlePointerDown}
+                className="w-full cursor-pointer select-none"
+                onClick={handleClick}
                 onPointerMove={handlePointerMove}
-                onPointerUp={endDrag}
-                onPointerCancel={endDrag}
                 onPointerLeave={() => setHover(null)}
             >
                 <polyline
