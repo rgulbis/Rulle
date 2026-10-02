@@ -1,5 +1,5 @@
-import { Link, router, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode, useState } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { PropsWithChildren, ReactNode, useEffect, useState } from 'react';
 import { buttonClasses } from '@/components/form-controls';
 import { MenuIcon, CrossIcon } from '@/components/icons';
 import LanguageToggle from '@/components/language-toggle';
@@ -106,6 +106,19 @@ export default function AppLayout({
     const isStaff = user?.role === 'admin' || user?.role === 'employee';
     const dark = theme ? theme === 'dark' : isStaff;
 
+    // The theme class only covers this layout's wrapper div, so the browser
+    // chrome (Safari's top/bottom bars, iOS overscroll) would otherwise keep
+    // tinting itself from the light page background. Match it to the theme.
+    const chromeColor = dark ? '#111113' : '#eceae4';
+    useEffect(() => {
+        const root = document.documentElement;
+        root.style.backgroundColor = chromeColor;
+
+        return () => {
+            root.style.backgroundColor = '';
+        };
+    }, [chromeColor]);
+
     const links = (
         <>
             {user?.role === 'user' && (
@@ -159,6 +172,13 @@ export default function AppLayout({
         <div
             className={`bg-ground text-ink flex flex-col ${fullHeight ? 'h-dvh overflow-hidden' : 'min-h-screen'} ${dark ? 'theme-dark' : ''}`}
         >
+            <Head>
+                <meta
+                    head-key="theme-color"
+                    name="theme-color"
+                    content={chromeColor}
+                />
+            </Head>
             <header className="border-ink border-b-2">
                 <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-4 lg:px-10">
                     <div className="flex items-center gap-10">

@@ -95,11 +95,13 @@ export function LiveVideo({ className = '' }: { className?: string }) {
             ) : (
                 <video
                     ref={videoRef}
-                    controls
                     autoPlay
                     muted
                     playsInline
-                    className="h-full w-full object-cover"
+                    disablePictureInPicture
+                    disableRemotePlayback
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="pointer-events-none h-full w-full object-cover"
                 />
             )}
         </div>
