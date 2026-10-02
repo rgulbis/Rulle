@@ -126,24 +126,19 @@ export default function AppLayout({
         };
     }, [dark]);
 
-    // Safari tints its bottom bar from whatever sits at the bottom edge of the
-    // screen. Once the footer covers that edge, pin a footer-coloured strip
-    // there: it's invisible against the footer but lets the bar go black too.
+    // While the footer is on screen the page background becomes the footer
+    // colour (otherwise the header/theme colour from the CSS). Safari tints
+    // its bars from the page background and shows it when iOS bounces past
+    // the end of the page, so this keeps them matching the block in view.
     const footerRef = useRef<HTMLElement>(null);
-    const [footerAtEdge, setFooterAtEdge] = useState(false);
+    const [footerShowing, setFooterShowing] = useState(false);
     useEffect(() => {
-        // Switch on as the footer's top edge reaches the bottom of the screen,
-        // and off only once it is well clear. The gap matters: the bar
-        // collapsing while scrolling changes the viewport height, which would
-        // otherwise flip this back and forth right at the threshold.
         const update = () => {
             const footer = footerRef.current;
-            if (footer === null) {
-                return;
-            }
-
-            const gap = footer.getBoundingClientRect().top - window.innerHeight;
-            setFooterAtEdge((on) => (on ? gap < 140 : gap < 0));
+            setFooterShowing(
+                footer !== null &&
+                    footer.getBoundingClientRect().top < window.innerHeight,
+            );
         };
 
         update();
@@ -155,6 +150,19 @@ export default function AppLayout({
             window.removeEventListener('resize', update);
         };
     }, []);
+
+    useEffect(() => {
+        if (!footerShowing) {
+            return;
+        }
+
+        const { documentElement: html, body } = document;
+        html.style.backgroundColor = body.style.backgroundColor = '#16161a';
+
+        return () => {
+            html.style.backgroundColor = body.style.backgroundColor = '';
+        };
+    }, [footerShowing]);
 
     const links = (
         <>
@@ -209,12 +217,6 @@ export default function AppLayout({
         <div
             className={`bg-ground text-ink flex flex-col ${fullHeight ? 'h-dvh overflow-hidden' : 'min-h-screen'} ${dark ? 'theme-dark' : ''}`}
         >
-            {footerAtEdge && (
-                <div
-                    aria-hidden="true"
-                    className="pointer-events-none fixed inset-x-0 bottom-0 z-50 h-4 bg-[#16161a]"
-                />
-            )}
             <Head>
                 <meta
                     head-key="theme-color"
