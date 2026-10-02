@@ -132,12 +132,18 @@ export default function AppLayout({
     const footerRef = useRef<HTMLElement>(null);
     const [footerAtEdge, setFooterAtEdge] = useState(false);
     useEffect(() => {
+        // Switch on as the footer's top edge reaches the bottom of the screen,
+        // and off only once it is well clear. The gap matters: the bar
+        // collapsing while scrolling changes the viewport height, which would
+        // otherwise flip this back and forth right at the threshold.
         const update = () => {
             const footer = footerRef.current;
-            setFooterAtEdge(
-                footer !== null &&
-                    footer.getBoundingClientRect().top < window.innerHeight - 16,
-            );
+            if (footer === null) {
+                return;
+            }
+
+            const gap = footer.getBoundingClientRect().top - window.innerHeight;
+            setFooterAtEdge((on) => (on ? gap < 140 : gap < 0));
         };
 
         update();
