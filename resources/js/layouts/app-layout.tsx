@@ -217,6 +217,15 @@ export default function AppLayout({
         <div
             className={`bg-ground text-ink flex flex-col ${fullHeight ? 'h-dvh overflow-hidden' : 'min-h-screen'} ${dark ? 'theme-dark' : ''}`}
         >
+            {footerShowing && (
+                // The page background is footer-coloured at this point, so
+                // pin the normal page colour at the top edge to keep the top
+                // bar from following it.
+                <div
+                    aria-hidden="true"
+                    className="bg-ground pointer-events-none fixed inset-x-0 top-0 z-50 h-1"
+                />
+            )}
             <Head>
                 <meta
                     head-key="theme-color"
