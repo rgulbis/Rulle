@@ -1,5 +1,11 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode, useEffect, useState } from 'react';
+import {
+    PropsWithChildren,
+    ReactNode,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 import { buttonClasses } from '@/components/form-controls';
 import { MenuIcon, CrossIcon } from '@/components/icons';
 import LanguageToggle from '@/components/language-toggle';
@@ -120,6 +126,30 @@ export default function AppLayout({
         };
     }, [dark]);
 
+    // Safari tints its bottom bar from whatever sits at the bottom edge of the
+    // screen. Once the footer covers that edge, pin a footer-coloured strip
+    // there: it's invisible against the footer but lets the bar go black too.
+    const footerRef = useRef<HTMLElement>(null);
+    const [footerAtEdge, setFooterAtEdge] = useState(false);
+    useEffect(() => {
+        const update = () => {
+            const footer = footerRef.current;
+            setFooterAtEdge(
+                footer !== null &&
+                    footer.getBoundingClientRect().top < window.innerHeight - 16,
+            );
+        };
+
+        update();
+        window.addEventListener('scroll', update, { passive: true });
+        window.addEventListener('resize', update);
+
+        return () => {
+            window.removeEventListener('scroll', update);
+            window.removeEventListener('resize', update);
+        };
+    }, []);
+
     const links = (
         <>
             {user?.role === 'user' && (
@@ -173,6 +203,12 @@ export default function AppLayout({
         <div
             className={`bg-ground text-ink flex flex-col ${fullHeight ? 'h-dvh overflow-hidden' : 'min-h-screen'} ${dark ? 'theme-dark' : ''}`}
         >
+            {footerAtEdge && (
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none fixed inset-x-0 bottom-0 z-50 h-4 bg-[#16161a]"
+                />
+            )}
             <Head>
                 <meta
                     head-key="theme-color"
@@ -255,7 +291,7 @@ export default function AppLayout({
             </main>
 
             {!fullHeight && (
-                <footer className="bg-[#16161a] text-[#f7f6f2]">
+                <footer ref={footerRef} className="bg-[#16161a] text-[#f7f6f2]">
                     <div className="mx-auto grid max-w-7xl gap-8 px-5 py-12 sm:grid-cols-3 lg:px-10">
                         <p className="font-display text-5xl font-black uppercase">
                             {t('nav.brand')}

@@ -1,5 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode } from 'react';
+import { PropsWithChildren, ReactNode, useEffect } from 'react';
 import LanguageToggle from '@/components/language-toggle';
 import { useTranslation } from '@/lib/i18n/context';
 import type { Park } from '@/types';
@@ -29,9 +29,27 @@ export default function AuthLayout({
     const { t } = useTranslation();
     const { park } = usePage<{ park: Park }>().props;
 
+    // On phones the page opens with the dark panel, so tint the browser's top
+    // bar to match it. The light half below paints its own background, so
+    // only the top (and the overscroll area) picks the dark colour up.
+    useEffect(() => {
+        const { documentElement: html, body } = document;
+        html.style.backgroundColor = body.style.backgroundColor = '#16161a';
+
+        return () => {
+            html.style.backgroundColor = body.style.backgroundColor = '';
+        };
+    }, []);
+
     return (
         <>
-            <Head title={title} />
+            <Head title={title}>
+                <meta
+                    head-key="theme-color"
+                    name="theme-color"
+                    content="#16161a"
+                />
+            </Head>
             <div className="bg-ground text-ink grid min-h-dvh lg:h-dvh lg:grid-cols-2">
                 {/* Always black regardless of theme — the literal colours are on purpose. */}
                 <div className="short:lg:py-7 relative flex flex-col gap-5 overflow-hidden bg-[#16161a] px-5 pt-4 pb-5 text-[#f7f6f2] lg:justify-between lg:gap-8 lg:px-16 lg:py-10">
