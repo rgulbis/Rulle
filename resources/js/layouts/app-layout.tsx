@@ -108,16 +108,17 @@ export default function AppLayout({
 
     // The theme class only covers this layout's wrapper div, so the browser
     // chrome (Safari's top/bottom bars, iOS overscroll) would otherwise keep
-    // tinting itself from the light page background. Match it to the theme.
+    // tinting itself from the light page background. Put the theme on <html>
+    // too, so the body and canvas backgrounds (which Safari samples) follow.
     const chromeColor = dark ? '#111113' : '#eceae4';
     useEffect(() => {
         const root = document.documentElement;
-        root.style.backgroundColor = chromeColor;
+        root.classList.toggle('theme-dark', dark);
 
         return () => {
-            root.style.backgroundColor = '';
+            root.classList.remove('theme-dark');
         };
-    }, [chromeColor]);
+    }, [dark]);
 
     const links = (
         <>

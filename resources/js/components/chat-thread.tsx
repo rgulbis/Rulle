@@ -945,7 +945,7 @@ export default function ChatThread({
                                             )}
                                         </button>
                                         <div
-                                            className={`border-ink bg-paper shadow-hard absolute top-10 right-1 z-30 max-w-[calc(100%-0.5rem)] flex-wrap items-stretch gap-0.5 border-2 bg-line text-xs font-semibold lg:-top-4 lg:right-4 lg:group-focus-within:flex lg:group-hover:flex ${
+                                            className={`border-ink bg-paper shadow-hard bg-line absolute top-10 right-1 z-30 max-w-[calc(100%-0.5rem)] flex-wrap items-stretch gap-0.5 border-2 text-xs font-semibold lg:-top-4 lg:right-4 lg:group-focus-within:flex lg:group-hover:flex ${
                                                 openActionsFor === message.id
                                                     ? 'flex'
                                                     : 'hidden'
