@@ -16,8 +16,13 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property int|null $visits_remaining
  * @property Carbon|null $valid_date
+ * @property string $payment_status
+ * @property string|null $stripe_payment_intent_id
+ * @property Carbon|null $paid_at
+ * @property int $refunded_cents
+ * @property Carbon|null $refunded_at
  */
-#[Fillable(['user_id', 'subscription_type_id', 'stripe_checkout_session_id', 'price_cents', 'status', 'visits_remaining', 'valid_date'])]
+#[Fillable(['user_id', 'subscription_type_id', 'stripe_checkout_session_id', 'price_cents', 'status', 'visits_remaining', 'valid_date', 'payment_status', 'stripe_payment_intent_id', 'paid_at', 'refunded_cents', 'refunded_at'])]
 class Purchase extends Model
 {
     protected function casts(): array
@@ -26,6 +31,9 @@ class Purchase extends Model
             'price_cents' => 'integer',
             'visits_remaining' => 'integer',
             'valid_date' => 'date',
+            'paid_at' => 'datetime',
+            'refunded_cents' => 'integer',
+            'refunded_at' => 'datetime',
         ];
     }
 
@@ -34,7 +42,8 @@ class Purchase extends Model
      */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        // Closed accounts are soft-deleted; their history keeps pointing at them.
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     /**

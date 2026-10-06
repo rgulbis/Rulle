@@ -33,6 +33,7 @@ class ReservationSettingResource extends Resource
                     ->label('Price per person, per hour (EUR)')
                     ->required()
                     ->numeric()
+                    ->minValue(0.01)
                     ->prefix('€')
                     ->formatStateUsing(fn (?int $state) => $state !== null ? $state / 100 : null)
                     ->dehydrateStateUsing(fn ($state) => (int) round(((float) $state) * 100)),

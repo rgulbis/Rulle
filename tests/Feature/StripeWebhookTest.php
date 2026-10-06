@@ -76,7 +76,7 @@ test('an expired checkout session leaves an already-completed purchase alone', f
     expect($purchase->fresh()->status)->toBe('active');
 });
 
-test('clicking back from Stripe immediately abandons the pending purchase', function () {
+test('clicking back from Stripe changes nothing, since a GET must not mutate state', function () {
     $user = User::factory()->create();
     $type = makeSubscriptionType();
     $purchase = Purchase::create([
@@ -91,5 +91,5 @@ test('clicking back from Stripe immediately abandons the pending purchase', func
         ->get('/subscriptions/cancel?session_id=cs_test_cancelled')
         ->assertRedirect(route('subscriptions.index'));
 
-    expect($purchase->fresh()->status)->toBe('abandoned');
+    expect($purchase->fresh()->status)->toBe('pending');
 });

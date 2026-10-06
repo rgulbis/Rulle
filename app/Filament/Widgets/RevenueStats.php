@@ -23,9 +23,14 @@ class RevenueStats extends StatsOverviewWidget
      */
     protected function getStats(): array
     {
-        $passes = Purchase::whereIn('status', ['active', 'used_up']);
-        $refundedPasses = Purchase::where('status', 'refunded')->sum('price_cents');
-        $reservations = Reservation::where('status', 'active');
+        // Revenue is what the money says, not what the booking's lifecycle
+        // status says: a cancelled reservation whose payment was kept (too
+        // late for a refund) is still earned money, and a refunded one isn't.
+        $passes = Purchase::where('payment_status', 'paid');
+        $reservations = Reservation::where('payment_status', 'paid');
+        $refunded = Purchase::sum('refunded_cents') + Reservation::sum('refunded_cents');
+        $refundsOwed = Purchase::whereIn('payment_status', ['refund_pending', 'refund_failed'])->sum('price_cents')
+            + Reservation::whereIn('payment_status', ['refund_pending', 'refund_failed'])->sum('price_cents');
 
         $passesTotal = (clone $passes)->sum('price_cents');
         $passesThisMonth = (clone $passes)
@@ -55,7 +60,7 @@ class RevenueStats extends StatsOverviewWidget
                 ->color('success')
                 ->icon(Heroicon::OutlinedChartBar),
             Stat::make('One-time passes', number_format($passesTotal / 100, 2).' €')
-                ->description('All time, excluding refunds')
+                ->description('All time, net of refunds')
                 ->color('info')
                 ->icon(Heroicon::OutlinedTicket),
             Stat::make('Subscriptions', number_format($subscriptionsTotal / 100, 2).' €')
@@ -63,12 +68,17 @@ class RevenueStats extends StatsOverviewWidget
                 ->color('warning')
                 ->icon(Heroicon::OutlinedCreditCard),
             Stat::make('Reservations', number_format($reservationsTotal / 100, 2).' €')
-                ->description('All time')
+                ->description('All time, net of refunds')
                 ->color('info')
                 ->icon(Heroicon::OutlinedCalendarDays),
-            Stat::make('Refunded', number_format($refundedPasses / 100, 2).' €')
+            Stat::make('Refunded', number_format($refunded / 100, 2).' €')
+                ->description('Passes and reservations')
                 ->color('danger')
                 ->icon(Heroicon::OutlinedArrowUturnLeft),
+            Stat::make('Refunds still owed', number_format($refundsOwed / 100, 2).' €')
+                ->description('Pending or failed — retried by payments:retry-refunds')
+                ->color($refundsOwed > 0 ? 'danger' : 'gray')
+                ->icon(Heroicon::OutlinedExclamationTriangle),
         ];
     }
 }

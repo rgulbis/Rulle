@@ -49,6 +49,8 @@ const en = {
         'Reservation cancelled and refunded.',
     'reservations.statusCancelledNoRefund':
         'Reservation cancelled, but it was too close to the start time to be refunded.',
+    'reservations.statusCancelledRefundPending':
+        'Reservation cancelled. The refund could not be completed right now; it will be retried automatically and you will receive your money back.',
     'reservations.statusCannotCancel':
         'That reservation has already started and can no longer be cancelled.',
     'reservations.statusSlotTaken':
@@ -81,7 +83,17 @@ const en = {
         "Leave this reservation? You'll lose access to its group chat, and only the owner can add you back.",
     'reservations.groupFull':
         "This reservation's group size is full — remove someone or make a new reservation for more people.",
-    'reservations.searchPlaceholder': 'Search by name or email to add a friend',
+    'reservations.searchPlaceholder': 'Search by name to invite a friend',
+    'reservations.invitations': 'Invitations',
+    'reservations.invitedBy': '{name} invited you to a reservation',
+    'reservations.accept': 'Accept',
+    'reservations.decline': 'Decline',
+    'reservations.invitedLabel': 'invited',
+    'reservations.withdraw': 'Withdraw',
+    'reservations.statusInvited':
+        'Invitation sent. They join the group once they accept.',
+    'reservations.statusInvitationAccepted': 'You joined the reservation.',
+    'reservations.statusInvitationDeclined': 'Invitation declined.',
     'reservations.searching': 'Searching…',
     'reservations.add': 'Add',
     'reservations.selectDayHint': 'Select a day to see reserved times.',

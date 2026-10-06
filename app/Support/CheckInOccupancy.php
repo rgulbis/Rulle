@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use App\Models\CheckInEvent;
+use App\Models\ReservationSetting;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -80,6 +83,49 @@ class CheckInOccupancy
     public static function currentlyCheckedInCount(): int
     {
         return self::latestEventPerUser()->where('checked_in', true)->count();
+    }
+
+    /**
+     * The last time the park closed (today's closing time, or yesterday's
+     * if it hasn't closed yet today).
+     */
+    public static function lastClosing(): CarbonInterface
+    {
+        $minutes = ReservationSetting::current()->closingMinutes();
+        $closing = now()->startOfDay()->addMinutes($minutes);
+
+        return $closing->isFuture() ? $closing->subDay() : $closing;
+    }
+
+    /**
+     * Someone who was scanned in but never scanned out is still "inside" in
+     * the log forever — the live headcount is wrong, and they're refused
+     * "already checked in" the next day. Anyone whose latest event is an
+     * entry from before the park last closed has left: they're checked out
+     * at the closing time, so the occupancy history is right too.
+     *
+     * @return int how many people were checked out
+     */
+    public static function closeStaleCheckIns(): int
+    {
+        $closing = self::lastClosing();
+
+        $stale = self::latestEventPerUser()
+            ->where('checked_in', true)
+            ->pluck('user_id')
+            ->filter(function (int $userId) use ($closing) {
+                $entered = CheckInEvent::where('user_id', $userId)->orderByDesc('id')->first();
+
+                return $entered && $entered->created_at->lt($closing);
+            });
+
+        foreach ($stale as $userId) {
+            $event = new CheckInEvent(['user_id' => $userId, 'checked_in' => false]);
+            $event->created_at = $closing;
+            $event->save();
+        }
+
+        return $stale->count();
     }
 
     /**

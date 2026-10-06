@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Reservation;
 use App\Models\SubscriptionType;
 use App\Models\User;
+use App\Support\EntryToken;
 use Carbon\CarbonInterface;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -26,6 +28,19 @@ class DashboardController extends Controller
             'pass' => $this->currentPass($user),
             'nextReservation' => $this->nextReservation($user),
         ]);
+    }
+
+    /**
+     * A fresh, short-lived, single-entry QR payload for this customer's
+     * pass. The dashboard polls it; see App\Support\EntryToken.
+     */
+    public function entryToken(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        abort_unless($user->hasVerifiedEmail(), 403);
+
+        return response()->json(EntryToken::issue($user))->header('Cache-Control', 'no-store');
     }
 
     /**

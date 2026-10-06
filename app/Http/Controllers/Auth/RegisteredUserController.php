@@ -23,6 +23,13 @@ class RegisteredUserController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        // Stored exactly the way login and password reset look it up (a
+        // Unicode domain becomes punycode) — otherwise someone who registers
+        // as "x@rullē.lv" could never log in again, and the unique rule
+        // below couldn't see an existing "x@xn--rull-eva.lv" as the same
+        // address.
+        $request->merge(['email' => User::normalizeEmailForLookup(trim((string) $request->input('email')))]);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:users,name', new NoInappropriateContent],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],

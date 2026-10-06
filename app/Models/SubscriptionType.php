@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use DomainException;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Laravel\Cashier\Cashier;
 
@@ -36,11 +38,71 @@ class SubscriptionType extends Model
 
     protected static function booted(): void
     {
-        static::saved(function (SubscriptionType $type) {
-            if (! $type->stripe_price_id || $type->wasChanged(['name', 'price_cents', 'billing_interval'])) {
-                $type->syncToStripe();
+        // A plan with sales is part of the financial record and of live
+        // Stripe subscriptions — it can be deactivated (hidden from the shop)
+        // but not deleted, and its billing type can't be switched under
+        // existing buyers (a recurring subscription can't be swapped onto a
+        // one-time Stripe Price).
+        static::deleting(function (SubscriptionType $type) {
+            if ($type->hasSales()) {
+                throw new DomainException("\"{$type->name}\" has been sold — deactivate it instead of deleting it.");
             }
         });
+
+        static::updating(function (SubscriptionType $type) {
+            if ($type->isDirty('billing_interval') && $type->hasSales()) {
+                throw new DomainException("\"{$type->name}\" has been sold, so its billing type can't change — create a new plan instead.");
+            }
+        });
+
+        static::saved(function (SubscriptionType $type) {
+            // Stripe Prices are immutable: only a new price or interval needs
+            // a new Price. A rename just renames the Product.
+            if (! $type->stripe_price_id || $type->wasChanged(['price_cents', 'billing_interval'])) {
+                $type->syncToStripe();
+            } elseif ($type->wasChanged('name') && $type->stripe_product_id) {
+                Cashier::stripe()->products->update($type->stripe_product_id, ['name' => $type->name]);
+            }
+        });
+    }
+
+    /**
+     * Whether anyone has ever bought this plan — a paid pass, or a Stripe
+     * subscription on its product.
+     */
+    public function hasSales(): bool
+    {
+        if ($this->purchases()->exists()) {
+            return true;
+        }
+
+        return $this->stripe_product_id !== null
+            && DB::table('subscription_items')->where('stripe_product', $this->stripe_product_id)->exists();
+    }
+
+    /**
+     * @return HasMany<Purchase, $this>
+     */
+    public function purchases(): HasMany
+    {
+        return $this->hasMany(Purchase::class);
+    }
+
+    /**
+     * A plan that would take a customer's money and then give them nothing
+     * (a one-time pass with no visits) must never be sold.
+     */
+    public function isSellable(): bool
+    {
+        if ($this->price_cents < 50) {
+            return false;
+        }
+
+        if ($this->isRecurring() || $this->unlimited_entries) {
+            return true;
+        }
+
+        return $this->visit_limit !== null && $this->visit_limit >= 1;
     }
 
     /**
@@ -99,6 +161,10 @@ class SubscriptionType extends Model
             $stripe->products->update($this->stripe_product_id, ['name' => $this->name]);
         } else {
             $this->stripe_product_id = $stripe->products->create(['name' => $this->name])->id;
+            // Saved before the Price call: if that fails, the next sync
+            // reuses this Product instead of leaving it orphaned on Stripe
+            // and creating a second one.
+            $this->saveQuietly();
         }
 
         $price = $stripe->prices->create([

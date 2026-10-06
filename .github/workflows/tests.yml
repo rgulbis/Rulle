@@ -36,3 +36,20 @@ jobs:
 
       - name: Run CI Checks
         run: composer ci:check
+
+      # Browser tests of the money and entry paths (tests/e2e). Stripe is a
+      # fake payment page here — nothing reaches the network. A failure blocks
+      # the deploy exactly like a failing unit test.
+      - name: Install browser for E2E tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: npm run e2e
+
+      - name: Keep Playwright traces from a failed run
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore

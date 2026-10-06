@@ -10,6 +10,7 @@ use App\Support\ChatModeration;
 use App\Support\ChatSlowMode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -77,32 +78,45 @@ class ChatController extends Controller
             ]);
         }
 
-        $wait = ChatSlowMode::secondsUntilMayPost($request->user());
+        // The cooldown check and the insert have to be one step per user:
+        // otherwise several parallel requests all read the same "last
+        // message" time, all pass, and all post.
+        $lock = Cache::lock("chat-post:{$request->user()->id}", 10);
 
-        if ($wait > 0) {
-            return back()->withErrors([
-                'body' => __('Slow mode is on — wait :secondss before sending another message.', ['seconds' => $wait]),
-                // The bare number too, so the chat can count it down live
-                // instead of showing a fixed "wait 8 s" that goes stale.
-                'slow_mode_wait' => (string) $wait,
-            ]);
+        if (! $lock->get()) {
+            return back()->withErrors(['body' => __('Please wait a moment before sending another message.')]);
         }
 
-        $validated = $request->validate([
-            'body' => ['required', 'string', 'max:500', new NoInappropriateContent],
-            // Scoped to this same room — a reply can't point at a message
-            // from someone's private reservation chat, or vice versa.
-            'reply_to_message_id' => [
-                'nullable',
-                Rule::exists('chat_messages', 'id')->whereNull('reservation_id'),
-            ],
-        ]);
+        try {
+            $wait = ChatSlowMode::secondsUntilMayPost($request->user());
 
-        ChatMessage::create([
-            'user_id' => $request->user()->id,
-            'body' => $validated['body'],
-            'reply_to_message_id' => $validated['reply_to_message_id'] ?? null,
-        ]);
+            if ($wait > 0) {
+                return back()->withErrors([
+                    'body' => __('Slow mode is on — wait :secondss before sending another message.', ['seconds' => $wait]),
+                    // The bare number too, so the chat can count it down live
+                    // instead of showing a fixed "wait 8 s" that goes stale.
+                    'slow_mode_wait' => (string) $wait,
+                ]);
+            }
+
+            $validated = $request->validate([
+                'body' => ['required', 'string', 'max:500', new NoInappropriateContent],
+                // Scoped to this same room — a reply can't point at a message
+                // from someone's private reservation chat, or vice versa.
+                'reply_to_message_id' => [
+                    'nullable',
+                    Rule::exists('chat_messages', 'id')->whereNull('reservation_id'),
+                ],
+            ]);
+
+            ChatMessage::create([
+                'user_id' => $request->user()->id,
+                'body' => $validated['body'],
+                'reply_to_message_id' => $validated['reply_to_message_id'] ?? null,
+            ]);
+        } finally {
+            $lock->release();
+        }
 
         return back();
     }

@@ -58,3 +58,33 @@ test('registration requires matching password confirmation', function () {
     $response->assertSessionHasErrors('password');
     $this->assertGuest();
 });
+
+test('registering with a unicode email domain can log in again after logging out', function () {
+    $this->post('/register', [
+        'name' => 'Unicode Rider',
+        'email' => 'rider@rullē.lv',
+        'password' => 'Str0ng!Passw0rd#xyz',
+        'password_confirmation' => 'Str0ng!Passw0rd#xyz',
+    ])->assertRedirect();
+
+    // Stored the way login and password reset look it up.
+    expect(User::where('email', 'rider@xn--rull-eva.lv')->exists())->toBeTrue();
+    expect(User::where('email', 'rider@rullē.lv')->exists())->toBeFalse();
+
+    $this->post('/logout');
+    $this->assertGuest();
+
+    $this->post('/login', ['email' => 'rider@rullē.lv', 'password' => 'Str0ng!Passw0rd#xyz'])->assertRedirect();
+    $this->assertAuthenticated();
+});
+
+test('the unicode and punycode spellings of one address cannot both register', function () {
+    User::factory()->create(['email' => 'rider@xn--rull-eva.lv']);
+
+    $this->post('/register', [
+        'name' => 'Second Rider',
+        'email' => 'rider@rullē.lv',
+        'password' => 'Str0ng!Passw0rd#xyz',
+        'password_confirmation' => 'Str0ng!Passw0rd#xyz',
+    ])->assertSessionHasErrors('email');
+});

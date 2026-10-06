@@ -1,20 +1,47 @@
 name: Deploy
 
+# Deploys only after the `tests` workflow has finished green for that exact
+# commit — a push to main with red checks never reaches production. (The
+# trigger is workflow_run rather than push precisely so this can't race the
+# test run.)
 on:
-  push:
+  workflow_run:
+    workflows: [tests]
+    types: [completed]
     branches: [main]
+
+# One deploy at a time; a newer one waits instead of cancelling a half-finished
+# one (that would leave containers mid-recreate).
+concurrency:
+  group: deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: self-hosted
     env:
       COMPOSE_PROJECT_NAME: skatepark
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           clean: false
 
+      # If main has moved on since the tested commit, that newer commit has its
+      # own tests -> deploy run; deploying this older one would roll back.
+      - name: Skip if main has moved on
+        id: fresh
+        run: |
+          if [ "$(git ls-remote origin refs/heads/main | cut -f1)" = "${{ github.event.workflow_run.head_sha }}" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "A newer commit is on main; skipping this deploy."
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create .env
+        if: steps.fresh.outputs.current == 'true'
         run: |
           cp .env.example .env
           sed -i "s|^APP_ENV=.*|APP_ENV=production|" .env
@@ -22,7 +49,7 @@ jobs:
           sed -i "s|^APP_KEY=.*|APP_KEY=${{ secrets.APP_KEY }}|" .env
           sed -i "s|^APP_URL=.*|APP_URL=https://www.xn--rull-eva.lv|" .env
           sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" .env
-          echo "DB_DATABASE=/var/www/html/storage/app/database.sqlite" >> .env
+          # DB_DATABASE is pinned inside docker-compose.yml (persistent volume).
           sed -i "s|^BROADCAST_CONNECTION=.*|BROADCAST_CONNECTION=reverb|" .env
           sed -i "s|^REVERB_APP_ID=.*|REVERB_APP_ID=${{ secrets.REVERB_APP_ID }}|" .env
           sed -i "s|^REVERB_APP_KEY=.*|REVERB_APP_KEY=${{ secrets.REVERB_APP_KEY }}|" .env
@@ -44,7 +71,29 @@ jobs:
           echo "CAMERA_RTSP_URL=${{ secrets.CAMERA_RTSP_URL }}" >> .env
 
       - name: Build image
-        run: docker compose build
+        if: steps.fresh.outputs.current == 'true'
+        run: |
+          # Keep the running image around so a failed deploy can go back to it.
+          docker tag skatepark-app skatepark-app:previous 2>/dev/null || true
+          docker compose build
 
+      # --wait blocks until every service with a healthcheck is healthy (the
+      # app's is GET /up, which only answers once migrations have run). A
+      # migration that fails makes the entrypoint restore its pre-migration
+      # database snapshot and exit, so the app never turns healthy and this
+      # step fails.
       - name: Deploy
-        run: docker compose up -d --force-recreate
+        if: steps.fresh.outputs.current == 'true'
+        run: |
+          if ! docker compose up -d --force-recreate --wait --wait-timeout 180; then
+            echo "::error::New version did not become healthy — rolling back to the previous image."
+            docker compose logs --tail=100 app || true
+            if docker image inspect skatepark-app:previous >/dev/null 2>&1; then
+              docker tag skatepark-app:previous skatepark-app
+              docker compose up -d --force-recreate --no-build --wait --wait-timeout 180 || true
+            fi
+            exit 1
+          fi
+          # The tunnel reaches the services over the compose network (no
+          # published ports); make sure it is attached to it.
+          docker network connect skatepark_default cloudflared 2>/dev/null || true

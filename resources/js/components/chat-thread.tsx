@@ -3,50 +3,44 @@ import {
     FormEventHandler,
     KeyboardEventHandler,
     useEffect,
-    useLayoutEffect,
     useMemo,
     useRef,
     useState,
 } from 'react';
-import { Button, Label, Select, TextInput } from '@/components/form-controls';
+import {
+    CUSTOM_MUTE_UNITS,
+    CustomMuteDialog,
+    MAX_MUTE_HOURS,
+} from '@/components/chat/custom-mute-dialog';
+import { MutedIcon, PinIcon } from '@/components/chat/icons';
+import {
+    useChatChannel,
+    useSlowMode,
+    useStickyScroll,
+} from '@/components/chat/hooks';
+import { MessageRow } from '@/components/chat/message-row';
+import { MutedUsersPanel } from '@/components/chat/muted-users-panel';
+import { PinnedPanel } from '@/components/chat/pinned-panel';
+import type {
+    ChatMessage,
+    Moderation,
+    MutedUser,
+    SlowMode,
+} from '@/components/chat/types';
 import { ArrowRightIcon, CrossIcon } from '@/components/icons';
 import { useTranslation } from '@/lib/i18n/context';
 import type { Auth } from '@/types/auth';
 
+// Existing importers take these from here.
+export { Avatar } from '@/components/chat/avatar';
+export type {
+    ChatMessage,
+    ChatUser,
+    MutedUser,
+    SlowMode,
+} from '@/components/chat/types';
+
 const MAX_MESSAGE_LENGTH = 500;
-
-export type ChatUser = {
-    id: number;
-    name: string;
-    role: string;
-};
-
-export type ChatMessage = {
-    id: number;
-    body: string;
-    created_at: string;
-    pinned: boolean;
-    user: ChatUser;
-    reply_to: { id: number; body: string; user: { name: string } } | null;
-};
-
-export type SlowMode = {
-    remaining_seconds: number;
-    cooldown_seconds: number;
-};
-
-export type MutedUser = {
-    id: number;
-    name: string;
-    chat_muted_until: string;
-};
-
-type Moderation = {
-    deleteUrl: (messageId: number) => string;
-    muteUrl: (userId: number) => string;
-    unmuteUrl: (userId: number) => string;
-    pinUrl: (messageId: number) => string;
-};
 
 type Props = {
     channel: string;
@@ -66,15 +60,6 @@ type Props = {
     mutedUsers?: MutedUser[];
     slowMode?: SlowMode;
 };
-
-const CUSTOM_MUTE_UNITS = [
-    { hoursPer: 1, labelKey: 'chatThread.muteUnitHours' },
-    { hoursPer: 24, labelKey: 'chatThread.muteUnitDays' },
-    { hoursPer: 168, labelKey: 'chatThread.muteUnitWeeks' },
-] as const;
-
-// Matches the server-side max:8760 on the mute endpoints (one year).
-const MAX_MUTE_HOURS = 8760;
 
 export default function ChatThread({
     channel,
@@ -114,16 +99,11 @@ export default function ChatThread({
     const [moderationNotice, setModerationNotice] = useState<string | null>(
         null,
     );
-    // New messages that arrived while scrolled up reading older ones.
-    const [unseen, setUnseen] = useState(0);
     // Briefly flashed on whichever message was just jumped to from the
     // pinned list, so landing on it doesn't feel like nothing happened.
     const [justJumpedTo, setJustJumpedTo] = useState<number | null>(null);
-    const scrollerRef = useRef<HTMLDivElement>(null);
     const messageRefs = useRef<Record<number, HTMLLIElement | null>>({});
     const composerRef = useRef<HTMLTextAreaElement>(null);
-    const stickToBottom = useRef(true);
-    const seenCount = useRef(initialMessages.length);
 
     const formatTime = (dateTime: string) =>
         new Date(dateTime).toLocaleTimeString(intlLocale, {
@@ -131,22 +111,19 @@ export default function ChatThread({
             minute: '2-digit',
         });
 
-    // Slow mode is tracked as absolute client-side end times, derived from
-    // the durations the server sends, so a skewed clock can't stretch it.
-    const [now, setNow] = useState(() => Date.now());
-    const [slow, setSlow] = useState(() => ({
-        endsAt: Date.now() + (slowMode?.remaining_seconds ?? 0) * 1000,
-        cooldownSeconds: slowMode?.cooldown_seconds ?? 0,
-    }));
-    const [cooldownEndsAt, setCooldownEndsAt] = useState(0);
-
     const isStaff = auth.user.role !== 'user';
-    const slowActive = slow.endsAt > now;
-    const cooldownRemaining =
-        !isStaff && cooldownEndsAt > now
-            ? Math.ceil((cooldownEndsAt - now) / 1000)
-            : 0;
-    const needsTicker = slowActive || cooldownEndsAt > now;
+    const {
+        slowActive,
+        cooldownSeconds,
+        cooldownRemaining,
+        activate: activateSlowMode,
+        startCooldown,
+    } = useSlowMode(slowMode, isStaff);
+    const { scrollerRef, unseen, handleScroll, jumpToLatest } = useStickyScroll(
+        messages,
+        auth.user.id,
+    );
+    useChatChannel(channel, setMessages, setPinned, activateSlowMode);
 
     useEffect(() => {
         if (!moderationNotice) {
@@ -157,62 +134,6 @@ export default function ChatThread({
 
         return () => clearTimeout(id);
     }, [moderationNotice]);
-
-    useEffect(() => {
-        if (!needsTicker) {
-            return;
-        }
-
-        const id = setInterval(() => setNow(Date.now()), 1000);
-
-        return () => clearInterval(id);
-    }, [needsTicker]);
-
-    // Only the message list scrolls — never the page. It follows new
-    // messages while you're at the bottom (or when you sent one yourself),
-    // and otherwise leaves you where you are with a "new messages" button.
-    useLayoutEffect(() => {
-        const scroller = scrollerRef.current;
-
-        if (!scroller) {
-            return;
-        }
-
-        const added = messages.length - seenCount.current;
-        seenCount.current = messages.length;
-        const last = messages[messages.length - 1];
-        const ownLatest = added > 0 && last?.user.id === auth.user.id;
-
-        if (stickToBottom.current || ownLatest) {
-            scroller.scrollTop = scroller.scrollHeight;
-            setUnseen(0);
-        } else if (added > 0) {
-            setUnseen((n) => n + added);
-        }
-    }, [messages, auth.user.id]);
-
-    const handleScroll = () => {
-        const scroller = scrollerRef.current;
-
-        if (!scroller) {
-            return;
-        }
-
-        stickToBottom.current =
-            scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <
-            80;
-
-        if (stickToBottom.current) {
-            setUnseen(0);
-        }
-    };
-
-    const jumpToLatest = () => {
-        scrollerRef.current?.scrollTo({
-            top: scrollerRef.current.scrollHeight,
-            behavior: 'smooth',
-        });
-    };
 
     // A pinned message can be much older than the ~100 recent ones this
     // page loaded, in which case it simply isn't in the DOM to scroll to —
@@ -247,49 +168,6 @@ export default function ChatThread({
         }
     };
 
-    useEffect(() => {
-        const echoChannel = window.Echo.private(channel);
-
-        echoChannel.listen('.message.sent', (message: ChatMessage) => {
-            setMessages((current) => [...current, message]);
-        });
-
-        echoChannel.listen('.message.deleted', (e: { id: number }) => {
-            setMessages((current) => current.filter((m) => m.id !== e.id));
-            setPinned((current) => current.filter((m) => m.id !== e.id));
-        });
-
-        echoChannel.listen(
-            '.message.pin-changed',
-            (e: { pinned: boolean; message: ChatMessage }) => {
-                setMessages((current) =>
-                    current.map((m) =>
-                        m.id === e.message.id ? { ...m, pinned: e.pinned } : m,
-                    ),
-                );
-                setPinned((current) => {
-                    const others = current.filter((m) => m.id !== e.message.id);
-
-                    return e.pinned ? [e.message, ...others] : others;
-                });
-            },
-        );
-
-        echoChannel.listen('.slow-mode.activated', (e: SlowMode) => {
-            const current = Date.now();
-
-            setSlow({
-                endsAt: current + e.remaining_seconds * 1000,
-                cooldownSeconds: e.cooldown_seconds,
-            });
-            setNow(current);
-        });
-
-        return () => {
-            window.Echo.leave(channel);
-        };
-    }, [channel]);
-
     const sendMessage = () => {
         if (!body.trim() || cooldownRemaining > 0) {
             return;
@@ -312,12 +190,7 @@ export default function ChatThread({
                     });
 
                     if (slowActive && !isStaff) {
-                        const current = Date.now();
-
-                        setCooldownEndsAt(
-                            current + slow.cooldownSeconds * 1000,
-                        );
-                        setNow(current);
+                        startCooldown(cooldownSeconds);
                     }
                 },
                 onError: (errors) => {
@@ -327,10 +200,7 @@ export default function ChatThread({
                     const wait = Number(errors.slow_mode_wait);
 
                     if (wait > 0) {
-                        const current = Date.now();
-
-                        setCooldownEndsAt(current + wait * 1000);
-                        setNow(current);
+                        startCooldown(wait);
                         setError(null);
 
                         return;
@@ -572,197 +442,37 @@ export default function ChatThread({
             )}
 
             {pinnedOpen && pinned.length > 0 && (
-                <div
-                    id="pinned-messages"
-                    className="border-ink bg-paper shadow-hard-lg absolute top-16 right-4 z-20 flex max-h-96 w-[min(28rem,calc(100%-2rem))] flex-col border-2"
-                >
-                    <div className="border-ink flex items-center justify-between border-b-2 px-4 py-1">
-                        <p className="font-mono text-xs font-semibold tracking-[0.12em] uppercase">
-                            {t('chatThread.pinned')}
-                        </p>
-                        <button
-                            type="button"
-                            onClick={() => setPinnedOpen(false)}
-                            aria-label={t('chatThread.closePinned')}
-                            className="flex size-11 items-center justify-center"
-                        >
-                            <CrossIcon size={18} />
-                        </button>
-                    </div>
-                    <ul className="divide-line flex flex-col divide-y overflow-y-auto">
-                        {pinned.map((message) => (
-                            <li
-                                key={message.id}
-                                className="flex gap-3 px-4 py-3"
-                            >
-                                <Avatar user={message.user} size="sm" />
-                                <button
-                                    type="button"
-                                    onClick={() => jumpToMessage(message.id)}
-                                    className="hover:bg-line/40 min-w-0 flex-1 rounded-none text-left"
-                                >
-                                    <p className="text-sm font-semibold">
-                                        {message.user.name}
-                                    </p>
-                                    <p className="text-base break-words whitespace-pre-wrap">
-                                        {message.body}
-                                    </p>
-                                </button>
-                                {moderation && (
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            togglePin(message.id, true)
-                                        }
-                                        className="shrink-0 self-start text-sm font-semibold underline underline-offset-4"
-                                    >
-                                        {t('chatThread.unpin')}
-                                    </button>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
+                <PinnedPanel
+                    pinned={pinned}
+                    canUnpin={moderation !== undefined}
+                    onClose={() => setPinnedOpen(false)}
+                    onJump={jumpToMessage}
+                    onUnpin={(id) => togglePin(id, true)}
+                />
             )}
 
             {customMute && (
-                <div
-                    className="bg-ink/50 fixed inset-0 z-50 flex items-center justify-center p-4"
-                    onClick={() => setCustomMute(null)}
-                >
-                    <form
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="custom-mute-title"
-                        onSubmit={submitCustomMute}
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Escape') {
-                                setCustomMute(null);
-                            }
-                        }}
-                        className="border-ink bg-paper shadow-hard-lg flex w-full max-w-sm flex-col gap-4 border-2 p-5"
-                    >
-                        <p
-                            id="custom-mute-title"
-                            className="font-mono text-sm font-semibold tracking-[0.12em] uppercase"
-                        >
-                            {t('chatThread.muteCustomTitle', {
-                                name: customMute.name,
-                            })}
-                        </p>
-                        <div className="flex gap-3">
-                            <div className="flex flex-1 flex-col gap-1.5">
-                                <Label htmlFor="custom-mute-amount">
-                                    {t('chatThread.muteAmount')}
-                                </Label>
-                                <TextInput
-                                    id="custom-mute-amount"
-                                    type="number"
-                                    min={1}
-                                    step={1}
-                                    autoFocus
-                                    value={customAmount}
-                                    onChange={(e) =>
-                                        setCustomAmount(e.target.value)
-                                    }
-                                />
-                            </div>
-                            <div className="flex flex-1 flex-col gap-1.5">
-                                <Label htmlFor="custom-mute-unit">
-                                    {t('chatThread.muteUnit')}
-                                </Label>
-                                <Select
-                                    id="custom-mute-unit"
-                                    value={customUnit}
-                                    onChange={(e) =>
-                                        setCustomUnit(Number(e.target.value))
-                                    }
-                                >
-                                    {CUSTOM_MUTE_UNITS.map((u) => (
-                                        <option
-                                            key={u.hoursPer}
-                                            value={u.hoursPer}
-                                        >
-                                            {t(u.labelKey)}
-                                        </option>
-                                    ))}
-                                </Select>
-                            </div>
-                        </div>
-                        {!customMuteValid && (
-                            <p className="text-danger text-sm">
-                                {t('chatThread.muteCustomInvalid')}
-                            </p>
-                        )}
-                        <div className="flex justify-end gap-3">
-                            <Button
-                                variant="ghost"
-                                onClick={() => setCustomMute(null)}
-                            >
-                                {t('chatThread.muteCancel')}
-                            </Button>
-                            <Button type="submit" disabled={!customMuteValid}>
-                                {t('chatThread.muteConfirm')}
-                            </Button>
-                        </div>
-                    </form>
-                </div>
+                <CustomMuteDialog
+                    targetName={customMute.name}
+                    amount={customAmount}
+                    unit={customUnit}
+                    valid={customMuteValid}
+                    onAmountChange={setCustomAmount}
+                    onUnitChange={setCustomUnit}
+                    onSubmit={submitCustomMute}
+                    onClose={() => setCustomMute(null)}
+                />
             )}
 
             {mutedUsersOpen && mutedUsers.length > 0 && (
-                <div
-                    id="muted-users"
-                    className="border-ink bg-paper shadow-hard-lg absolute top-16 right-4 z-20 flex max-h-96 w-[min(28rem,calc(100%-2rem))] flex-col border-2"
-                >
-                    <div className="border-ink flex items-center justify-between border-b-2 px-4 py-1">
-                        <p className="font-mono text-xs font-semibold tracking-[0.12em] uppercase">
-                            {t('chatThread.mutedUsers')}
-                        </p>
-                        <button
-                            type="button"
-                            onClick={() => setMutedUsersOpen(false)}
-                            aria-label={t('chatThread.closeMutedUsers')}
-                            className="flex size-11 items-center justify-center"
-                        >
-                            <CrossIcon size={18} />
-                        </button>
-                    </div>
-                    <ul className="divide-line flex flex-col divide-y overflow-y-auto">
-                        {mutedUsers.map((mutedUser) => (
-                            <li
-                                key={mutedUser.id}
-                                className="flex items-center gap-3 px-4 py-3"
-                            >
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-semibold">
-                                        {mutedUser.name}
-                                    </p>
-                                    <p className="text-muted text-sm">
-                                        {t('chatThread.mutedUserUntil', {
-                                            date: new Date(
-                                                mutedUser.chat_muted_until,
-                                            ).toLocaleString(intlLocale),
-                                        })}
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        unmuteUser(
-                                            mutedUser.id,
-                                            mutedUser.name,
-                                        );
-                                        setMutedUsersOpen(false);
-                                    }}
-                                    className="shrink-0 self-start text-sm font-semibold underline underline-offset-4"
-                                >
-                                    {t('chatThread.unmute')}
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
+                <MutedUsersPanel
+                    mutedUsers={mutedUsers}
+                    onClose={() => setMutedUsersOpen(false)}
+                    onUnmute={(id, name) => {
+                        unmuteUser(id, name);
+                        setMutedUsersOpen(false);
+                    }}
+                />
             )}
 
             <div
@@ -802,253 +512,55 @@ export default function ChatThread({
                                 message.user.role === 'user';
 
                             return (
-                                <li
+                                <MessageRow
                                     key={message.id}
-                                    ref={(el) => {
+                                    message={message}
+                                    liRef={(el) => {
                                         messageRefs.current[message.id] = el;
                                     }}
-                                >
-                                    {newDay && (
-                                        <div
-                                            role="separator"
-                                            className="text-muted my-3 flex items-center gap-3 px-4 font-mono text-xs font-semibold tracking-[0.08em] uppercase lg:px-6"
-                                        >
-                                            <span className="bg-line h-0.5 flex-1" />
-                                            {dayLabel(at)}
-                                            <span className="bg-line h-0.5 flex-1" />
-                                        </div>
+                                    newDay={newDay}
+                                    dayLabel={dayLabel(at)}
+                                    startsGroup={startsGroup}
+                                    isOwn={isOwn}
+                                    canPenalise={canPenalise}
+                                    hasModeration={moderation !== undefined}
+                                    isMuted={mutedUsers.some(
+                                        (u) => u.id === message.user.id,
                                     )}
-                                    <div
-                                        className={`group hover:bg-paper focus-within:bg-paper relative flex gap-4 border-l-4 px-4 transition-colors lg:px-6 ${
-                                            startsGroup
-                                                ? 'mt-3 pt-1 pb-0.5'
-                                                : 'py-0.5'
-                                        } ${openActionsFor === message.id ? 'z-30' : ''} ${message.pinned ? 'border-accent' : 'border-transparent'} ${
-                                            justJumpedTo === message.id
-                                                ? 'bg-accent/20'
-                                                : ''
-                                        }`}
-                                    >
-                                        <div className="w-10 shrink-0">
-                                            {startsGroup ? (
-                                                <Avatar user={message.user} />
-                                            ) : (
-                                                <time
-                                                    dateTime={
-                                                        message.created_at
-                                                    }
-                                                    className="text-faint hidden pt-1 text-right font-mono text-[11px] group-hover:block"
-                                                >
-                                                    {formatTime(
-                                                        message.created_at,
-                                                    )}
-                                                </time>
-                                            )}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            {startsGroup && (
-                                                <p className="flex flex-wrap items-baseline gap-x-2">
-                                                    <span className="font-semibold">
-                                                        {message.user.name}
-                                                    </span>
-                                                    {isOwn && (
-                                                        <span className="text-muted text-sm">
-                                                            (
-                                                            {t(
-                                                                'chatThread.you',
-                                                            )}
-                                                            )
-                                                        </span>
-                                                    )}
-                                                    {message.user.role !==
-                                                        'user' && (
-                                                        <span className="bg-ink text-ground px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-[0.08em] uppercase">
-                                                            {message.user
-                                                                .role ===
-                                                            'admin'
-                                                                ? t(
-                                                                      'chatThread.roleAdmin',
-                                                                  )
-                                                                : t(
-                                                                      'chatThread.roleStaff',
-                                                                  )}
-                                                        </span>
-                                                    )}
-                                                    <time
-                                                        dateTime={
-                                                            message.created_at
-                                                        }
-                                                        className="text-muted font-mono text-xs"
-                                                    >
-                                                        {formatTime(
-                                                            message.created_at,
-                                                        )}
-                                                    </time>
-                                                </p>
-                                            )}
-                                            {message.reply_to && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        jumpToMessage(
-                                                            message.reply_to!
-                                                                .id,
-                                                        )
-                                                    }
-                                                    className="border-line hover:border-ink mb-1 flex max-w-full items-baseline gap-1.5 border-l-2 py-0.5 pl-2 text-left text-sm"
-                                                >
-                                                    <span className="text-muted shrink-0 font-semibold">
-                                                        {
-                                                            message.reply_to
-                                                                .user.name
-                                                        }
-                                                    </span>
-                                                    <span className="text-muted truncate">
-                                                        {message.reply_to.body}
-                                                    </span>
-                                                </button>
-                                            )}
-                                            <p className="text-base break-words whitespace-pre-wrap">
-                                                {message.body}
-                                            </p>
-                                        </div>
-
-                                        {/* Reply is for everyone, so this bar
-                                        always exists now — pin/mute/delete
-                                        are the only parts still gated by
-                                        moderation rights. */}
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setOpenActionsFor((current) =>
-                                                    current === message.id
-                                                        ? null
-                                                        : message.id,
-                                                )
-                                            }
-                                            aria-label={t(
-                                                'chatThread.moreActions',
-                                            )}
-                                            aria-expanded={
-                                                openActionsFor === message.id
-                                            }
-                                            className={`absolute top-1 right-1 flex size-8 items-center justify-center lg:hidden ${
-                                                openActionsFor === message.id
-                                                    ? 'border-ink bg-paper z-40 border-2'
-                                                    : 'text-faint z-20'
-                                            }`}
-                                        >
-                                            {openActionsFor === message.id ? (
-                                                <CrossIcon size={14} />
-                                            ) : (
-                                                <MoreIcon />
-                                            )}
-                                        </button>
-                                        <div
-                                            className={`border-ink bg-paper shadow-hard bg-line absolute top-10 right-1 z-30 max-w-[calc(100%-0.5rem)] flex-wrap items-stretch gap-0.5 border-2 text-xs font-semibold lg:-top-4 lg:right-4 lg:group-focus-within:flex lg:group-hover:flex ${
-                                                openActionsFor === message.id
-                                                    ? 'flex'
-                                                    : 'hidden'
-                                            }`}
-                                        >
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    startReply(message);
-                                                    setOpenActionsFor(null);
-                                                }}
-                                                className="bg-paper hover:bg-accent hover:text-accent-ink flex min-h-9 flex-1 items-center justify-center gap-1.5 px-2.5"
-                                            >
-                                                <ReplyIcon size={14} />
-                                                {t('chatThread.reply')}
-                                            </button>
-                                            {moderation && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        togglePin(
-                                                            message.id,
-                                                            message.pinned,
-                                                        );
-                                                        setOpenActionsFor(null);
-                                                    }}
-                                                    className="bg-paper hover:bg-accent hover:text-accent-ink flex min-h-9 flex-1 items-center justify-center gap-1.5 px-2.5"
-                                                >
-                                                    <PinIcon size={14} />
-                                                    {message.pinned
-                                                        ? t('chatThread.unpin')
-                                                        : t('chatThread.pin')}
-                                                </button>
-                                            )}
-                                            {canPenalise && (
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setCustomMute({
-                                                                id: message.user
-                                                                    .id,
-                                                                name: message
-                                                                    .user.name,
-                                                            });
-                                                            setCustomAmount(
-                                                                '1',
-                                                            );
-                                                            setCustomUnit(1);
-                                                            setOpenActionsFor(
-                                                                null,
-                                                            );
-                                                        }}
-                                                        className="bg-paper hover:bg-accent hover:text-accent-ink min-h-9 flex-1 px-2.5"
-                                                    >
-                                                        {t(
-                                                            'chatThread.muteCustom',
-                                                        )}
-                                                    </button>
-                                                    {mutedUsers.some(
-                                                        (u) =>
-                                                            u.id ===
-                                                            message.user.id,
-                                                    ) && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                unmuteUser(
-                                                                    message.user
-                                                                        .id,
-                                                                    message.user
-                                                                        .name,
-                                                                );
-                                                                setOpenActionsFor(
-                                                                    null,
-                                                                );
-                                                            }}
-                                                            className="bg-paper hover:bg-accent hover:text-accent-ink min-h-9 flex-1 px-2.5"
-                                                        >
-                                                            {t(
-                                                                'chatThread.unmute',
-                                                            )}
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            deleteMessage(
-                                                                message.id,
-                                                            );
-                                                            setOpenActionsFor(
-                                                                null,
-                                                            );
-                                                        }}
-                                                        className="bg-paper text-danger hover:bg-danger-fill min-h-9 flex-1 px-2.5 hover:text-white"
-                                                    >
-                                                        {t('chatThread.delete')}
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                </li>
+                                    actionsOpen={openActionsFor === message.id}
+                                    justJumped={justJumpedTo === message.id}
+                                    formatTime={formatTime}
+                                    onToggleActions={() =>
+                                        setOpenActionsFor((current) =>
+                                            current === message.id
+                                                ? null
+                                                : message.id,
+                                        )
+                                    }
+                                    onReply={(target) => {
+                                        startReply(target);
+                                        setOpenActionsFor(null);
+                                    }}
+                                    onTogglePin={(id, isPinned) => {
+                                        togglePin(id, isPinned);
+                                        setOpenActionsFor(null);
+                                    }}
+                                    onCustomMute={(id, name) => {
+                                        setCustomMute({ id, name });
+                                        setCustomAmount('1');
+                                        setCustomUnit(1);
+                                        setOpenActionsFor(null);
+                                    }}
+                                    onUnmute={(id, name) => {
+                                        unmuteUser(id, name);
+                                        setOpenActionsFor(null);
+                                    }}
+                                    onDelete={(id) => {
+                                        deleteMessage(id);
+                                        setOpenActionsFor(null);
+                                    }}
+                                    onJump={jumpToMessage}
+                                />
                             );
                         })}
                     </ol>
@@ -1071,7 +583,7 @@ export default function ChatThread({
                         {isStaff
                             ? t('chatThread.slowModeStaff')
                             : t('chatThread.slowModeCustomer', {
-                                  seconds: slow.cooldownSeconds,
+                                  seconds: cooldownSeconds,
                               })}
                     </p>
                 )}
@@ -1177,115 +689,5 @@ export default function ChatThread({
                 )}
             </div>
         </section>
-    );
-}
-
-// Boxy initials instead of photos — every rider gets a steady colour picked
-// from their id; staff always get the black-and-yellow one.
-const AVATAR_COLOURS = [
-    'bg-[#ffd400] text-[#16161a]',
-    'bg-[#2f6fed] text-white',
-    'bg-[#1f8a4c] text-white',
-    'bg-[#d7261e] text-white',
-    'bg-[#7c4dcc] text-white',
-    'bg-[#e0701f] text-[#16161a]',
-];
-
-export function Avatar({
-    user,
-    size = 'md',
-}: {
-    user: ChatUser;
-    size?: 'sm' | 'md';
-}) {
-    const initials = user.name
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join('');
-    const colour =
-        user.role === 'user'
-            ? AVATAR_COLOURS[user.id % AVATAR_COLOURS.length]
-            : 'bg-[#16161a] text-[#ffd400] ring-2 ring-inset ring-[#ffd400]';
-
-    return (
-        <span
-            aria-hidden="true"
-            className={`font-display flex shrink-0 items-center justify-center font-black ${colour} ${
-                size === 'sm' ? 'size-8 text-base' : 'size-10 text-xl'
-            }`}
-        >
-            {initials || '?'}
-        </span>
-    );
-}
-
-function MutedIcon({ size = 16 }: { size?: number }) {
-    return (
-        <svg
-            width={size}
-            height={size}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="square"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
-            <path d="M15 9V5a3 3 0 0 0-5.6-1.5M9 9v3a3 3 0 0 0 4.8 2.4M12 18v3M8 21h8M3 3l18 18" />
-        </svg>
-    );
-}
-
-function ReplyIcon({ size = 16 }: { size?: number }) {
-    return (
-        <svg
-            width={size}
-            height={size}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="square"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
-            <path d="M9 10L4 15l5 5M4 15h10a6 6 0 0 0 6-6V7" />
-        </svg>
-    );
-}
-
-function PinIcon({ size = 16 }: { size?: number }) {
-    return (
-        <svg
-            width={size}
-            height={size}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="square"
-            aria-hidden="true"
-        >
-            <path d="M9 3h6l-1 6 4 4H6l4-4zM12 13v8" />
-        </svg>
-    );
-}
-
-function MoreIcon({ size = 16 }: { size?: number }) {
-    return (
-        <svg
-            width={size}
-            height={size}
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
-        >
-            <circle cx="5" cy="12" r="2.2" />
-            <circle cx="12" cy="12" r="2.2" />
-            <circle cx="19" cy="12" r="2.2" />
-        </svg>
     );
 }

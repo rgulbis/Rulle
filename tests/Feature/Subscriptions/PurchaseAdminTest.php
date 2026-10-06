@@ -4,20 +4,28 @@ use App\Filament\Resources\Purchases\Pages\ListPurchases;
 use App\Filament\Widgets\RevenueStats;
 use App\Models\Purchase;
 use App\Models\User;
-use App\Support\StripeRefunds;
 use Livewire\Livewire;
 
 function makePurchase(array $attributes = []): Purchase
 {
     $subscriptionTypeId = $attributes['subscription_type_id'] ?? makeSubscriptionType()->id;
 
-    return Purchase::create(array_merge([
+    $attributes = array_merge([
         'user_id' => User::factory()->create()->id,
         'subscription_type_id' => $subscriptionTypeId,
         'stripe_checkout_session_id' => 'cs_test_'.str()->random(10),
         'price_cents' => 1000,
         'status' => 'active',
-    ], $attributes));
+    ], $attributes);
+
+    // The payment state follows the pass's status unless a test says otherwise.
+    $attributes += match ($attributes['status']) {
+        'active', 'used_up' => ['payment_status' => 'paid', 'stripe_payment_intent_id' => 'pi_test_'.str()->random(8)],
+        'refunded' => ['payment_status' => 'refunded', 'refunded_cents' => $attributes['price_cents']],
+        default => [],
+    };
+
+    return Purchase::create($attributes);
 }
 
 test('an admin can see every purchase, including who made it and what they paid', function () {
@@ -52,11 +60,6 @@ test('refunding a purchase revokes it as soon as its status changes', function (
     $purchase->update(['status' => 'refunded']);
 
     expect($purchase->fresh()->isCurrentlyUsable())->toBeFalse();
-});
-
-test('refunding does nothing and reports no refund when there is no checkout session on record', function () {
-    expect(StripeRefunds::refundCheckoutSession(null))->toBeFalse();
-    expect(StripeRefunds::refundCheckoutSession(''))->toBeFalse();
 });
 
 test('revenue stats only count money actually collected, not pending or refunded purchases', function () {

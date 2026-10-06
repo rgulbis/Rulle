@@ -78,7 +78,7 @@ test('scanning a client with an active purchase toggles check-in and consumes a 
     ]);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
-        'code' => $client->qr_code,
+        'code' => entryCode($client),
         'mode' => 'entry',
     ]);
 
@@ -96,7 +96,7 @@ test('scanning a client with an active purchase toggles check-in and consumes a 
     );
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
-        'code' => $client->qr_code,
+        'code' => entryCode($client),
         'mode' => 'exit',
     ]);
 
@@ -119,7 +119,7 @@ test('a successful scan broadcasts the updated occupancy count for the livestrea
         'visits_remaining' => 2,
     ]);
 
-    $this->actingAs($staff)->postJson('/staff/scan', ['code' => $client->qr_code, 'mode' => 'entry']);
+    $this->actingAs($staff)->postJson('/staff/scan', ['code' => entryCode($client), 'mode' => 'entry']);
 
     Event::assertDispatched(OccupancyUpdated::class);
     // The public headcount, not who's inside — broadcastWith() must never
@@ -133,7 +133,7 @@ test('scanning for entry while already checked in is rejected', function () {
     checkUserIn($client);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
-        'code' => $client->qr_code,
+        'code' => entryCode($client),
         'mode' => 'entry',
     ]);
 
@@ -151,7 +151,7 @@ test('scanning for exit while not checked in is rejected', function () {
     $client = User::factory()->create(['role' => 'user']);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
-        'code' => $client->qr_code,
+        'code' => entryCode($client),
         'mode' => 'exit',
     ]);
 
@@ -180,7 +180,7 @@ test('scanning a client with an unlimited-entries day pass allows repeated entri
     // or decrement anything, since the pass is unlimited for the day.
     for ($i = 0; $i < 4; $i++) {
         $response = $this->actingAs($staff)->postJson('/staff/scan', [
-            'code' => $client->qr_code,
+            'code' => entryCode($client),
             'mode' => $i % 2 === 0 ? 'entry' : 'exit',
         ]);
 
@@ -209,7 +209,7 @@ test('scanning a client with no active subscription denies entry', function () {
     $client = User::factory()->create(['role' => 'user']);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
-        'code' => $client->qr_code,
+        'code' => entryCode($client),
         'mode' => 'entry',
     ]);
 
@@ -234,7 +234,7 @@ test('scanning a client with unverified email denies entry even with active acce
     ]);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
-        'code' => $client->qr_code,
+        'code' => entryCode($client),
         'mode' => 'entry',
     ]);
 
@@ -252,7 +252,7 @@ test('checking out does not require an active subscription', function () {
     checkUserIn($client);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
-        'code' => $client->qr_code,
+        'code' => entryCode($client),
         'mode' => 'exit',
     ]);
 
@@ -294,7 +294,7 @@ test('a customer outside an active reservation is denied entry', function () {
     ]);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
-        'code' => $outsider->qr_code,
+        'code' => entryCode($outsider),
         'mode' => 'entry',
     ]);
 
@@ -308,7 +308,7 @@ test('the reservation owner can still enter during their own reservation', funct
     makeActiveReservation($owner);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
-        'code' => $owner->qr_code,
+        'code' => entryCode($owner),
         'mode' => 'entry',
     ]);
 
@@ -323,7 +323,7 @@ test('a reservation participant can still enter during the reservation', functio
     $reservation->participants()->attach($participant->id);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
-        'code' => $participant->qr_code,
+        'code' => entryCode($participant),
         'mode' => 'entry',
     ]);
 
@@ -349,7 +349,7 @@ test('staff can still enter during an active reservation', function () {
     ]);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
-        'code' => $staff->qr_code,
+        'code' => entryCode($staff),
         'mode' => 'entry',
     ]);
 
@@ -365,7 +365,7 @@ test('reservation exclusivity does not block checking out', function () {
     checkUserIn($outsider);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
-        'code' => $outsider->qr_code,
+        'code' => entryCode($outsider),
         'mode' => 'exit',
     ]);
 

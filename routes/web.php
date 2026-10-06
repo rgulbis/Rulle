@@ -27,6 +27,7 @@ Route::get('livestream', [LivestreamController::class, 'index'])->name('livestre
 
 Route::middleware(['auth', 'customer-only'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('dashboard/entry-token', [DashboardController::class, 'entryToken'])->middleware('throttle:30,1,entry-token')->name('dashboard.entry-token');
 });
 
 Route::middleware('auth')->group(function () {
@@ -41,7 +42,7 @@ Route::middleware('auth')->group(function () {
 // verified email, same bar as subscriptions/reservations.
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
-    Route::post('chat', [ChatController::class, 'store'])->name('chat.store');
+    Route::post('chat', [ChatController::class, 'store'])->middleware('throttle:20,1,global-chat')->name('chat.store');
     Route::delete('chat/{globalMessage}', [ChatController::class, 'destroy'])->name('chat.destroy');
     Route::post('chat/{globalMessage}/pin', [ChatController::class, 'pin'])->name('chat.pin');
     Route::delete('chat/{globalMessage}/pin', [ChatController::class, 'unpin'])->name('chat.unpin');
@@ -66,15 +67,17 @@ Route::middleware(['auth', 'customer-only', 'verified', 'throttle:30,1'])->group
     Route::get('reservations', [ReservationController::class, 'index'])->name('reservations.index');
     Route::post('reservations', [ReservationController::class, 'store'])->name('reservations.store');
     Route::get('reservations/success', [ReservationController::class, 'success'])->name('reservations.success');
-    Route::get('reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->name('reservations.cancel');
+    Route::delete('reservations/{reservation}', [ReservationController::class, 'cancel'])->name('reservations.cancel');
     Route::post('reservations/{reservation}/resume', [ReservationController::class, 'resume'])->name('reservations.resume');
-    Route::get('reservations/users/search', [ReservationController::class, 'searchUsers'])->name('reservations.users.search');
+    Route::get('reservations/users/search', [ReservationController::class, 'searchUsers'])->middleware('throttle:20,1,user-search')->name('reservations.users.search');
     Route::post('reservations/{reservation}/participants', [ReservationController::class, 'addParticipant'])->name('reservations.participants.add');
     Route::delete('reservations/{reservation}/participants/{participant}', [ReservationController::class, 'removeParticipant'])->name('reservations.participants.remove');
+    Route::post('reservations/{reservation}/invitation', [ReservationController::class, 'acceptInvitation'])->name('reservations.invitation.accept');
+    Route::delete('reservations/{reservation}/invitation', [ReservationController::class, 'declineInvitation'])->name('reservations.invitation.decline');
     Route::post('reservations/{reservation}/leave', [ReservationController::class, 'leave'])->name('reservations.leave');
 
     Route::get('reservations/{reservation}/chat', [ReservationChatController::class, 'show'])->name('reservations.chat.show');
-    Route::post('reservations/{reservation}/chat', [ReservationChatController::class, 'store'])->name('reservations.chat.store');
+    Route::post('reservations/{reservation}/chat', [ReservationChatController::class, 'store'])->middleware('throttle:20,1,reservation-chat')->name('reservations.chat.store');
     Route::delete('reservations/{reservation}/chat/{message}', [ReservationChatController::class, 'destroy'])->name('reservations.chat.destroy');
     Route::post('reservations/{reservation}/chat/{message}/pin', [ReservationChatController::class, 'pin'])->name('reservations.chat.pin');
     Route::delete('reservations/{reservation}/chat/{message}/pin', [ReservationChatController::class, 'unpin'])->name('reservations.chat.unpin');

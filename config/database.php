@@ -52,7 +52,11 @@ return [
             'busy_timeout' => 5000,
             'journal_mode' => 'wal',
             'synchronous' => 'normal',
-            'transaction_mode' => 'DEFERRED',
+            // IMMEDIATE takes SQLite's write lock when a transaction begins, not at
+            // its first write — so a read-check-then-write (overlap checks, visit
+            // decrements, ...) inside DB::transaction() can't interleave with
+            // another request doing the same. lockForUpdate() is a no-op here.
+            'transaction_mode' => 'IMMEDIATE',
         ],
 
         'mysql' => [

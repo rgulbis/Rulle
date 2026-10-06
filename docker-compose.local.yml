@@ -1,0 +1,14 @@
+# Local-only override: publishes the services on 127.0.0.1 (never on the
+# machine's other interfaces). Not used by the production deploy.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+services:
+    app:
+        ports:
+            - '127.0.0.1:8080:8000'
+    reverb:
+        ports:
+            - '127.0.0.1:8081:8080'
+    mediamtx:
+        ports:
+            - '127.0.0.1:8888:8888'

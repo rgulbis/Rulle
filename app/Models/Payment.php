@@ -12,18 +12,19 @@ use Illuminate\Support\Carbon;
  * a single ledger. Nothing ever saves one of these — there's no table to
  * write to, only the view.
  *
- * A subscription row's amount is that plan's *current* price, not
- * necessarily what was actually charged historically (Stripe doesn't mirror
- * invoice amounts locally, and this view only reads local tables) — correct
- * for an active subscriber, approximate for one whose plan was repriced
- * since they joined.
+ * A subscription row's amount is the price recorded when Stripe reported
+ * that subscription (`subscriptions.price_cents`), so a later change to the
+ * plan's price doesn't rewrite history; only subscriptions that predate that
+ * column fall back to the plan's current price.
  *
  * @property string $id
  * @property string $type 'purchase' | 'reservation' | 'subscription'
  * @property int $user_id
  * @property string $description
  * @property int $amount_cents
- * @property string $status
+ * @property string $status lifecycle status of the item
+ * @property string $payment_status unpaid | paid | refund_pending | refunded | refund_failed
+ * @property int $refunded_cents
  * @property Carbon $created_at
  */
 class Payment extends Model
@@ -40,6 +41,7 @@ class Payment extends Model
     {
         return [
             'amount_cents' => 'integer',
+            'refunded_cents' => 'integer',
             'created_at' => 'datetime',
         ];
     }
@@ -49,6 +51,7 @@ class Payment extends Model
      */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        // Closed accounts are soft-deleted; their history keeps pointing at them.
+        return $this->belongsTo(User::class)->withTrashed();
     }
 }

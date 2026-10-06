@@ -1,5 +1,4 @@
 {
-    "No user matches this QR code.": "Šim QR kodam neatbilst neviens lietotājs.",
     "Already checked in.": "Jau ir parkā.",
     "Not currently checked in.": "Pašlaik nav parkā.",
     "Email not verified.": "E-pasts nav apstiprināts.",
@@ -11,5 +10,9 @@
     "This reservation is already at its paid group size.": "Šī rezervācija jau ir sasniegusi apmaksāto grupas lielumu.",
     "You are muted from chat.": "Jūs esat apklusināts tērzētavā.",
     "You are muted from this group chat.": "Jūs esat apklusināts šajā grupas tērzētavā.",
-    "That contains language that isn't allowed here.": "Tas satur valodu, kas šeit nav atļauta."
+    "That contains language that isn't allowed here.": "Tas satur valodu, kas šeit nav atļauta.",
+    "This QR code is invalid or has expired — ask the customer to reload their pass.": "Šis QR kods nav derīgs vai ir beidzies — lūdziet klientam atsvaidzināt caurlaidi.",
+    "This QR code was already used — ask the customer to reload their pass.": "Šis QR kods jau ir izmantots — lūdziet klientam atsvaidzināt caurlaidi.",
+    "This group chat is closed.": "Šis grupas čats ir slēgts.",
+    "Please wait a moment before sending another message.": "Lūdzu, uzgaidiet brīdi pirms nākamās ziņas."
 }

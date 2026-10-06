@@ -63,6 +63,19 @@ class PaymentsTable
                         'refunded', 'cancelled', 'canceled', 'incomplete_expired', 'unpaid' => 'danger',
                         default => 'gray',
                     }),
+                TextColumn::make('payment_status')
+                    ->label('Payment')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'paid' => 'success',
+                        'refunded' => 'info',
+                        'refund_pending', 'refund_failed' => 'danger',
+                        default => 'gray',
+                    }),
+                TextColumn::make('refunded_cents')
+                    ->label('Refunded')
+                    ->formatStateUsing(fn (int $state): string => $state > 0 ? number_format($state / 100, 2).' €' : '—')
+                    ->color('gray'),
                 TextColumn::make('created_at')
                     ->label('Date')
                     ->dateTime('Y-m-d H:i')
@@ -76,6 +89,14 @@ class PaymentsTable
                         'purchase' => 'One-time passes',
                         'reservation' => 'Reservations',
                         'subscription' => 'Subscriptions',
+                    ]),
+                SelectFilter::make('payment_status')
+                    ->options([
+                        'paid' => 'Paid',
+                        'refunded' => 'Refunded',
+                        'refund_pending' => 'Refund pending',
+                        'refund_failed' => 'Refund failed',
+                        'unpaid' => 'Unpaid',
                     ]),
             ]);
     }

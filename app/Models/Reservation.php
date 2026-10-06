@@ -20,8 +20,14 @@ use Illuminate\Support\Carbon;
  * @property int $price_cents
  * @property string $status
  * @property string|null $stripe_checkout_session_id
+ * @property string $payment_status
+ * @property string|null $stripe_payment_intent_id
+ * @property Carbon|null $paid_at
+ * @property int $refunded_cents
+ * @property Carbon|null $refunded_at
+ * @property Carbon|null $cancelled_at
  */
-#[Fillable(['user_id', 'starts_at', 'ends_at', 'group_size', 'price_cents', 'status', 'stripe_checkout_session_id'])]
+#[Fillable(['user_id', 'starts_at', 'ends_at', 'group_size', 'price_cents', 'status', 'stripe_checkout_session_id', 'payment_status', 'stripe_payment_intent_id', 'paid_at', 'refunded_cents', 'refunded_at', 'cancelled_at'])]
 class Reservation extends Model
 {
     protected function casts(): array
@@ -31,6 +37,10 @@ class Reservation extends Model
             'ends_at' => 'datetime',
             'group_size' => 'integer',
             'price_cents' => 'integer',
+            'paid_at' => 'datetime',
+            'refunded_cents' => 'integer',
+            'refunded_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -39,20 +49,44 @@ class Reservation extends Model
      */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        // Closed accounts are soft-deleted; their history keeps pointing at them.
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     /**
-     * Everyone besides the owner who's part of this reservation.
+     * Everyone besides the owner who has *accepted* being part of this
+     * reservation. Group chat, entry and every access check go through this;
+     * a pending invitation grants nothing.
      *
      * @return BelongsToMany<User, $this, ReservationParticipant>
      */
     public function participants(): BelongsToMany
     {
+        return $this->allParticipants()->wherePivot('status', 'accepted');
+    }
+
+    /**
+     * People invited who haven't answered yet.
+     *
+     * @return BelongsToMany<User, $this, ReservationParticipant>
+     */
+    public function invitedUsers(): BelongsToMany
+    {
+        return $this->allParticipants()->wherePivot('status', 'invited');
+    }
+
+    /**
+     * Accepted and invited alike — used where a seat is being counted or an
+     * invitation created, withdrawn or answered.
+     *
+     * @return BelongsToMany<User, $this, ReservationParticipant>
+     */
+    public function allParticipants(): BelongsToMany
+    {
         return $this->belongsToMany(User::class)
             ->using(ReservationParticipant::class)
             ->withTimestamps()
-            ->withPivot('chat_muted_until');
+            ->withPivot('chat_muted_until', 'status', 'responded_at');
     }
 
     public function includesParticipant(User $user): bool
@@ -84,7 +118,27 @@ class Reservation extends Model
      */
     public function hasParticipantCapacity(): bool
     {
-        return $this->participants()->count() < $this->group_size - 1;
+        // Pending invitations hold a seat too.
+        return $this->allParticipants()->count() < $this->group_size - 1;
+    }
+
+    /**
+     * Whether the group chat can be opened: only for a paid, live
+     * reservation, and only until it has been over for a week (the same
+     * window the chat sidebar lists it for). Cancelled or pending
+     * reservations have no chat.
+     */
+    public function chatIsReadable(): bool
+    {
+        return $this->status === 'active' && $this->ends_at->gt(now()->subDays(7));
+    }
+
+    /**
+     * Posting stops shortly after the session ends.
+     */
+    public function chatIsWritable(): bool
+    {
+        return $this->status === 'active' && $this->ends_at->gt(now()->subHours(2));
     }
 
     public function isUpcomingOrOngoing(): bool
@@ -127,7 +181,7 @@ class Reservation extends Model
                 $query->where('user_id', $user->id)
                     ->orWhereHas('participants', fn ($q) => $q->whereKey($user->id));
             })
-            ->where('status', '!=', 'cancelled')
+            ->where('status', 'active')
             ->where('ends_at', '>', now()->subDays(7))
             ->orderBy('starts_at')
             ->get(['id', 'starts_at', 'ends_at']);

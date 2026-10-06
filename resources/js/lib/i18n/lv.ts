@@ -51,6 +51,8 @@ const lv: Record<TranslationKey, string> = {
         'Rezervācija atcelta un nauda atmaksāta.',
     'reservations.statusCancelledNoRefund':
         'Rezervācija atcelta, bet tas bija pārāk tuvu sākuma laikam, lai atmaksātu naudu.',
+    'reservations.statusCancelledRefundPending':
+        'Rezervācija atcelta. Naudas atmaksu pašlaik neizdevās veikt; tā tiks automātiski atkārtota, un nauda tiks atmaksāta.',
     'reservations.statusCannotCancel':
         'Šī rezervācija jau ir sākusies, un to vairs nevar atcelt.',
     'reservations.statusSlotTaken':
@@ -83,8 +85,17 @@ const lv: Record<TranslationKey, string> = {
         'Pamest šo rezervāciju? Jūs zaudēsiet piekļuvi tās grupas čatam, un atpakaļ jūs var pievienot tikai īpašnieks.',
     'reservations.groupFull':
         'Šīs rezervācijas grupa ir pilna — noņemiet kādu vai izveidojiet jaunu rezervāciju vairāk cilvēkiem.',
-    'reservations.searchPlaceholder':
-        'Meklēt pēc vārda vai e-pasta, lai pievienotu draugu',
+    'reservations.searchPlaceholder': 'Meklēt pēc vārda, lai uzaicinātu draugu',
+    'reservations.invitations': 'Ielūgumi',
+    'reservations.invitedBy': '{name} jūs uzaicināja uz rezervāciju',
+    'reservations.accept': 'Pieņemt',
+    'reservations.decline': 'Noraidīt',
+    'reservations.invitedLabel': 'uzaicināts',
+    'reservations.withdraw': 'Atsaukt',
+    'reservations.statusInvited':
+        'Ielūgums nosūtīts. Cilvēks pievienosies grupai, kad to pieņems.',
+    'reservations.statusInvitationAccepted': 'Jūs pievienojāties rezervācijai.',
+    'reservations.statusInvitationDeclined': 'Ielūgums noraidīts.',
     'reservations.searching': 'Meklē…',
     'reservations.add': 'Pievienot',
     'reservations.selectDayHint':

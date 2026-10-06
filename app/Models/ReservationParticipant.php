@@ -23,7 +23,8 @@ class ReservationParticipant extends Pivot
      */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        // Closed accounts are soft-deleted; their history keeps pointing at them.
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     protected function casts(): array

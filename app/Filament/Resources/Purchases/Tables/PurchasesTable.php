@@ -3,8 +3,9 @@
 namespace App\Filament\Resources\Purchases\Tables;
 
 use App\Models\Purchase;
-use App\Support\StripeRefunds;
+use App\Support\Payments\Refunds;
 use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -31,6 +32,15 @@ class PurchasesTable
                         'active' => 'success',
                         'pending' => 'warning',
                         'refunded' => 'danger',
+                        default => 'gray',
+                    }),
+                TextColumn::make('payment_status')
+                    ->label('Payment')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'paid' => 'success',
+                        'refunded' => 'info',
+                        'refund_pending', 'refund_failed' => 'danger',
                         default => 'gray',
                     }),
                 TextColumn::make('visits_remaining')
@@ -63,9 +73,11 @@ class PurchasesTable
                     ->modalDescription('This issues a real Stripe refund for what the customer paid and revokes their entry from this pass.')
                     ->visible(fn (Purchase $record) => $record->status === 'active')
                     ->action(function (Purchase $record) {
-                        StripeRefunds::refundCheckoutSession($record->stripe_checkout_session_id);
+                        $refunded = app(Refunds::class)->refundPurchase($record);
 
-                        $record->update(['status' => 'refunded']);
+                        $refunded
+                            ? Notification::make()->title('Refunded')->success()->send()
+                            : Notification::make()->title('Refund failed — the pass is revoked and the refund will be retried')->danger()->send();
                     }),
             ]);
     }

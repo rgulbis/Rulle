@@ -20,7 +20,7 @@ class ReservationChatController extends Controller
     public function show(Request $request, Reservation $reservation): Response
     {
         $user = $request->user();
-        abort_unless($reservation->includesParticipant($user), 403);
+        abort_unless($reservation->includesParticipant($user) && $reservation->chatIsReadable(), 403);
 
         $messages = ChatMessage::with(['user:id,name,role', 'replyTo.user:id,name,role'])
             ->where('reservation_id', $reservation->id)
@@ -71,7 +71,13 @@ class ReservationChatController extends Controller
     public function store(Request $request, Reservation $reservation): RedirectResponse
     {
         $user = $request->user();
-        abort_unless($reservation->includesParticipant($user), 403);
+        abort_unless($reservation->includesParticipant($user) && $reservation->chatIsReadable(), 403);
+
+        if (! $reservation->chatIsWritable()) {
+            return back()->withErrors([
+                'body' => __('This group chat is closed.'),
+            ]);
+        }
 
         if (! $reservation->isOwnedBy($user)) {
             $mutedUntil = $reservation->participantMutedUntil($user);

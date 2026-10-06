@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Subscriptions;
 use App\Http\Controllers\Controller;
 use App\Models\Purchase;
 use App\Models\SubscriptionType;
+use App\Models\User;
+use App\Support\Payments\CheckoutFulfillment;
+use App\Support\Payments\StripeGateway;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -12,10 +15,16 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Cashier\Cashier;
 use Laravel\Cashier\Subscription;
+use Stripe\Exception\ApiErrorException;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class SubscriptionController extends Controller
 {
+    public function __construct(
+        private CheckoutFulfillment $fulfillment,
+        private StripeGateway $stripe,
+    ) {}
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -122,35 +131,22 @@ class SubscriptionController extends Controller
         Request $request,
         SubscriptionType $subscriptionType,
     ): SymfonyResponse {
-        abort_unless($subscriptionType->active && $subscriptionType->stripe_price_id, 404);
+        abort_unless($subscriptionType->active && $subscriptionType->stripe_price_id && $subscriptionType->isSellable(), 404);
 
         $user = $request->user();
 
-        if ($subscriptionType->isRecurring()) {
-            $alreadySubscribed = $user->subscribed('default')
-                && ! $user->subscription('default')->canceled();
-
-            abort_if($alreadySubscribed, 409, 'You already have an active subscription.');
-        }
-
         $successUrl = route('subscriptions.success').'?session_id={CHECKOUT_SESSION_ID}';
-        $cancelUrl = route('subscriptions.cancel').'?session_id={CHECKOUT_SESSION_ID}';
+        $cancelUrl = route('subscriptions.cancel');
 
         if ($subscriptionType->isRecurring()) {
-            $session = $user->newSubscription('default', $subscriptionType->stripe_price_id)
-                ->checkout(['success_url' => $successUrl, 'cancel_url' => $cancelUrl])
-                ->asStripeCheckoutSession();
-
-            // Inertia can't follow a plain redirect to an external domain (it
-            // would try to XHR-fetch Stripe's page); Inertia::location does
-            // a full browser navigation instead.
-            return Inertia::location($session->url);
+            return $this->recurringCheckout($user, $subscriptionType, $successUrl, $cancelUrl);
         }
 
         $session = $user->checkout([$subscriptionType->stripe_price_id => 1], [
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
             'mode' => 'payment',
+            'expires_at' => now()->addMinutes(30)->timestamp,
         ])->asStripeCheckoutSession();
 
         Purchase::create([
@@ -164,24 +160,91 @@ class SubscriptionController extends Controller
         return Inertia::location($session->url);
     }
 
+    /**
+     * Two simultaneous clicks must not produce two Stripe Checkout sessions
+     * (and so potentially two paid subscriptions): a per-user lock covers the
+     * check-then-create window, and while a session from an earlier click is
+     * still open the customer is sent back to that one instead.
+     */
+    private function recurringCheckout(
+        User $user,
+        SubscriptionType $subscriptionType,
+        string $successUrl,
+        string $cancelUrl,
+    ): SymfonyResponse {
+        $lock = Cache::lock("subscription-checkout:{$user->id}", 30);
+
+        abort_unless($lock->get(), 429, 'A checkout is already being started.');
+
+        try {
+            $alreadySubscribed = $user->subscribed('default')
+                && ! $user->subscription('default')->canceled();
+
+            abort_if($alreadySubscribed, 409, 'You already have an active subscription.');
+
+            $openKey = "subscription-checkout-open:{$user->id}:{$subscriptionType->id}";
+            $openSessionId = Cache::get($openKey);
+
+            if (is_string($openSessionId)) {
+                $open = $this->stripe->checkoutSession($openSessionId);
+
+                if ($open->status === 'open' && $open->url) {
+                    return Inertia::location($open->url);
+                }
+            }
+
+            $session = $user->newSubscription('default', $subscriptionType->stripe_price_id)
+                ->checkout([
+                    'success_url' => $successUrl,
+                    'cancel_url' => $cancelUrl,
+                    'expires_at' => now()->addMinutes(30)->timestamp,
+                ])
+                ->asStripeCheckoutSession();
+
+            Cache::put($openKey, $session->id, now()->addMinutes(30));
+
+            // Inertia can't follow a plain redirect to an external domain (it
+            // would try to XHR-fetch Stripe's page); Inertia::location does
+            // a full browser navigation instead.
+            return Inertia::location($session->url);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Where Stripe sends the browser after paying. The
+     * `checkout.session.completed` webhook is what actually activates a
+     * pass; this just shows the result (fulfilling it first if the webhook is
+     * late). Only the pass's own buyer can look up a session here.
+     */
     public function success(Request $request): RedirectResponse
     {
+        $user = $request->user();
         $sessionId = $request->query('session_id');
         $completed = false;
 
-        if ($sessionId) {
-            $session = Cashier::stripe()->checkout->sessions->retrieve($sessionId);
-            $completed = $session->status === 'complete';
+        if (is_string($sessionId)) {
+            try {
+                $session = $this->stripe->checkoutSession($sessionId);
+            } catch (ApiErrorException) {
+                $session = null;
+            }
 
-            if ($completed && $session->payment_status === 'paid') {
-                $purchase = Purchase::where('stripe_checkout_session_id', $sessionId)->first();
+            // Ownership: a one-time pass checkout is tied to its buyer by the
+            // local Purchase row; a recurring one (no row — Cashier syncs it
+            // by webhook) by the Stripe customer on the session.
+            $purchase = Purchase::where('stripe_checkout_session_id', $sessionId)
+                ->where('user_id', $user->id)
+                ->first();
+            $owned = $purchase !== null
+                || ($session && $session->customer && $session->customer === $user->stripe_id);
 
-                if ($purchase && $purchase->status === 'pending') {
-                    $purchase->update([
-                        'status' => 'active',
-                        'visits_remaining' => $purchase->subscriptionType->visit_limit,
-                        'valid_date' => now()->toDateString(),
-                    ]);
+            if ($session && $owned) {
+                $completed = $session->status === 'complete';
+
+                if ($purchase && $completed && $session->payment_status === 'paid') {
+                    $this->fulfillment->fulfill($sessionId, is_string($session->payment_intent) ? $session->payment_intent : null);
                 }
             }
         }
@@ -190,21 +253,14 @@ class SubscriptionController extends Controller
             ->with('status', $completed ? 'purchase-complete' : 'purchase-incomplete');
     }
 
-    public function cancel(Request $request): RedirectResponse
+    /**
+     * Stripe sends the browser here by GET if the customer backs out of
+     * Checkout. Read-only on purpose: an abandoned pass checkout is cleaned
+     * up by the `checkout.session.expired` webhook, not by a link anyone could
+     * be tricked into opening.
+     */
+    public function cancel(): RedirectResponse
     {
-        // Marks it abandoned right away rather than waiting on
-        // StripeWebhookController's handleCheckoutSessionExpired, which
-        // only fires once Stripe's own session expiry (by default, 24
-        // hours) is reached — that's still the backstop for someone who
-        // just closes the tab instead of clicking back from Stripe.
-        $sessionId = $request->query('session_id');
-
-        if ($sessionId) {
-            Purchase::where('stripe_checkout_session_id', $sessionId)
-                ->where('status', 'pending')
-                ->update(['status' => 'abandoned']);
-        }
-
         return redirect()->route('subscriptions.index')->with('status', 'purchase-cancelled');
     }
 }

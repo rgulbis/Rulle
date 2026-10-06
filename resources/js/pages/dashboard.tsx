@@ -99,7 +99,6 @@ export default function Dashboard({ status, pass, nextReservation }: Props) {
                 <div className="grid gap-6 lg:grid-cols-12">
                     <EntryPass
                         verified={!!auth.user.email_verified_at}
-                        qrCode={auth.user.qr_code}
                         checkedIn={checkedIn}
                     />
 
@@ -113,16 +112,66 @@ export default function Dashboard({ status, pass, nextReservation }: Props) {
     );
 }
 
+/**
+ * The pass's QR code is a short-lived signed token, not a fixed ID — a
+ * screenshot of it stops working within a minute. Refreshed well before it
+ * expires, and again whenever the page becomes visible.
+ */
+function useEntryToken(enabled: boolean): string {
+    const [token, setToken] = useState('');
+
+    useEffect(() => {
+        if (!enabled) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const refresh = async () => {
+            try {
+                const response = await fetch('/dashboard/entry-token', {
+                    headers: { Accept: 'application/json' },
+                    cache: 'no-store',
+                });
+
+                if (response.ok && !cancelled) {
+                    setToken((await response.json()).token);
+                }
+            } catch {
+                // Offline for a moment — the previous code stays until the
+                // next attempt.
+            }
+        };
+
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') {
+                void refresh();
+            }
+        };
+
+        void refresh();
+        const timer = window.setInterval(refresh, 15_000);
+        document.addEventListener('visibilitychange', onVisible);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
+    }, [enabled]);
+
+    return token;
+}
+
 function EntryPass({
     verified,
-    qrCode,
     checkedIn,
 }: {
     verified: boolean;
-    qrCode: string;
     checkedIn: boolean;
 }) {
     const { t } = useTranslation();
+    const qrCode = useEntryToken(verified);
 
     return (
         <section className="border-ink flex flex-col border-2 bg-[#16161a] text-[#f7f6f2] lg:col-span-5">

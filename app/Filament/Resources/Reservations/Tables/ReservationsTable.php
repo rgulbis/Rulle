@@ -3,8 +3,9 @@
 namespace App\Filament\Resources\Reservations\Tables;
 
 use App\Models\Reservation;
-use App\Support\StripeRefunds;
+use App\Support\Payments\ReservationBooking;
 use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -41,6 +42,15 @@ class ReservationsTable
                         'pending' => 'warning',
                         default => 'gray',
                     }),
+                TextColumn::make('payment_status')
+                    ->label('Payment')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'paid' => 'success',
+                        'refunded' => 'info',
+                        'refund_pending', 'refund_failed' => 'danger',
+                        default => 'gray',
+                    }),
             ])
             ->defaultSort('starts_at', 'desc')
             ->filters([
@@ -64,11 +74,13 @@ class ReservationsTable
                         // refunded here, without the cancellation-cutoff
                         // grace window that only exists to discourage
                         // last-minute customer-initiated cancellations.
-                        if ($record->status === 'active' && $record->starts_at->isFuture()) {
-                            StripeRefunds::refundCheckoutSession($record->stripe_checkout_session_id);
-                        }
+                        $outcome = app(ReservationBooking::class)->cancel($record, refundRegardless: true);
 
-                        $record->update(['status' => 'cancelled']);
+                        match ($outcome) {
+                            'refund-pending' => Notification::make()->title('Cancelled — the refund failed and will be retried')->danger()->send(),
+                            'cannot-cancel' => Notification::make()->title('This reservation has already started')->warning()->send(),
+                            default => Notification::make()->title('Reservation cancelled')->success()->send(),
+                        };
                     }),
             ]);
     }

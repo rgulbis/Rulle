@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    // Browser-test mode (see AppServiceProvider::registerE2eMode()): a fake
+    // Stripe and its payment page. Must never be on in production.
+    'e2e' => (bool) env('E2E_MODE', false),
+
 ];

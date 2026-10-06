@@ -46,6 +46,12 @@ type MyReservation = TimeRange & {
     status: 'pending' | 'active' | 'cancelled';
     is_owner: boolean;
     participants: Participant[];
+    invited: Participant[];
+};
+
+type Invitation = TimeRange & {
+    group_size: number;
+    owner_name: string;
 };
 
 type Props = {
@@ -53,6 +59,7 @@ type Props = {
     peakHours: number[];
     upcoming: TimeRange[];
     mine: MyReservation[];
+    invitations: Invitation[];
     status?: string;
 };
 
@@ -165,6 +172,7 @@ export default function ReservationsIndex({
     peakHours,
     upcoming,
     mine,
+    invitations,
     status,
 }: Props) {
     const { t, intlLocale } = useTranslation();
@@ -240,7 +248,15 @@ export default function ReservationsIndex({
 
     const cancelReservation = (reservationId: number) => {
         if (confirm(t('reservations.confirmCancel'))) {
-            router.get(`/reservations/${reservationId}/cancel`);
+            router.delete(`/reservations/${reservationId}`);
+        }
+    };
+
+    const answerInvitation = (reservationId: number, accept: boolean) => {
+        if (accept) {
+            router.post(`/reservations/${reservationId}/invitation`);
+        } else {
+            router.delete(`/reservations/${reservationId}/invitation`);
         }
     };
 
@@ -263,9 +279,15 @@ export default function ReservationsIndex({
         'reservation-cancelled-no-refund': t(
             'reservations.statusCancelledNoRefund',
         ),
+        'reservation-cancelled-refund-pending': t(
+            'reservations.statusCancelledRefundPending',
+        ),
         'reservation-cannot-cancel': t('reservations.statusCannotCancel'),
         'reservation-slot-taken': t('reservations.statusSlotTaken'),
         'reservation-left': t('reservations.statusLeft'),
+        'participant-invited': t('reservations.statusInvited'),
+        'invitation-accepted': t('reservations.statusInvitationAccepted'),
+        'invitation-declined': t('reservations.statusInvitationDeclined'),
     };
 
     const statusTone = (key: string) =>
@@ -273,7 +295,8 @@ export default function ReservationsIndex({
         key === 'reservation-cannot-cancel' ||
         key === 'reservation-slot-taken'
             ? 'error'
-            : key === 'reservation-cancelled-no-refund'
+            : key === 'reservation-cancelled-no-refund' ||
+                key === 'reservation-cancelled-refund-pending'
               ? 'warning'
               : 'info';
 
@@ -441,6 +464,65 @@ export default function ReservationsIndex({
                     </section>
                 </div>
 
+                {invitations.length > 0 && (
+                    <section className="mt-16">
+                        <h2 className="font-display mb-6 text-5xl font-black uppercase">
+                            {t('reservations.invitations')}
+                        </h2>
+                        <div className="grid gap-6 md:grid-cols-2">
+                            {invitations.map((invitation) => (
+                                <article
+                                    key={invitation.id}
+                                    className="border-ink bg-paper flex flex-col border-2 p-6"
+                                >
+                                    <p className="text-lg font-semibold">
+                                        {t('reservations.invitedBy', {
+                                            name: invitation.owner_name,
+                                        })}
+                                    </p>
+                                    <p className="text-muted mt-1 text-base">
+                                        {new Date(
+                                            invitation.starts_at,
+                                        ).toLocaleString(intlLocale, {
+                                            dateStyle: 'medium',
+                                            timeStyle: 'short',
+                                        })}
+                                        {' · '}
+                                        {t('reservations.peopleCount', {
+                                            count: invitation.group_size,
+                                        })}
+                                    </p>
+                                    <div className="mt-4 flex flex-wrap gap-3">
+                                        <Button
+                                            variant="accent"
+                                            onClick={() =>
+                                                answerInvitation(
+                                                    invitation.id,
+                                                    true,
+                                                )
+                                            }
+                                        >
+                                            {t('reservations.accept')}
+                                        </Button>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                answerInvitation(
+                                                    invitation.id,
+                                                    false,
+                                                )
+                                            }
+                                            className="text-danger min-h-11 px-2 text-sm font-semibold underline underline-offset-4"
+                                        >
+                                            {t('reservations.decline')}
+                                        </button>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
                 <section className="mt-16">
                     <h2 className="font-display mb-6 text-5xl font-black uppercase">
                         {t('reservations.mine')}
@@ -482,6 +564,44 @@ export default function ReservationsIndex({
                                             count: reservation.group_size,
                                         })}
                                     </p>
+
+                                    {reservation.invited.length > 0 && (
+                                        <ul className="divide-line border-line mt-4 flex flex-col divide-y border-y-2">
+                                            {reservation.invited.map(
+                                                (invitee) => (
+                                                    <li
+                                                        key={invitee.id}
+                                                        className="flex min-h-11 items-center justify-between gap-3 text-base"
+                                                    >
+                                                        <span>
+                                                            {invitee.name}{' '}
+                                                            <span className="text-muted text-sm">
+                                                                (
+                                                                {t(
+                                                                    'reservations.invitedLabel',
+                                                                )}
+                                                                )
+                                                            </span>
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                removeParticipant(
+                                                                    reservation.id,
+                                                                    invitee.id,
+                                                                )
+                                                            }
+                                                            className="text-danger min-h-11 px-2 text-sm font-semibold underline underline-offset-4"
+                                                        >
+                                                            {t(
+                                                                'reservations.withdraw',
+                                                            )}
+                                                        </button>
+                                                    </li>
+                                                ),
+                                            )}
+                                        </ul>
+                                    )}
 
                                     {reservation.participants.length > 0 && (
                                         <ul className="divide-line border-line mt-4 flex flex-col divide-y border-y-2">
@@ -531,18 +651,23 @@ export default function ReservationsIndex({
                                             remainingCapacity={
                                                 reservation.group_size -
                                                 1 -
-                                                reservation.participants.length
+                                                reservation.participants
+                                                    .length -
+                                                reservation.invited.length
                                             }
                                         />
                                     )}
 
                                     <div className="border-ink mt-5 flex flex-wrap items-center gap-4 border-t-[3px] border-dashed pt-5">
-                                        <Link
-                                            href={`/reservations/${reservation.id}/chat`}
-                                            className="hover:decoration-accent font-semibold underline decoration-2 underline-offset-4"
-                                        >
-                                            {t('reservations.groupChat')}
-                                        </Link>
+                                        {/* Chat exists only for a paid reservation. */}
+                                        {reservation.status === 'active' && (
+                                            <Link
+                                                href={`/reservations/${reservation.id}/chat`}
+                                                className="hover:decoration-accent font-semibold underline decoration-2 underline-offset-4"
+                                            >
+                                                {t('reservations.groupChat')}
+                                            </Link>
+                                        )}
 
                                         {reservation.is_owner &&
                                             reservation.status ===

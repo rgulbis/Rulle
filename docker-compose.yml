@@ -1,3 +1,11 @@
+# Nothing here publishes a port on the host. Every service is reachable only
+# on the compose network, and the only way in from outside is the Cloudflare
+# Tunnel container, which joins that network (see docker/cloudflared-setup.sh).
+# That means the server's IP address is never a second way to the app or the
+# camera stream. For local use, add the override that publishes ports on
+# 127.0.0.1 only:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 services:
     app:
         build:
@@ -9,12 +17,20 @@ services:
                 VITE_REVERB_SCHEME: ${VITE_REVERB_SCHEME}
         image: skatepark-app
         restart: unless-stopped
-        ports:
-            - '8080:8000'
         env_file:
             - .env
+        environment:
+            # The SQLite file lives inside the persistent volume below. Set
+            # here (not only in .env) so no configuration can move it outside.
+            DB_DATABASE: /var/www/html/storage/app/database.sqlite
         volumes:
             - app_storage:/var/www/html/storage
+        healthcheck:
+            test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8000/up']
+            interval: 10s
+            timeout: 5s
+            retries: 12
+            start_period: 30s
 
     # Same image as `app`, just running the Reverb WebSocket server instead
     # of `php artisan serve`. Sharing the image avoids building it twice;
@@ -23,36 +39,52 @@ services:
         image: skatepark-app
         restart: unless-stopped
         depends_on:
-            - app
+            app:
+                condition: service_healthy
         entrypoint: []
         command: php artisan reverb:start --host=0.0.0.0 --port=8080
-        ports:
-            - '8081:8080'
         env_file:
             - .env
+        environment:
+            DB_DATABASE: /var/www/html/storage/app/database.sqlite
         volumes:
             - app_storage:/var/www/html/storage
 
     # Pulls the Reolink's RTSP feed and re-serves it as HLS for the
-    # livestream page — see docker/mediamtx.yml, mediamtx.Dockerfile, and
-    # the "Livestream" section of the README.
+    # livestream page — see the "Livestream" section of the README.
     #
-    # The config (with CAMERA_RTSP_URL substituted in) is baked into a
-    # custom image at build time rather than bind-mounted at runtime — our
-    # deploy runner is itself a container sharing the host's Docker socket,
-    # so a runtime bind-mount source path valid inside the runner doesn't
-    # exist at that same path on the actual host. CAMERA_RTSP_URL never
-    # appears in this file or in git either way.
+    # The camera URL (with its credentials) is interpolated from
+    # CAMERA_RTSP_URL when `docker compose up` runs and handed to the
+    # container as a config, so it only ever exists in the running
+    # container — never in an image layer or build argument. (`content:` needs
+    # Docker Compose >= 2.23.1.)
     mediamtx:
-        build:
-            context: .
-            dockerfile: mediamtx.Dockerfile
-            args:
-                CAMERA_RTSP_URL: ${CAMERA_RTSP_URL}
-        image: skatepark-mediamtx
+        image: bluenviron/mediamtx:1
         restart: unless-stopped
-        ports:
-            - '8888:8888'
+        configs:
+            - source: mediamtx_config
+              target: /mediamtx.yml
 
-volumes:
-    app_storage:
+configs:
+    mediamtx_config:
+        content: |
+            # MediaMTX re-serves the camera's RTSP feed as HLS, which a browser
+            # can play with hls.js — raw RTSP isn't something a browser opens.
+            hls: yes
+            hlsAddress: :8888
+            # MediaMTX's default HLS mode is low-latency (LL-HLS), which needs
+            # the camera to produce parts of a stable duration — RTSP cameras
+            # generally don't, and Safari's native HLS playback fails on that.
+            # Plain HLS has no such requirement.
+            hlsVariant: mpegts
+            # Always-on, so the first viewer doesn't wait through the camera's
+            # connection and keyframe delay.
+            hlsAlwaysRemux: yes
+            # Short segments keep any stale edge-cached segment window small.
+            hlsSegmentCount: 3
+            hlsSegmentDuration: 1s
+
+            paths:
+                live-cam:
+                    # e.g. rtsp://user:pass@192.168.1.50:554/h264Preview_01_sub
+                    source: ${CAMERA_RTSP_URL:-}

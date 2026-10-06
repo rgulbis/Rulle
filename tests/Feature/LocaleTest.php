@@ -39,7 +39,7 @@ test('scan results are translated for staff', function () {
         ->withUnencryptedCookie('locale', 'lv')
         ->postJson('/staff/scan', ['code' => 'not-a-real-code', 'mode' => 'entry'])
         ->assertNotFound()
-        ->assertJson(['message' => 'Šim QR kodam neatbilst neviens lietotājs.']);
+        ->assertJson(['message' => 'Šis QR kods nav derīgs vai ir beidzies — lūdziet klientam atsvaidzināt caurlaidi.']);
 });
 
 test('pages are told the chosen language so server rendering matches the browser', function () {

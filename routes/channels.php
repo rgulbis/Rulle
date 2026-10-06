@@ -14,10 +14,14 @@ Broadcast::channel('chat', function ($user) {
     return $user !== null;
 });
 
-// A reservation's own private group chat — only its owner and named
-// participants can listen in.
+// A reservation's own private group chat — only its owner and participants
+// who accepted can listen in, and only while the reservation is paid and
+// recent (see Reservation::chatIsReadable()); checked again on every
+// subscription, so access ends with the reservation.
 Broadcast::channel('reservation.{reservationId}.chat', function ($user, $reservationId) {
     $reservation = Reservation::whereKey($reservationId)->first();
 
-    return $reservation !== null && $reservation->includesParticipant($user);
+    return $reservation !== null
+        && $reservation->chatIsReadable()
+        && $reservation->includesParticipant($user);
 });
