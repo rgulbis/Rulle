@@ -9,3 +9,7 @@ storage/logs/*
 .env.*
 public/build
 public/hot
+# Never bake a developer's database or backups into the image
+database/*.sqlite*
+storage/app/*.sqlite*
+storage/app/backups

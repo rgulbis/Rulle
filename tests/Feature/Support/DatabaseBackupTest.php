@@ -1,0 +1,229 @@
+<?php
+
+use App\Support\DatabaseBackup;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+
+// These tests work on a throwaway SQLite *file* (the suite's own database is
+// in-memory, which has nothing to back up), reached through a dedicated
+// connection, with the storage path moved so snapshots never land in the
+// real storage/app/backups.
+
+beforeEach(function () {
+    $this->workdir = sys_get_temp_dir().'/skatepark-backup-'.bin2hex(random_bytes(4));
+    mkdir($this->workdir.'/storage/app', 0775, true);
+
+    $this->originalStoragePath = $this->app->storagePath();
+    $this->originalConnection = config('database.default');
+    $this->app->useStoragePath($this->workdir.'/storage');
+
+    $this->dbPath = $this->workdir.'/live.sqlite';
+    $pdo = new PDO('sqlite:'.$this->dbPath);
+    $pdo->exec('PRAGMA journal_mode=WAL');
+    $pdo->exec('CREATE TABLE items (name TEXT)');
+    $pdo->exec("INSERT INTO items VALUES ('original')");
+    $pdo = null;
+
+    config([
+        'database.connections.backup_test' => [
+            'driver' => 'sqlite',
+            'database' => $this->dbPath,
+            'prefix' => '',
+            'foreign_key_constraints' => true,
+        ],
+    ]);
+    DB::purge('backup_test');
+
+    $this->backups = new DatabaseBackup('backup_test');
+});
+
+afterEach(function () {
+    config(['database.default' => $this->originalConnection]);
+    DB::purge('backup_test');
+    $this->app->useStoragePath($this->originalStoragePath);
+    File::deleteDirectory($this->workdir);
+});
+
+function liveItems(): array
+{
+    return DB::connection('backup_test')->table('items')->pluck('name')->all();
+}
+
+test('a snapshot contains the data and passes the integrity check', function () {
+    $path = $this->backups->create('manual');
+
+    expect($path)->toStartWith($this->workdir.'/storage/app/backups/database-')
+        ->and($path)->toEndWith('-manual.sqlite');
+
+    $copy = new PDO('sqlite:'.$path);
+    expect($copy->query('SELECT name FROM items')->fetchAll(PDO::FETCH_COLUMN))->toBe(['original']);
+});
+
+test('a snapshot includes rows that are only in the WAL so far', function () {
+    // Held open so the WAL isn't checkpointed away when the writer closes.
+    $reader = new PDO('sqlite:'.$this->dbPath);
+    $reader->query('SELECT count(*) FROM items')->fetchAll();
+
+    DB::connection('backup_test')->table('items')->insert(['name' => 'in-wal']);
+    expect(filesize($this->dbPath.'-wal'))->toBeGreaterThan(0);
+
+    $copy = new PDO('sqlite:'.$this->backups->create());
+
+    expect($copy->query('SELECT name FROM items ORDER BY rowid')->fetchAll(PDO::FETCH_COLUMN))
+        ->toBe(['original', 'in-wal']);
+});
+
+test('backups taken at the same instant do not collide', function () {
+    $this->travelTo(now());
+
+    expect($this->backups->create())->not->toBe($this->backups->create());
+});
+
+test('pruning keeps the newest snapshots of each label separately', function () {
+    foreach (range(1, 3) as $i) {
+        $this->backups->create();
+        $this->backups->create('pre-deploy');
+    }
+
+    $deleted = $this->backups->prune(null, 2);
+
+    expect($deleted)->toHaveCount(1);
+
+    $remaining = collect($this->backups->all());
+    expect($remaining->where('label', null))->toHaveCount(2)
+        ->and($remaining->where('label', 'pre-deploy'))->toHaveCount(3);
+});
+
+test('restore swaps the database back and keeps a copy of what it replaced', function () {
+    $snapshot = $this->backups->create();
+
+    DB::connection('backup_test')->table('items')->insert(['name' => 'added later']);
+    expect(liveItems())->toBe(['original', 'added later']);
+
+    $safety = $this->backups->restore($snapshot);
+
+    expect(liveItems())->toBe(['original'])
+        ->and($safety)->toEndWith('-pre-restore.sqlite');
+
+    $kept = new PDO('sqlite:'.$safety);
+    expect($kept->query('SELECT name FROM items ORDER BY rowid')->fetchAll(PDO::FETCH_COLUMN))
+        ->toBe(['original', 'added later']);
+});
+
+test('restore refuses a corrupt file and leaves the database alone', function () {
+    $bad = $this->workdir.'/bad.sqlite';
+    file_put_contents($bad, str_repeat('not a database', 100));
+
+    expect(fn () => $this->backups->restore($bad))->toThrow(RuntimeException::class);
+    expect(liveItems())->toBe(['original']);
+});
+
+test('restore resolves "latest" and bare file names', function () {
+    $first = $this->backups->create();
+    $second = $this->backups->create();
+
+    expect($this->backups->resolve('latest'))->toBe($second)
+        ->and($this->backups->resolve(basename($first)))->toBe(realpath($first));
+});
+
+test('an in-memory database cannot be backed up', function () {
+    expect(fn () => (new DatabaseBackup)->create())
+        ->toThrow(RuntimeException::class, 'in-memory');
+});
+
+test('db:backup and db:restore work through artisan', function () {
+    config(['database.default' => 'backup_test']);
+
+    $this->artisan('db:backup', ['--label' => 'pre-deploy'])->assertSuccessful();
+    expect($this->backups->all())->toHaveCount(1);
+
+    DB::connection('backup_test')->table('items')->insert(['name' => 'added later']);
+
+    $this->artisan('db:restore', ['file' => 'latest', '--force' => true])->assertSuccessful();
+    expect(liveItems())->toBe(['original']);
+});
+
+test('db:backup fails clearly when there is no database file', function () {
+    unlink($this->dbPath);
+    @unlink($this->dbPath.'-wal');
+    @unlink($this->dbPath.'-shm');
+    config(['database.default' => 'backup_test']);
+
+    $this->artisan('db:backup')->assertFailed();
+});
+
+test('the backup runs on a schedule', function () {
+    $commands = collect(app(Schedule::class)->events())->pluck('command')->implode("\n");
+
+    expect($commands)->toContain('db:backup');
+});
+
+// A migration that writes through a second connection (so the write survives
+// the migration's own rollback) and then fails — the situation the snapshot
+// exists for.
+function useFailingMigration(string $dir, string $dbPath): void
+{
+    mkdir($dir, 0775, true);
+    file_put_contents($dir.'/2999_01_01_000000_fail_halfway.php', <<<PHP
+        <?php
+
+        use Illuminate\Database\Migrations\Migration;
+
+        return new class extends Migration {
+            public function up(): void
+            {
+                \$pdo = new PDO('sqlite:{$dbPath}');
+                \$pdo->exec("INSERT INTO items VALUES ('half-applied')");
+
+                throw new RuntimeException('boom');
+            }
+        };
+        PHP);
+
+    app('migrator')->path($dir);
+}
+
+test('db:migrate-safe snapshots, migrates, and keeps the result when it works', function () {
+    config(['database.default' => 'backup_test']);
+
+    $this->artisan('db:migrate-safe')->assertSuccessful();
+
+    expect(Schema::connection('backup_test')->hasTable('users'))->toBeTrue()
+        ->and(liveItems())->toBe(['original'])
+        ->and(collect($this->backups->all())->where('label', 'pre-migrate'))->toHaveCount(1);
+});
+
+test('db:migrate-safe restores the snapshot when a migration fails', function () {
+    config(['database.default' => 'backup_test']);
+    useFailingMigration($this->workdir.'/failing', $this->dbPath);
+
+    $this->artisan('db:migrate-safe')->assertFailed();
+
+    DB::purge('backup_test');
+
+    expect(liveItems())->toBe(['original'])
+        ->and(Schema::connection('backup_test')->hasTable('users'))->toBeFalse();
+});
+
+test('db:migrate-safe does nothing when everything has already run', function () {
+    config(['database.default' => 'backup_test']);
+    $this->artisan('migrate', ['--force' => true])->assertSuccessful();
+
+    $this->artisan('db:migrate-safe')
+        ->expectsOutputToContain('Nothing to migrate')
+        ->assertSuccessful();
+
+    expect($this->backups->all())->toBe([]);
+});
+
+test('db:migrate-safe creates a missing database file on first run', function () {
+    unlink($this->dbPath);
+    @unlink($this->dbPath.'-wal');
+    @unlink($this->dbPath.'-shm');
+    config(['database.default' => 'backup_test']);
+
+    $this->artisan('db:migrate-safe')->assertSuccessful();
+
+    expect(Schema::connection('backup_test')->hasTable('users'))->toBeTrue();
+});

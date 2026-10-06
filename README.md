@@ -113,16 +113,107 @@ then scan their QR code.
 ## Production server
 
 The app runs in Docker on a self-hosted server, reachable only through a
-Cloudflare Tunnel (no public inbound ports) — see `docker-compose.yml` and
-`docker/cloudflared-setup.sh`. Deploys happen automatically via GitHub
-Actions (`.github/workflows/deploy.yml`) on every push to `main`, using a
-self-hosted runner that also lives on that same server.
+Cloudflare Tunnel — `docker-compose.yml` publishes no ports, and the
+`cloudflared` container joins the compose network (`skatepark_default`) and
+reaches `app:8000`, `reverb:8080` and `mediamtx:8888` by name. See
+`docker/cloudflared-setup.sh`.
 
 ```bash
 ssh -p 2222 <name>@<serverIp>
 ```
 
+### How a deploy works
+
+1. Push to `main`. The `tests` workflow runs.
+2. Only if `tests` passed, `.github/workflows/deploy.yml` runs on the
+   self-hosted runner (`workflow_run` trigger — the tests workflow must keep
+   the name `tests`). It deploys the exact commit that was tested and skips
+   itself if `main` has already moved on.
+3. `docker/deploy.sh` builds the image, snapshots the database
+   (`pre-deploy`), starts the stack with `docker compose up --wait` and waits
+   for the health checks (`/up` for the app).
+4. On startup the entrypoint runs `php artisan db:migrate-safe`: if there are
+   pending migrations it snapshots first (`pre-migrate`), and if one fails it
+   puts the snapshot back and the container stops.
+5. If the stack isn't healthy in time, the previous image (kept as
+   `skatepark-app:rollback`) is started again and the workflow fails.
+
+Needs Docker Compose ≥ 2.23.1 on the server (inline MediaMTX config).
+
+**One-time switch when first deploying this setup:** the old tunnel config
+points at host ports (`host.docker.internal:8080` etc.) that no longer exist.
+_Before_ pushing, run `./docker/cloudflared-setup.sh --reconfigure` on the
+server — it points the tunnel at the service names, which already resolve to
+the running containers, so there is no gap.
+
+### Backups and rollback
+
+The SQLite file is `storage/app/database.sqlite` (inside the `app_storage`
+volume — the same path in `.env.example`, `docker-compose.yml` and
+`docker/entrypoint.sh`). Snapshots go to `storage/app/backups`, a separate
+`app_backups` volume.
+
+| When                                | Label         | Kept      |
+| ----------------------------------- | ------------- | --------- |
+| Every 6 hours (`scheduler` service) | none          | newest 28 |
+| Before each deploy                  | `pre-deploy`  | newest 10 |
+| Before pending migrations           | `pre-migrate` | newest 10 |
+| Before any restore                  | `pre-restore` | newest 14 |
+
+```bash
+docker compose exec app php artisan db:backup                # manual snapshot
+docker compose exec app php artisan db:restore               # list snapshots
+```
+
+Restoring replaces the file on disk, so stop everything that has it open
+first:
+
+```bash
+docker compose stop app reverb scheduler
+docker compose run --rm --no-deps --entrypoint php app artisan db:restore latest   # or a file name from the list
+docker compose up -d
+```
+
+If a deploy rolled back after the migrations had already succeeded, the old
+image is running on the new schema — restore the `pre-deploy` snapshot the
+workflow printed as above.
+
+The backups volume is on the same machine as the database, so **copy it off
+the server now and then** (run on the server itself, not in the runner):
+
+```bash
+docker run --rm -v skatepark_app_backups:/b -v "$PWD":/out alpine tar czf /out/skatepark-backups.tgz -C /b .
+```
+
+### Starting over on the same server
+
+To clear the old containers, images and build cache and rebuild the stack
+cleanly (run on the server itself, not in the runner):
+
+```bash
+./docker/server-cleanup.sh              # keeps the data volumes
+```
+
+It lists what exists, stops the containers, archives the data volumes to
+`~/skatepark-backups/` (and verifies the archives) and only then removes
+containers and old images. Add `--wipe-data` to also delete the database and
+uploads (typed confirmation; the archives stay). It leaves the runner,
+`~/.cloudflared` and the network alone.
+
+Then: re-run the **Deploy** workflow on GitHub, run
+`./docker/cloudflared-setup.sh --reconfigure`, and finish with
+
+```bash
+./docker/server-check.sh                # read-only audit, exits non-zero on any FAIL
+```
+
+which checks that all four services are healthy, no host ports are
+published, the tunnel is on the compose network and uses `www`, the database
+is at the pinned path, a backup exists, and the site answers.
+
 ### Refresh db on prod
+
+Wipes all data. Take a snapshot first (`db:backup` above).
 
 ```bash
 docker exec skatepark-app-1 rm -f storage/app/database.sqlite
@@ -141,8 +232,8 @@ the production server. The pipeline:
 Reolink camera --RTSP--> MediaMTX (docker-compose service) --HLS--> Cloudflare Tunnel --> browser (hls.js)
 ```
 
-MediaMTX (`docker/mediamtx.yml`) does the actual RTSP→HLS conversion; the
-app never touches the video itself. The camera's RTSP URL is
+MediaMTX (config inline in `docker-compose.yml`, injected at runtime) does the
+actual RTSP→HLS conversion; the app never touches the video itself. The camera's RTSP URL is
 `CAMERA_RTSP_URL` in `.env` (a `GitHub Actions` secret in prod, same pattern
 as `STRIPE_SECRET` etc.) — never commit it, since it embeds the camera's
 credentials.
@@ -159,14 +250,13 @@ credentials.
 2. **Add the GitHub secret.** Repo → Settings → Secrets and variables →
    Actions → `CAMERA_RTSP_URL`, value = the URL from step 1.
 3. **Update the live Cloudflare Tunnel config.** `docker/cloudflared-setup.sh`
-   is a run-once bootstrap script — it won't re-run on its own, so the
-   already-provisioned tunnel needs its `ingress` rules updated by hand to
-   match what's now in the script. SSH into the server and edit
-   `~/.cloudflared/config.yml` to add the `path: ^/live-cam/.*` rule (see the
-   script for the exact block and where it goes — order matters, it must
-   come before the catch-all rule), then:
+   writes the tunnel's `ingress` rules (including `^/live-cam/.*`). For an
+   already-provisioned tunnel, SSH into the server and re-run it in
+   reconfigure mode — it keeps the tunnel and DNS, rewrites
+   `~/.cloudflared/config.yml` and recreates the container on the compose
+   network:
     ```bash
-    docker restart cloudflared
+    ./docker/cloudflared-setup.sh --reconfigure
     ```
 4. **Deploy** (push to `main`, or re-run the workflow) so the new
    `CAMERA_RTSP_URL` reaches the server's `.env` and the `mediamtx` service

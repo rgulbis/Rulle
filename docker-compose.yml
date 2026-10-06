@@ -1,3 +1,20 @@
+# Nothing here publishes a port to the host: the only way in is the
+# `cloudflared` container, which joins this project's network and talks to
+# app:8000, reverb:8080 and mediamtx:8888 by service name (see
+# docker/cloudflared-setup.sh). Requires Docker Compose >= 2.23.1 for the
+# inline `configs.content` below.
+
+x-app-environment: &app-environment
+    # One SQLite path, inside the app_storage volume. Must match DB_DATABASE
+    # in .env.example and docker/entrypoint.sh.
+    DB_DATABASE: storage/app/database.sqlite
+
+x-app-volumes: &app-volumes
+    - app_storage:/var/www/html/storage
+    # Snapshots live in their own volume so losing or corrupting app_storage
+    # doesn't take the backups with it.
+    - app_backups:/var/www/html/storage/app/backups
+
 services:
     app:
         build:
@@ -9,12 +26,19 @@ services:
                 VITE_REVERB_SCHEME: ${VITE_REVERB_SCHEME}
         image: skatepark-app
         restart: unless-stopped
-        ports:
-            - '8080:8000'
         env_file:
             - .env
-        volumes:
-            - app_storage:/var/www/html/storage
+        environment: *app-environment
+        volumes: *app-volumes
+        # `docker compose up --wait` (docker/deploy.sh) blocks on this, so a
+        # container that boots but can't serve fails the deploy. The generous
+        # start_period covers migrations and cache warm-up in the entrypoint.
+        healthcheck:
+            test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8000/up']
+            interval: 10s
+            timeout: 5s
+            retries: 6
+            start_period: 60s
 
     # Same image as `app`, just running the Reverb WebSocket server instead
     # of `php artisan serve`. Sharing the image avoids building it twice;
@@ -23,36 +47,96 @@ services:
         image: skatepark-app
         restart: unless-stopped
         depends_on:
-            - app
+            app:
+                condition: service_healthy
         entrypoint: []
         command: php artisan reverb:start --host=0.0.0.0 --port=8080
-        ports:
-            - '8081:8080'
         env_file:
             - .env
+        environment: *app-environment
         volumes:
             - app_storage:/var/www/html/storage
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'php',
+                    '-r',
+                    'exit(@fsockopen("127.0.0.1", 8080) ? 0 : 1);',
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 6
+            start_period: 20s
+
+    # Runs the Laravel scheduler (the database backup in routes/console.php).
+    # Waits for `app` to be healthy so it never backs up mid-migration.
+    scheduler:
+        image: skatepark-app
+        restart: unless-stopped
+        depends_on:
+            app:
+                condition: service_healthy
+        entrypoint: []
+        command: php artisan schedule:work
+        env_file:
+            - .env
+        environment: *app-environment
+        volumes: *app-volumes
 
     # Pulls the Reolink's RTSP feed and re-serves it as HLS for the
-    # livestream page — see docker/mediamtx.yml, mediamtx.Dockerfile, and
-    # the "Livestream" section of the README.
+    # livestream page — see the "Livestream" section of the README.
     #
-    # The config (with CAMERA_RTSP_URL substituted in) is baked into a
-    # custom image at build time rather than bind-mounted at runtime — our
-    # deploy runner is itself a container sharing the host's Docker socket,
-    # so a runtime bind-mount source path valid inside the runner doesn't
-    # exist at that same path on the actual host. CAMERA_RTSP_URL never
-    # appears in this file or in git either way.
+    # The stock image is used as-is; its config is injected at runtime (an
+    # inline compose config, not baked into an image layer). Compose
+    # substitutes CAMERA_RTSP_URL from .env, which holds the camera's
+    # credentials, so it never appears in git. Inline `content` is used
+    # rather than a bind-mounted file because the deploy runner is itself a
+    # container sharing the host's Docker socket, so a bind-mount source path
+    # valid inside the runner doesn't exist on the actual host.
     mediamtx:
-        build:
-            context: .
-            dockerfile: mediamtx.Dockerfile
-            args:
-                CAMERA_RTSP_URL: ${CAMERA_RTSP_URL}
-        image: skatepark-mediamtx
+        image: bluenviron/mediamtx:latest
         restart: unless-stopped
-        ports:
-            - '8888:8888'
+        configs:
+            - source: mediamtx_config
+              target: /mediamtx.yml
+
+configs:
+    mediamtx_config:
+        content: |
+            # MediaMTX pulls the camera's RTSP feed once and re-serves it as
+            # HLS, which every visitor's browser can play with hls.js — a raw
+            # RTSP feed isn't something a browser can open directly.
+            hls: yes
+            hlsAddress: :8888
+            # MediaMTX's default HLS mode is low-latency (LL-HLS), which needs
+            # the camera to produce parts of a genuinely stable duration —
+            # RTSP cameras generally don't, so that duration drifts
+            # constantly. hls.js (Windows/Android/most browsers) tolerates
+            # that fine, but Safari's native HLS playback (macOS/iOS) doesn't,
+            # and playback fails there. Plain HLS has no such requirement.
+            hlsVariant: mpegts
+            # Always-on rather than only-while-someone's-watching: the first
+            # viewer of a lazily-started feed would otherwise wait through the
+            # camera's connection and keyframe delay before anything played.
+            hlsAlwaysRemux: yes
+            # Cloudflare's edge caches HTTP responses by default; a stale
+            # cached segment would mean viewers see a frozen frame instead of
+            # a live feed — short segments keep that window small.
+            hlsSegmentCount: 3
+            hlsSegmentDuration: 1s
+
+            paths:
+                live-cam:
+                    # The full URL, e.g.
+                    # rtsp://user:pass@192.168.1.50:554/h264Preview_01_sub
+                    source: ${CAMERA_RTSP_URL:?CAMERA_RTSP_URL must be set in .env}
 
 volumes:
     app_storage:
+    app_backups:
+
+networks:
+    # Pinned so docker/cloudflared-setup.sh can join it by a stable name.
+    default:
+        name: skatepark_default

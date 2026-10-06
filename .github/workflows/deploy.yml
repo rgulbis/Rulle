@@ -1,20 +1,51 @@
 name: Deploy
 
+# Runs only after the `tests` workflow has finished on a push to main, and
+# only when it passed — a red build never reaches the server. (The `tests`
+# workflow's name must stay `tests` for this trigger to match.)
 on:
-  push:
+  workflow_run:
+    workflows: [tests]
+    types: [completed]
     branches: [main]
+
+# One deploy at a time; a newer one waits instead of cancelling a running one.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
     runs-on: self-hosted
     env:
       COMPOSE_PROJECT_NAME: skatepark
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
+      # Deploy exactly the commit the tests ran against, not whatever main
+      # happens to be by the time this job starts.
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           clean: false
 
+      # With deploys queued, an older run could otherwise finish after a
+      # newer one and put older code on the server.
+      - name: Skip if main has moved on
+        id: fresh
+        run: |
+          git fetch --no-tags origin main
+          if [ "$(git rev-parse FETCH_HEAD)" = "$DEPLOY_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "main is now at $(git rev-parse --short FETCH_HEAD), not ${DEPLOY_SHA}; skipping this deploy."
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create .env
+        if: steps.fresh.outputs.current == 'true'
         run: |
           cp .env.example .env
           sed -i "s|^APP_ENV=.*|APP_ENV=production|" .env
@@ -22,7 +53,6 @@ jobs:
           sed -i "s|^APP_KEY=.*|APP_KEY=${{ secrets.APP_KEY }}|" .env
           sed -i "s|^APP_URL=.*|APP_URL=https://www.xn--rull-eva.lv|" .env
           sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" .env
-          echo "DB_DATABASE=/var/www/html/storage/app/database.sqlite" >> .env
           sed -i "s|^BROADCAST_CONNECTION=.*|BROADCAST_CONNECTION=reverb|" .env
           sed -i "s|^REVERB_APP_ID=.*|REVERB_APP_ID=${{ secrets.REVERB_APP_ID }}|" .env
           sed -i "s|^REVERB_APP_KEY=.*|REVERB_APP_KEY=${{ secrets.REVERB_APP_KEY }}|" .env
@@ -41,10 +71,14 @@ jobs:
           sed -i "s|^MAIL_MAILER=.*|MAIL_MAILER=resend|" .env
           sed -i "s|^MAIL_FROM_ADDRESS=.*|MAIL_FROM_ADDRESS=hello@xn--rull-eva.lv|" .env
           echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> .env
+          # Drop .env.example's blank placeholder first, so Compose never sees
+          # the key twice.
+          sed -i "/^CAMERA_RTSP_URL=/d" .env
           echo "CAMERA_RTSP_URL=${{ secrets.CAMERA_RTSP_URL }}" >> .env
 
-      - name: Build image
-        run: docker compose build
-
+      # Builds, snapshots the database, starts the stack, waits for the health
+      # checks and rolls back to the previous image if they fail. See
+      # docker/deploy.sh.
       - name: Deploy
-        run: docker compose up -d --force-recreate
+        if: steps.fresh.outputs.current == 'true'
+        run: ./docker/deploy.sh

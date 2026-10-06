@@ -1,10 +1,17 @@
 #!/bin/sh
 set -e
 
-mkdir -p storage/app
-touch "$(php -r "echo getenv('DB_DATABASE') ?: 'storage/app/database.sqlite';")"
+# Same path as DB_DATABASE in .env.example and docker-compose.yml; it lives
+# inside the app_storage volume, so it survives redeploys.
+DB_FILE="${DB_DATABASE:-storage/app/database.sqlite}"
 
-php artisan migrate --force
+mkdir -p "$(dirname "$DB_FILE")"
+touch "$DB_FILE"
+
+# Snapshots first, runs pending migrations, and puts the snapshot back if one
+# fails — `set -e` then stops the container, so the deploy's health check
+# fails and the pipeline rolls back to the previous image.
+php artisan db:migrate-safe
 php artisan storage:link || true
 php artisan config:cache
 php artisan route:cache
