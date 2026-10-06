@@ -31,8 +31,11 @@ case "${1:-}" in
   *) echo "Usage: $0 [--reconfigure]" >&2; exit 2 ;;
 esac
 
+# Explicitly root: current cloudflared images default to a non-root user that
+# can't read /root/.cloudflared (permission denied, tunnel never starts; 1033
+# from Cloudflare). The paths in config.yml assume /root.
 cloudflared() {
-  docker run --rm -v "$CF_DIR:/root/.cloudflared" "$CF_IMAGE" "$@"
+  docker run --rm --user 0:0 -v "$CF_DIR:/root/.cloudflared" "$CF_IMAGE" "$@"
 }
 
 if ! docker network inspect "$NETWORK" >/dev/null 2>&1; then
@@ -53,7 +56,7 @@ if [ "$RECONFIGURE" -eq 1 ]; then
 else
   echo "== Step 1: authenticate with Cloudflare =="
   echo "This prints a URL — open it in a browser and authorize the domain."
-  docker run --rm -it -v "$CF_DIR:/root/.cloudflared" "$CF_IMAGE" tunnel login
+  docker run --rm -it --user 0:0 -v "$CF_DIR:/root/.cloudflared" "$CF_IMAGE" tunnel login
 
   echo "== Step 2: create the tunnel =="
   cloudflared tunnel create "$TUNNEL_NAME"
@@ -99,6 +102,7 @@ EOF
 echo "== Step 5: run the tunnel as a persistent container on the compose network =="
 docker rm -f cloudflared 2>/dev/null || true
 docker run -d --name cloudflared --restart unless-stopped \
+  --user 0:0 \
   --network "$NETWORK" \
   -v "$CF_DIR:/root/.cloudflared" \
   "$CF_IMAGE" tunnel --config /root/.cloudflared/config.yml run
