@@ -1,6 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { ReactNode } from 'react';
-import { Avatar } from '@/components/chat-thread';
+import { Avatar } from '@/components/chat/avatar';
 import { useTranslation } from '@/lib/i18n/context';
 import type { Auth } from '@/types/auth';
 

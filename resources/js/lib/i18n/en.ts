@@ -162,7 +162,7 @@ const en = {
     // Chat (pages/chat/index.tsx)
     'chat.title': 'Chat',
 
-    // Chat thread component (components/chat-thread.tsx)
+    // Chat thread component (components/chat-thread.tsx and components/chat/)
     'chatThread.pinned': 'Pinned',
     'chatThread.unpin': 'Unpin',
     'chatThread.pin': 'Pin',

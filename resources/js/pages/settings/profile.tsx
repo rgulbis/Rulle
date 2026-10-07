@@ -1,6 +1,6 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
-import { Avatar } from '@/components/chat-thread';
+import { Avatar } from '@/components/chat/avatar';
 import {
     InputError,
     Label,

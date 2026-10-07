@@ -164,7 +164,7 @@ const lv: Record<TranslationKey, string> = {
     // Chat (pages/chat/index.tsx)
     'chat.title': 'Čats',
 
-    // Chat thread component (components/chat-thread.tsx)
+    // Chat thread component (components/chat-thread.tsx and components/chat/)
     'chatThread.pinned': 'Piespraustās',
     'chatThread.unpin': 'Atspraust',
     'chatThread.pin': 'Piespraust',

@@ -3,7 +3,8 @@ import ChatShell, {
     ChatGroup,
     useGroupChannelName,
 } from '@/components/chat-shell';
-import ChatThread, { ChatMessage, MutedUser } from '@/components/chat-thread';
+import type { ChatMessage, MutedUser } from '@/components/chat/types';
+import ChatThread from '@/components/chat-thread';
 import AppLayout from '@/layouts/app-layout';
 import { useTranslation } from '@/lib/i18n/context';
 

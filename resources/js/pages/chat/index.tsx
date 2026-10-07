@@ -1,10 +1,7 @@
 import { Head } from '@inertiajs/react';
 import ChatShell, { ChatGroup } from '@/components/chat-shell';
-import ChatThread, {
-    ChatMessage,
-    MutedUser,
-    SlowMode,
-} from '@/components/chat-thread';
+import type { ChatMessage, MutedUser, SlowMode } from '@/components/chat/types';
+import ChatThread from '@/components/chat-thread';
 import AppLayout from '@/layouts/app-layout';
 import { useTranslation } from '@/lib/i18n/context';
 

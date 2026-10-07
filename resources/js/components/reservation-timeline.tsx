@@ -3,17 +3,19 @@ import type {
     MouseEvent as ReactMouseEvent,
     PointerEvent as ReactPointerEvent,
 } from 'react';
-import { Label, Select } from '@/components/form-controls';
 import { useTranslation } from '@/lib/i18n/context';
+import {
+    minutesOnDate,
+    minutesToTime,
+    timeToMinutes,
+    type Selection,
+} from './reservations/time';
+import { TimelineChart } from './reservations/timeline-chart';
+import { TimelineSelects } from './reservations/timeline-selects';
 
 type TimeRange = {
     starts_at: string;
     ends_at: string;
-};
-
-type Selection = {
-    start: number | null;
-    end: number | null;
 };
 
 type Props = {
@@ -27,37 +29,6 @@ type Props = {
     value: Selection;
     onChange: (value: Selection) => void;
 };
-
-const WIDTH = 800;
-const HEIGHT = 150;
-const BAR_TOP = 56;
-const BAR_HEIGHT = 50;
-const PEAK_BASELINE = BAR_TOP - 6;
-const PEAK_HEIGHT = 40;
-
-function timeToMinutes(time: string): number {
-    const [hours, minutes] = time.split(':').map(Number);
-    return hours * 60 + minutes;
-}
-
-function minutesToTime(minutes: number): string {
-    const hours = Math.floor(minutes / 60)
-        .toString()
-        .padStart(2, '0');
-    const mins = (minutes % 60).toString().padStart(2, '0');
-    return `${hours}:${mins}`;
-}
-
-function minutesOnDate(date: string, dateTime: string): number | null {
-    const d = new Date(dateTime);
-    const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-    if (local !== date) {
-        return null;
-    }
-
-    return d.getHours() * 60 + d.getMinutes();
-}
 
 export default function ReservationTimeline({
     date,
@@ -89,8 +60,6 @@ export default function ReservationTimeline({
         date === todayKey
             ? Math.min(closeMin, Math.max(openMin, roundedNowMinutes))
             : openMin;
-
-    const xFor = (minutes: number) => ((minutes - openMin) / span) * WIDTH;
 
     const positionToMinutes = (clientX: number): number => {
         const rect = svgRef.current!.getBoundingClientRect();
@@ -127,12 +96,6 @@ export default function ReservationTimeline({
         setHover(positionToMinutes(e.clientX));
     };
 
-    // Landing on an exact 15-minute mark by clicking the bar is awkward no
-    // matter how big it's drawn (on a phone a step is only a few pixels
-    // wide), and a native time input is just as fiddly in its own way. A
-    // plain list of valid times to pick from is the easiest option on any
-    // device. These feed the exact same value/onChange the clicks on the bar
-    // use, so either one works.
     const handleStartTimeChange = (raw: string) => {
         if (!raw) {
             onChange({ start: null, end: null });
@@ -188,21 +151,6 @@ export default function ReservationTimeline({
         }
     }
 
-    const maxPeak = Math.max(1, ...peakHours);
-    const firstHour = Math.ceil(openMin / 60);
-    const lastHour = Math.floor(closeMin / 60);
-    const hours = Array.from(
-        { length: lastHour - firstHour + 1 },
-        (_, i) => firstHour + i,
-    );
-
-    const peakY = (hour: number) =>
-        PEAK_BASELINE - (peakHours[hour] / maxPeak) * PEAK_HEIGHT;
-
-    const peakPoints = hours
-        .map((hour) => `${xFor(hour * 60)},${peakY(hour)}`)
-        .join(' ');
-
     const blockedRanges = existingReservations
         .map((reservation) => ({
             start: minutesOnDate(date, reservation.starts_at),
@@ -215,215 +163,29 @@ export default function ReservationTimeline({
 
     return (
         <div>
-            {/* min-w-0 on each grid item + overflow-x-hidden around each
-            native control: iOS Safari's own time/select chrome can ignore
-            the width its CSS grid cell assigned it, otherwise overlapping
-            into the next column instead of shrinking to fit — the same
-            WebKit quirk the date field above had. */}
             <div className="mb-3 grid grid-cols-2 gap-3">
-                <div className="flex min-w-0 flex-col gap-1.5">
-                    <Label htmlFor="timeline_start_time">
-                        {t('reservations.startTime')}
-                    </Label>
-                    <div className="w-full overflow-x-hidden">
-                        <Select
-                            id="timeline_start_time"
-                            value={value.start ?? ''}
-                            onChange={(e) =>
-                                handleStartTimeChange(e.target.value)
-                            }
-                        >
-                            {value.start === null && (
-                                <option value="">
-                                    {t('reservations.startTimePlaceholder')}
-                                </option>
-                            )}
-                            {startTimeOptions.map((minutes) => (
-                                <option key={minutes} value={minutes}>
-                                    {minutesToTime(minutes)}
-                                </option>
-                            ))}
-                        </Select>
-                    </div>
-                </div>
-                <div className="flex min-w-0 flex-col gap-1.5">
-                    <Label htmlFor="timeline_duration">
-                        {t('reservations.duration')}
-                    </Label>
-                    <div className="w-full overflow-x-hidden">
-                        <Select
-                            id="timeline_duration"
-                            disabled={value.start === null}
-                            value={
-                                value.start !== null && value.end !== null
-                                    ? value.end - value.start
-                                    : ''
-                            }
-                            onChange={(e) =>
-                                handleDurationChange(e.target.value)
-                            }
-                        >
-                            {(value.start === null || value.end === null) && (
-                                <option value="">
-                                    {t('reservations.durationPlaceholder')}
-                                </option>
-                            )}
-                            {durationOptions.map((minutes) => (
-                                <option key={minutes} value={minutes}>
-                                    {t('reservations.durationOption', {
-                                        minutes,
-                                    })}
-                                </option>
-                            ))}
-                        </Select>
-                    </div>
-                </div>
+                <TimelineSelects
+                    value={value}
+                    startTimeOptions={startTimeOptions}
+                    durationOptions={durationOptions}
+                    onStartTimeChange={handleStartTimeChange}
+                    onDurationChange={handleDurationChange}
+                />
             </div>
 
-            <svg
-                ref={svgRef}
-                viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-                className="w-full cursor-pointer select-none"
+            <TimelineChart
+                svgRef={svgRef}
+                openMin={openMin}
+                closeMin={closeMin}
+                pastCutoff={pastCutoff}
+                peakHours={peakHours}
+                blockedRanges={blockedRanges}
+                value={value}
+                hover={hover}
                 onClick={handleClick}
                 onPointerMove={handlePointerMove}
                 onPointerLeave={() => setHover(null)}
-            >
-                <polyline
-                    points={peakPoints}
-                    fill="none"
-                    className="stroke-faint"
-                    strokeWidth={2}
-                    strokeDasharray="4 4"
-                    strokeLinejoin="round"
-                />
-                {hours.map((hour) => (
-                    <circle
-                        key={hour}
-                        cx={xFor(hour * 60)}
-                        cy={peakY(hour)}
-                        r={2.5}
-                        className="fill-faint"
-                    />
-                ))}
-
-                <rect
-                    x={0}
-                    y={BAR_TOP}
-                    width={WIDTH}
-                    height={BAR_HEIGHT}
-                    className="fill-paper stroke-ink"
-                    strokeWidth={2}
-                />
-
-                {pastCutoff > openMin && (
-                    <rect
-                        x={0}
-                        y={BAR_TOP}
-                        width={xFor(pastCutoff)}
-                        height={BAR_HEIGHT}
-                        className="fill-line"
-                        opacity={0.8}
-                    />
-                )}
-
-                {blockedRanges.map((range, i) => (
-                    <rect
-                        key={i}
-                        x={xFor(range.start)}
-                        y={BAR_TOP}
-                        width={xFor(range.end) - xFor(range.start)}
-                        height={BAR_HEIGHT}
-                        className="fill-live"
-                        opacity={0.45}
-                    />
-                ))}
-
-                {value.start !== null && (
-                    <rect
-                        x={xFor(value.start)}
-                        y={BAR_TOP}
-                        width={
-                            xFor(value.end ?? value.start) - xFor(value.start)
-                        }
-                        height={BAR_HEIGHT}
-                        className="fill-accent"
-                    />
-                )}
-
-                {hover !== null && (
-                    <>
-                        <line
-                            x1={xFor(hover)}
-                            x2={xFor(hover)}
-                            y1={PEAK_BASELINE - PEAK_HEIGHT}
-                            y2={BAR_TOP + BAR_HEIGHT + 14}
-                            className="stroke-ink"
-                            strokeWidth={1}
-                            strokeDasharray="3 3"
-                        />
-                        <circle
-                            cx={xFor(hover)}
-                            cy={BAR_TOP + BAR_HEIGHT / 2}
-                            r={5}
-                            fill="none"
-                            className="stroke-ink"
-                            strokeWidth={2}
-                        />
-                    </>
-                )}
-
-                {value.start !== null && (
-                    <circle
-                        cx={xFor(value.start)}
-                        cy={BAR_TOP + BAR_HEIGHT / 2}
-                        r={6}
-                        className="fill-ink"
-                    />
-                )}
-                {value.end !== null && (
-                    <circle
-                        cx={xFor(value.end)}
-                        cy={BAR_TOP + BAR_HEIGHT / 2}
-                        r={6}
-                        className="fill-ink"
-                    />
-                )}
-
-                {hours.map((hour, i) => (
-                    <g key={hour}>
-                        <line
-                            x1={xFor(hour * 60)}
-                            x2={xFor(hour * 60)}
-                            y1={BAR_TOP}
-                            y2={BAR_TOP + BAR_HEIGHT}
-                            className="stroke-line"
-                        />
-                        <text
-                            x={xFor(hour * 60)}
-                            y={BAR_TOP + BAR_HEIGHT + 18}
-                            fontSize={11}
-                            className={`${
-                                hour * 60 < pastCutoff
-                                    ? 'fill-line'
-                                    : 'fill-muted'
-                            } ${
-                                i % 2 === 1 && i !== hours.length - 1
-                                    ? 'hidden sm:inline'
-                                    : ''
-                            }`}
-                            textAnchor={
-                                i === 0
-                                    ? 'start'
-                                    : i === hours.length - 1
-                                      ? 'end'
-                                      : 'middle'
-                            }
-                        >
-                            {hour}:00
-                        </text>
-                    </g>
-                ))}
-            </svg>
+            />
 
             <div className="mt-2 flex items-center justify-between text-sm">
                 <p className="text-ink font-medium">
@@ -452,5 +214,3 @@ export default function ReservationTimeline({
         </div>
     );
 }
-
-export { minutesToTime, timeToMinutes };
