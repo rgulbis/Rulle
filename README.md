@@ -1,164 +1,158 @@
 # rullē.lv — Skatepark Management System
 
-A web app for running a skatepark: customer registration, subscription/pass
-sales (Stripe), QR-code entry/exit tracking, and an admin panel for staff
-and management.
+A web app for running a skatepark: customer accounts, passes and subscriptions
+(Stripe), paid group reservations, QR-code entry/exit with a live headcount, a
+public livestream, chat, and an admin panel for staff and management.
 
-**Roles:**
+| Role         | What they can do                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------ |
+| **Guest**    | Browse the home page and watch the livestream.                                                         |
+| **Customer** | Buy passes/subscriptions, book and pay for reservations, invite friends, chat, show an entry QR code.  |
+| **Employee** | Scan customers' QR codes at the gate (`/staff/scan`), moderate chat.                                   |
+| **Admin**    | Everything an employee can, plus the Filament admin panel at `/admin` (plans, users, payments, stats). |
 
-- **User** — manages their own subscription and uses a personal QR code to
-  enter/exit.
-- **Employee** — scans QR codes at the entrance to check users in/out.
-- **Admin** — manages subscription plans and users, views live/historical
-  stats, in the Filament admin panel at `/admin`.
+**Stack:** Laravel 13 · Inertia + React + TypeScript (Vite) · Filament (admin) ·
+Laravel Cashier / Stripe · Laravel Reverb (WebSockets) · SQLite · MediaMTX (HLS
+livestream) · Docker Compose behind a Cloudflare Tunnel.
 
-## Local development
+> **SQLite only.** The app is written for SQLite and is not portable to MySQL
+> or Postgres. Triggers and partial indexes enforce integrity in the database,
+> and the statistics and payments ledger use SQLite's dialect (`strftime`,
+> `||`). The concurrency guarantees rely on SQLite's single-writer locking
+> (`transaction_mode = IMMEDIATE`). The migrations that add triggers abort on
+> other drivers instead of silently skipping them.
 
-Requirements: PHP 8.3+, Composer, Node 22+, npm.
+## Contents
 
-```bash
-composer setup   # composer install, .env, app key, migrate, npm install + build
-composer dev     # runs the app server, queue listener, Reverb, and Vite together
-```
+1. [Local development](#1-local-development)
+2. [Configuration reference](#2-configuration-reference)
+3. [Third-party services](#3-third-party-services) — Stripe, Reverb, Resend, camera, Cloudflare
+4. [Production deployment](#4-production-deployment)
+5. [Backups and rollback](#5-backups-and-rollback)
+6. [Scheduled jobs and artisan commands](#6-scheduled-jobs-and-artisan-commands)
+7. [How it works](#7-how-it-works) — payments, concurrency, accounts, check-in, security headers
+8. [Testing](#8-testing)
+9. [Frontend structure](#9-frontend-structure)
 
-The app is then at `http://localhost:8000`.
+---
 
-### Resetting the local database
+## 1. Local development
 
-```bash
-php artisan migrate:fresh --seed
-```
-
-This wipes the local SQLite database and reseeds it with the two test
-accounts below. Safe to run as often as you like locally — **this specific
-command is actually blocked outright in production** (see
-`DB::prohibitDestructiveCommands()` in `AppServiceProvider`), so there's no
-way to run this against real data by mistake.
-
-### Test accounts (from the seeder)
-
-| Role     | Email                      | Password   |
-| -------- | -------------------------- | ---------- |
-| Admin    | `admin@xn--rull-eva.lv`    | `password` |
-| Employee | `employee@xn--rull-eva.lv` | `password` |
-
-Note - rullē = xn--rull-eva
-
-No seeded account for the **user** role — just register a normal account at
-`/register`. Outside production, new registrations are auto-verified, so
-there's no email step to work around while testing locally.
-
-### Running tests / checks
+**Requirements:** PHP 8.3+ (CI and Docker use 8.5) with the `intl`, `pdo_sqlite`,
+`bcmath`, `pcntl` and `zip` extensions, Composer 2, Node 22+, npm.
 
 ```bash
-./vendor/bin/pest       # tests only
-composer lint:check     # Pint (formatting)
-composer types:check    # Larastan/PHPStan
-composer ci:check       # everything CI runs: lint, types, tests
+composer setup   # composer install, .env from .env.example, app key, migrate, npm install + build
+composer dev     # app server, queue listener, Reverb and Vite together
 ```
 
-`tests/Parallel` is different from the rest: it starts several PHP processes
-against one on-disk SQLite file and releases them at the same instant, to prove
-that double bookings, double scans, over-full groups, duplicate checkouts and
-chat-cooldown bypasses can't happen. It takes ~20 s.
+The app is at <http://localhost:8000>. The default `.env` uses SQLite at
+`storage/app/database.sqlite` (created by `composer setup`), the `log` mailer
+(mail is written to `storage/logs`) and `BROADCAST_CONNECTION=log`.
 
-### How concurrent requests are kept safe
+For chat and the live headcount to update in real time locally, set
+`BROADCAST_CONNECTION=reverb` and fill `REVERB_APP_ID`, `REVERB_APP_KEY` and
+`REVERB_APP_SECRET` with any values (see [Reverb](#reverb-websockets)).
 
-- SQLite runs with `transaction_mode = IMMEDIATE` (`config/database.php`): a
-  transaction takes the write lock at `BEGIN`, so a check followed by a write
-  inside `DB::transaction` can't be interleaved with another request's. Never
-  call Stripe inside a transaction — the lock is held until it ends.
-- Two paid reservations can't overlap: checked in a transaction at booking and
-  at payment, and enforced by the `reservations_no_active_overlap_*` triggers.
-- A scan (state check, visit spent, event written) is one transaction.
-- One live subscription per customer: a per-user lock and reuse of the open
-  Stripe session at checkout, a check in the `customer.subscription.created`
-  webhook (a duplicate is cancelled at Stripe and logged as `critical` — its
-  first payment must then be refunded by hand), and the partial unique index
-  `subscriptions_one_live_per_user_type`.
-- Posting in the global chat takes a per-user lock; both chats are rate-limited
-  (`chat-send`, 20 messages/minute/user).
+### Accounts
 
-### Participants and group chat
+```bash
+php artisan migrate:fresh --seed     # wipes the local DB, creates the two staff accounts
+```
 
-- Adding someone to a reservation sends an **invitation** (`reservation_user.status`:
-  `invited` → `accepted` / `declined`). Only the owner of a paid, not yet ended
-  reservation can invite, and only a customer with a verified email. Only
-  **accepted** participants count towards the paid group size, enter with the
-  group, and see the group chat; the seat is checked again, with the write lock
-  held, when the invitation is accepted. A declined invitation stays on record, so
-  the owner can't keep re-inviting the same person.
-- A reservation's group chat exists while the reservation is paid for (not
-  `pending`, not `cancelled`). It can be written to until the reservation ends,
-  stays **read-only for 7 days** after that, and is closed after. The websocket
-  channel authorisation (`routes/channels.php`) uses the same rule as the page
-  (`Reservation::chatIsReadable()` / `chatIsWritable()`).
-- The customer search used to invite people matches display names only, treats
-  `%` and `_` literally, is throttled (`user-search`) and returns just id and name.
-- `App\Rules\NoInappropriateContent` is a short word list plus one pattern. It
-  stops casual, obvious abuse and nothing more: it is not content safety, and
-  anything it misses is for the mute/delete tools and admin review of requested
-  names to catch.
+| Role     | Email                      | Password                |
+| -------- | -------------------------- | ----------------------- |
+| Admin    | `admin@xn--rull-eva.lv`    | `password` (local only) |
+| Employee | `employee@xn--rull-eva.lv` | `password` (local only) |
 
-### Database: SQLite only
+`rullē.lv` is `xn--rull-eva.lv` in punycode; email addresses are stored in the
+punycode form. There is no seeded customer: register at `/register`. Outside
+production, new accounts are auto-verified, so there is no email step to work
+around.
 
-The application is written for SQLite and is **not** portable to MySQL or
-Postgres as it stands. This is a decision, not an accident: the integrity rules
-below live in the database itself, and the check-in statistics and the payments
-ledger use SQLite's dialect (`strftime`, `||`). Migrating the migrations would be
-the smaller part; the real cost is re-proving the concurrency guarantees, which
-rely on SQLite's single-writer locking (`transaction_mode = IMMEDIATE`, WAL).
-The migrations that add triggers or partial indexes abort on any other driver
-rather than silently skipping them.
+`migrate:fresh` and similar destructive commands are blocked in production
+(`DB::prohibitDestructiveCommands()`). In production the seeder refuses to run
+without `SEED_PASSWORD`.
 
-What the database enforces, whatever the application does:
+Promote or demote any existing account:
 
-- **Foreign keys never cascade.** Everything pointing at a user, reservation or
-  plan is `ON DELETE RESTRICT`, including Cashier's `subscriptions` and
-  `subscription_items`. History can't disappear because a parent row went.
-- **Status columns only hold known values** (`users.role`, `purchases.status`,
-  `reservations.status`, `reservation_user.status`, both `payment_status`
-  columns, `subscription_types.billing_interval`), by triggers that abort the write
-  with `invalid_<table>_<column>`. A new status therefore needs a migration that
-  updates the trigger (see `2026_10_09_090000_harden_data_integrity.php`).
-  Stripe's own `subscriptions.stripe_status` is left open on purpose.
-- **`users.name` and `users.pending_name` are unique**, closed accounts
-  included.
-- No two paid reservations overlap, and no customer has two live subscriptions
-  (see above).
+```bash
+php artisan user:set-role someone@example.com admin     # admin | employee | user
+```
 
-### Closing an account
+### Checks
 
-"Delete" on a user in the admin panel _closes_ the account (`App\Support\Accounts\AccountClosure`):
-their Stripe subscription is cancelled first (if Stripe refuses, nothing is
-changed), then the row is soft-deleted and its name, email, password, QR code secret and
-card details are replaced with placeholders, so they can't sign in, can't be
-found, and their email can be registered again. Purchases, reservations,
-check-ins and payments are kept and show as "Deleted user N". Their chat
-messages and participant links are removed.
+```bash
+composer ci:check    # everything CI runs: Pint, Larastan/PHPStan, frontend checks, tsc, Pest
+composer lint        # fix formatting (Pint)
+npm run check:fix    # fix frontend formatting/lint
+```
 
-An account can't be closed while it has an upcoming paid reservation, and an
-admin can't close their own account or the last admin. There is no bulk delete.
+See [Testing](#8-testing) for what the suites cover.
 
-### Plans and Stripe
+### Testing things that need time or hardware
 
-Saving a plan never calls Stripe. `App\Support\Payments\PlanStripeSync` creates
-or updates the Stripe Product and Price: right after an admin saves, from the
-"Sync to Stripe" action, and every 15 minutes for anything out of step
-(`php artisan plans:sync-stripe`, run by the scheduler). Renaming a plan only
-renames its Product; a new Price is made only when the amount or billing
-interval changes. A plan that is not synced can't be bought.
+- **Time-dependent features** (reservations, opening hours, the busy-times chart):
+  `php artisan time:fake "2026-09-17 16:15:00"` fakes the clock for every web and
+  artisan call (also `"+3 hours"`); `php artisan time:fake --clear` resets it. It
+  does nothing in production.
+- **QR scanner:** `/staff/scan` needs camera access, so use a real browser. Open
+  the customer dashboard on a phone and the scanner on a laptop webcam. Pick the
+  correct Entry/Exit mode before scanning, or the scan is rejected.
+- **Stripe:** see [Stripe](#stripe) for test cards and `stripe listen`.
 
-A plan can't be deleted once it has purchases or subscribers (deactivate it
-instead), and its billing type is locked once it has sales. Prices are at least
-€0.50, a one-time plan needs a visit limit of at least 1 unless it is unlimited,
-and reservation pricing must keep even the smallest booking above €0.50.
+---
 
-### Testing Stripe locally
+## 2. Configuration reference
 
-The local `.env` already has Stripe **test-mode** keys (`pk_test_...` /
-`sk_test_...`) — nothing here can ever charge a real card. Webhooks need a
-bit of extra setup since Stripe can't reach `localhost` directly:
+Everything is configured through `.env` (copy `.env.example`). In production the
+deploy workflow writes `.env` from GitHub secrets — see
+[Production deployment](#4-production-deployment).
+
+| Variable                                                        | Purpose                                                                                                                                       |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `APP_KEY`                                                       | Laravel key (`php artisan key:generate`). Also the root of the QR-token signing key — rotating it invalidates tokens.                         |
+| `APP_URL`                                                       | Public URL; used in links and Stripe return URLs.                                                                                             |
+| `DB_DATABASE`                                                   | The one SQLite path, relative to the project root: `storage/app/database.sqlite`. Must match `docker-compose.yml` and `docker/entrypoint.sh`. |
+| `SESSION_DRIVER` / `CACHE_STORE`                                | `file` on purpose: keeps session and cache writes out of the SQLite write lock.                                                               |
+| `STRIPE_KEY`, `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`          | Stripe keys and webhook signing secret. Not in `.env.example`; add them yourself. `CASHIER_CURRENCY=eur`.                                     |
+| `BROADCAST_CONNECTION`                                          | `log` locally without Reverb, `reverb` otherwise.                                                                                             |
+| `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`          | Reverb credentials (any values locally).                                                                                                      |
+| `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME`                   | Where the **server** reaches Reverb (in Docker: `reverb`, `8080`, `http`).                                                                    |
+| `VITE_REVERB_APP_KEY`, `VITE_REVERB_PORT`, `VITE_REVERB_SCHEME` | Where the **browser** connects (in production `443` / `https`). Baked into the JS at build time.                                              |
+| `MAIL_MAILER`, `MAIL_FROM_ADDRESS`, `RESEND_API_KEY`            | Outgoing mail. `log` locally, `resend` in production.                                                                                         |
+| `CAMERA_RTSP_URL`                                               | Camera RTSP URL including credentials. Blank locally; a secret in production.                                                                 |
+| `CHECKIN_TOKEN_TTL_SECONDS`                                     | Lifetime of the entry QR token (default `60`).                                                                                                |
+| `CHECKIN_MAX_VISIT_MINUTES`                                     | Longest plausible visit before a rider counts as gone (default `720`).                                                                        |
+| `SEED_PASSWORD`                                                 | Password for the seeded admin/employee accounts. **Required** to seed in production.                                                          |
+| `PHP_CLI_SERVER_WORKERS`                                        | Worker processes for `php artisan serve` in the container (default `4`).                                                                      |
+
+`VITE_*` values are compiled into the frontend, so changing them needs a rebuild
+(`npm run build`, or a new Docker build).
+
+---
+
+## 3. Third-party services
+
+### Stripe
+
+Uses Stripe Checkout through Laravel Cashier. Local `.env` should hold **test
+mode** keys (`pk_test_…`, `sk_test_…`); nothing then can charge a real card.
+
+**The webhook is what fulfils a payment.** The success page the customer lands on
+only displays the result, so a customer who pays and closes the tab still gets
+their pass or reservation. Create a webhook endpoint in the Stripe dashboard
+pointing at `https://<your-host>/stripe/webhook` and subscribe it to:
+
+- `checkout.session.completed`
+- `checkout.session.async_payment_succeeded`
+- `checkout.session.expired`
+- the `customer.subscription.*` events Cashier uses (`created`, `updated`, `deleted`)
+  and `customer.updated` / `customer.deleted`
+
+Copy the endpoint's signing secret (`whsec_…`) into `STRIPE_WEBHOOK_SECRET`.
+
+**Locally**, Stripe can't reach `localhost`, so forward events:
 
 ```bash
 brew install stripe/stripe-cli/stripe
@@ -166,138 +160,223 @@ stripe login
 stripe listen --forward-to localhost:8000/stripe/webhook
 ```
 
-`stripe listen` prints a `whsec_...` signing secret — put it in the local
-`.env` as `STRIPE_WEBHOOK_SECRET`, then restart `composer dev` so it picks
-up the change. Leave `stripe listen` running in its own terminal while you
-test.
+`stripe listen` prints a `whsec_…` secret: put it in `.env` as
+`STRIPE_WEBHOOK_SECRET` and restart `composer dev`. Keep `stripe listen` running
+while you test.
 
-The webhook is what actually fulfils a payment (the success page only shows
-the result), so the Stripe endpoint — in production too — must be subscribed to
-`checkout.session.completed`, `checkout.session.async_payment_succeeded` and
-`checkout.session.expired`, plus the `customer.subscription.*` events Cashier
-uses. Refunds are recorded before Stripe is called; anything Stripe doesn't
-confirm is retried every 15 minutes by `php artisan payments:retry-refunds`
-(run by the scheduler).
+Test cards: `4242 4242 4242 4242` succeeds, `4000 0000 0000 0002` is declined
+(any future expiry, any CVC, any postcode). Log in as a customer and check out at
+`/subscriptions`.
 
-Then, logged in as a customer, go to `/subscriptions` and check out with
-Stripe's test card `4242 4242 4242 4242` (any future expiry, any CVC, any
-postal code) — `4000 0000 0000 0002` simulates a declined card. Watch the
-`stripe listen` terminal for incoming webhook events as you go.
+**Plans.** Admins manage plans under `/admin` → Subscription Types. Saving a plan
+never calls Stripe; `PlanStripeSync` creates the Stripe Product and Price from
+the "Sync to Stripe" action and every 15 minutes (`plans:sync-stripe`). A plan
+that isn't synced can't be bought. Renaming a plan only renames the Product; a new
+Price is created only when the amount or billing interval changes. A plan with
+purchases or subscribers can't be deleted (deactivate it) and its billing type is
+locked. Prices must be at least €0.50, and a one-time plan needs a visit limit of
+at least 1 unless it is unlimited.
 
-There's a recurring ("Monthly Pass") plan seeded already; create a
-non-recurring one in `/admin` → Subscription Types to test the one-time
-purchase path too (tracked in the `purchases` table, separate from Cashier's
-own subscription handling).
+**Refunds** are recorded before Stripe is called. Anything Stripe doesn't
+confirm is retried every 15 minutes (`payments:retry-refunds`) with idempotency
+keys, and shows as `refund_failed` until it succeeds.
 
-### Testing the QR scanner locally
+### Reverb (WebSockets)
 
-`/staff/scan` needs camera access (`html5-qrcode`), so it has to be tested
-in a real browser, not a headless/sandboxed one. Log in as the employee
-account, and note the **Entry/Exit toggle** above the camera view — pick the
-matching mode before scanning, or the scan is rejected (this exists to stop
-one account's QR code being used to check in two people at once).
+Reverb powers the live chat and headcount. Locally it runs as part of
+`composer dev`. In production it is its own container (`reverb`), and the browser
+reaches it on `wss://<host>/app/…` through the Cloudflare Tunnel.
 
-The code on a customer's dashboard is not a fixed ID: it's a signed token
-(`App\Support\CheckIn\QrToken`) that expires after 60 seconds
-(`CHECKIN_TOKEN_TTL_SECONDS`) and is spent by one successful scan, so a
-screenshot is useless. The dashboard fetches a new one from
-`/dashboard/qr-token` before the old one runs out. A scan that is refused (wrong
-mode, no pass) doesn't spend it. The per-user `qr_code` column is only the secret
-the tokens are signed with and is never sent to a page; closing an account rotates
-it, which invalidates that account's tokens. To test on one screen, the dashboard
-on a phone and `/staff/scan` on a laptop webcam is the easiest setup.
+1. Pick any `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET` (random strings).
+2. Server-side settings (`REVERB_HOST=reverb`, `REVERB_PORT=8080`,
+   `REVERB_SCHEME=http`) point at the container over the Docker network.
+3. Browser-side settings (`VITE_REVERB_PORT=443`, `VITE_REVERB_SCHEME=https`) are
+   compiled into the JS. The deploy workflow sets both pairs.
 
-### Check-outs nobody scanned
+### Resend (email)
 
-Someone who leaves without scanning out would count as inside forever. Two
-things stop that:
+Registration verification and password reset mail goes through
+[Resend](https://resend.com).
 
-- `php artisan checkins:close-stale` (scheduled every five minutes, see
-  `routes/console.php`) writes the missing check-out for anyone still inside
-  after the park's closing time (Reservation settings) or after
-  `CHECKIN_MAX_VISIT_MINUTES` (default 720), whichever came first. It dates
-  the check-out to that moment, not to when the job ran, so the occupancy chart
-  is the same as if it had run exactly at closing, and it catches up if the
-  scheduler was down. Run it once by hand after deploying to clear old
-  check-ins that never got a check-out.
-- The live headcount and a rider's own "checked in" status ignore a check-in
-  older than the maximum visit length, even before the job has run.
+1. Create a Resend account, add and verify your sending domain, and create an API key.
+2. In production set `MAIL_MAILER=resend`, `RESEND_API_KEY=<key>` and
+   `MAIL_FROM_ADDRESS` to an address on the verified domain.
+3. Locally keep `MAIL_MAILER=log`; mails are written to `storage/logs/laravel.log`.
 
-### Testing time-dependent features without waiting
+Customers must verify their email before they can buy, book or chat. In
+production verification is required; outside it new accounts are auto-verified.
 
-Reservations, operating hours, and the "typically busy" chart all depend on
-the current time. Rather than waiting around for a reservation window to
-actually start, fake it:
+### Camera and MediaMTX (livestream)
 
-```bash
-php artisan time:fake "2026-09-17 16:15:00"   # or a relative string like "+3 hours"
-php artisan time:fake                          # shows what's currently faked, if anything
-php artisan time:fake --clear                  # back to the real time
+`/livestream` is public and plays an HLS feed from a Reolink camera on the same
+network as the production server:
+
+```
+Reolink camera --RTSP--> MediaMTX (compose service) --HLS--> Cloudflare Tunnel --> browser (hls.js)
 ```
 
-This affects every request (web and artisan) until cleared, and is a no-op
-in production. For example, to check that a reservation participant with no
-active subscription can still enter through `/staff/scan`: book a
-reservation a few minutes out, fake the time to land inside that window,
-then scan their QR code.
+MediaMTX does the RTSP→HLS conversion; the app never handles the video. Its
+config is inline in `docker-compose.yml` (`configs.content`) and the camera URL is
+substituted from `CAMERA_RTSP_URL` at runtime, so the camera's credentials are
+**never baked into an image**.
 
-## Production server
+One-time setup:
 
-The app runs in Docker on a self-hosted server, reachable only through a
-Cloudflare Tunnel — `docker-compose.yml` publishes no ports, and the
-`cloudflared` container joins the compose network (`skatepark_default`) and
-reaches `app:8000`, `reverb:8080` and `mediamtx:8888` by name. See
-`docker/cloudflared-setup.sh`.
+1. **Find the RTSP URL.** In the Reolink app: Settings → Network → IP address. Use
+   `rtsp://<user>:<pass>@<camera-ip>:554/h264Preview_01_sub` (the lighter
+   substream is plenty for a web embed). Test it in VLC first (Media → Open
+   Network Stream); if VLC can't play it, nothing downstream will.
+2. **Store it** as the GitHub Actions secret `CAMERA_RTSP_URL`.
+3. **Deploy.** The workflow writes it into the server's `.env` and starts `mediamtx`.
+4. **Check** `https://www.xn--rull-eva.lv/livestream`. If it says "Camera feed isn't
+   available right now", read `docker logs skatepark-mediamtx-1` on the server —
+   it is almost always a wrong URL/credentials, or the camera and server aren't on
+   the same network.
+
+**The stream is public by design.** Anyone with `https://<site>/live-cam/index.m3u8`
+can watch it, exactly like a guest on `/livestream`. `/live-cam/*` goes from
+Cloudflare straight to MediaMTX and never touches Laravel, so app middleware
+doesn't apply. The feed is not recorded; only the last few seconds of segments
+exist. Hiding the right-click menu in the player is cosmetic, not protection.
+
+### Cloudflare Tunnel
+
+The server publishes **no ports**. All traffic enters through a Cloudflare Tunnel
+container (`cloudflared`) that joins the compose network (`skatepark_default`)
+and talks to services by name:
+
+| Path            | Service         |
+| --------------- | --------------- |
+| `/app/*`        | `reverb:8080`   |
+| `/live-cam/*`   | `mediamtx:8888` |
+| everything else | `app:8000`      |
+
+The site is served from `www.xn--rull-eva.lv`; the DNS record and every ingress
+rule use that host.
+
+On the server, after the stack has been deployed once (the compose network must exist):
 
 ```bash
-ssh -p 2222 <name>@<serverIp>
+./docker/cloudflared-setup.sh                 # first time: log in, create tunnel, DNS record, run container
+./docker/cloudflared-setup.sh --reconfigure   # keep tunnel and DNS; rewrite config.yml, recreate the container
 ```
 
-### How a deploy works
+The container runs as root (`--user 0:0`); the current cloudflared image otherwise
+can't read the credentials directory and Cloudflare shows error 1033.
+
+---
+
+## 4. Production deployment
+
+The app runs in Docker on a self-hosted server with a self-hosted GitHub Actions
+runner. Compose services: `app` (PHP server), `reverb`, `scheduler`
+(`schedule:work`), `mediamtx`. Requires **Docker Compose ≥ 2.23.1** (inline
+config).
+
+### What a deploy does
 
 1. Push to `main`. The `tests` workflow runs.
-2. Only if `tests` passed, `.github/workflows/deploy.yml` runs on the
-   self-hosted runner (`workflow_run` trigger — the tests workflow must keep
-   the name `tests`). It deploys the exact commit that was tested and skips
-   itself if `main` has already moved on.
-3. `docker/deploy.sh` builds the image, snapshots the database
-   (`pre-deploy`), starts the stack with `docker compose up --wait` and waits
-   for the health checks (`/up` for the app).
-4. On startup the entrypoint runs `php artisan db:migrate-safe`: if there are
-   pending migrations it snapshots first (`pre-migrate`), and if one fails it
-   puts the snapshot back and the container stops.
-5. If the stack isn't healthy in time, the previous image (kept as
-   `skatepark-app:rollback`) is started again and the workflow fails.
+2. **Only if `tests` succeeded**, `.github/workflows/deploy.yml` runs
+   (`workflow_run` trigger — the tests workflow must stay named `tests`). It
+   deploys the exact commit that was tested and skips itself if `main` has moved on.
+3. It writes `.env` from GitHub secrets, then runs `docker/deploy.sh`:
+   tag the live image as `skatepark-app:rollback` → build → snapshot the database
+   (`pre-deploy`) → `docker compose up --wait` (waits for health checks: `/up` for the app).
+4. On container start the entrypoint runs `php artisan db:migrate-safe`: pending
+   migrations are preceded by a `pre-migrate` snapshot, and a failing migration
+   puts the snapshot back and stops the container.
+5. If the stack isn't healthy in time, the previous image is started again and the
+   workflow fails.
 
-Needs Docker Compose ≥ 2.23.1 on the server (inline MediaMTX config).
+### GitHub configuration
 
-**One-time switch when first deploying this setup:** the old tunnel config
-points at host ports (`host.docker.internal:8080` etc.) that no longer exist.
-_Before_ pushing, run `./docker/cloudflared-setup.sh --reconfigure` on the
-server — it points the tunnel at the service names, which already resolve to
-the running containers, so there is no gap.
+**Secrets:** `APP_KEY`, `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`,
+`STRIPE_KEY`, `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`,
+`CAMERA_RTSP_URL`, `SEED_PASSWORD`.
+**Variable (optional):** `FRESH_DB_ON_DEPLOY` — see below.
 
-### Backups and rollback
+Everything else (`APP_URL`, `APP_ENV=production`, Reverb/Vite ports, mailer, …) is
+set by the workflow itself.
 
-The SQLite file is `storage/app/database.sqlite` (inside the `app_storage`
-volume — the same path in `.env.example`, `docker-compose.yml` and
-`docker/entrypoint.sh`). Snapshots go to `storage/app/backups`, a separate
-`app_backups` volume.
+### First-time server setup
+
+1. Install Docker (Compose ≥ 2.23.1) and register the self-hosted runner.
+2. Add the secrets above, push to `main`, and let the first deploy finish.
+3. Run `./docker/cloudflared-setup.sh` on the server.
+4. Create the Stripe webhook endpoint and put its secret in `STRIPE_WEBHOOK_SECRET`
+   ([Stripe](#stripe)).
+5. Check the result (read-only; exits non-zero on any FAIL):
+
+```bash
+./docker/server-check.sh
+```
+
+It verifies that all services are healthy, no host ports are published, the tunnel
+is on the compose network and uses `www`, the database is at the pinned path, a
+backup exists and the site answers.
+
+When deploying this version over an existing database, also run the
+[legacy payments reconciliation](#one-off-reconcile-payments-from-before-payment-tracking).
+
+### The admin account in production
+
+The database starts empty. The seeder creates `admin@xn--rull-eva.lv` and
+`employee@xn--rull-eva.lv` with the password from the `SEED_PASSWORD` secret. To
+seed a database that already has the schema:
+
+```bash
+docker compose exec app php artisan db:seed --force
+```
+
+To give an existing customer a role instead:
+`docker compose exec app php artisan user:set-role someone@example.com admin`.
+
+Change the seeded password after the first login.
+
+### Pre-launch: wipe the database on every deploy
+
+While the project is still being built, a repository **variable**
+`FRESH_DB_ON_DEPLOY=true` makes every deploy snapshot the database (`pre-fresh`),
+stop the app, run `migrate:fresh --seed` and start the new version (the snapshot
+is restored if the wipe fails). It needs the `SEED_PASSWORD` secret and runs once
+per deploy, not on container restarts. Stripe-side data isn't touched.
+
+> **Delete the variable before launch.** While it exists, every push to `main`
+> deletes all users, bookings and passes.
+
+### Starting over on the same server
+
+Run on the server itself (not in the runner):
+
+```bash
+./docker/server-cleanup.sh              # stops containers, archives data volumes to ~/skatepark-backups, removes old containers/images
+./docker/server-cleanup.sh --wipe-data  # also deletes the database and uploads (typed confirmation; archives stay)
+```
+
+Then re-run the Deploy workflow, `./docker/cloudflared-setup.sh --reconfigure`, and
+`./docker/server-check.sh`.
+
+---
+
+## 5. Backups and rollback
+
+The database is `storage/app/database.sqlite` inside the `app_storage` volume.
+Snapshots go to `storage/app/backups`, a separate `app_backups` volume.
 
 | When                                | Label         | Kept      |
 | ----------------------------------- | ------------- | --------- |
 | Every 6 hours (`scheduler` service) | none          | newest 28 |
 | Before each deploy                  | `pre-deploy`  | newest 10 |
 | Before pending migrations           | `pre-migrate` | newest 10 |
+| Before a fresh-database deploy      | `pre-fresh`   | newest 10 |
 | Before any restore                  | `pre-restore` | newest 14 |
 
 ```bash
-docker compose exec app php artisan db:backup                # manual snapshot
-docker compose exec app php artisan db:restore               # list snapshots
+docker compose exec app php artisan db:backup      # manual snapshot
+docker compose exec app php artisan db:restore     # list snapshots
 ```
 
-Restoring replaces the file on disk, so stop everything that has it open
-first:
+**Restore** replaces the file on disk, so stop everything that has it open first:
 
 ```bash
 docker compose stop app reverb scheduler
@@ -305,188 +384,245 @@ docker compose run --rm --no-deps --entrypoint php app artisan db:restore latest
 docker compose up -d
 ```
 
-If a deploy rolled back after the migrations had already succeeded, the old
-image is running on the new schema — restore the `pre-deploy` snapshot the
-workflow printed as above.
+**Automatic rollback** covers a failed migration (snapshot restored) and an
+unhealthy new version (previous image restarted). If the migrations succeeded and
+the app broke afterwards, the old image is running on the _new_ schema: restore the
+`pre-deploy` snapshot the workflow printed, as above.
 
-The backups volume is on the same machine as the database, so **copy it off
-the server now and then** (run on the server itself, not in the runner):
+**Off-site copies.** The backups live on the same machine as the database. Copy them
+off the server regularly (run on the server):
 
 ```bash
 docker run --rm -v skatepark_app_backups:/b -v "$PWD":/out alpine tar czf /out/skatepark-backups.tgz -C /b .
 ```
 
-### Starting over on the same server
+---
 
-To clear the old containers, images and build cache and rebuild the stack
-cleanly (run on the server itself, not in the runner):
+## 6. Scheduled jobs and artisan commands
 
-```bash
-./docker/server-cleanup.sh              # keeps the data volumes
-```
+The `scheduler` container runs `schedule:work`; locally run `php artisan schedule:work`
+to get the same jobs. Every job is safe to repeat.
 
-It lists what exists, stops the containers, archives the data volumes to
-`~/skatepark-backups/` (and verifies the archives) and only then removes
-containers and old images. Add `--wipe-data` to also delete the database and
-uploads (typed confirmation; the archives stay). It leaves the runner,
-`~/.cloudflared` and the network alone.
+| Command                         | Schedule         | What it does                                                                                            |
+| ------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `db:backup --keep=28`           | every 6 hours    | Snapshots the SQLite database.                                                                          |
+| `payments:retry-refunds`        | every 15 minutes | Retries refunds Stripe didn't confirm.                                                                  |
+| `plans:sync-stripe`             | every 15 minutes | Syncs plans whose Stripe Product/Price is out of date.                                                  |
+| `checkins:close-stale`          | every 5 minutes  | Writes the missing check-out for anyone still inside after closing time or `CHECKIN_MAX_VISIT_MINUTES`. |
+| `model:prune` (spent QR tokens) | daily            | Deletes expired single-use token records.                                                               |
 
-Then: re-run the **Deploy** workflow on GitHub, run
-`./docker/cloudflared-setup.sh --reconfigure`, and finish with
+Manual commands: `db:backup`, `db:restore`, `db:migrate-safe` (used by the entrypoint),
+`db:fresh-deploy` (used by `deploy.sh`), `user:set-role`, `time:fake`, and the one-off
+`payments:reconcile-legacy` below.
 
-```bash
-./docker/server-check.sh                # read-only audit, exits non-zero on any FAIL
-```
+### One-off: reconcile payments from before payment tracking
 
-which checks that all four services are healthy, no host ports are
-published, the tunnel is on the compose network and uses `www`, the database
-is at the pinned path, a backup exists, and the site answers.
-
-### Pre-launch: wipe the database on every deploy
-
-While the project is still being built you can have **every deploy start from
-an empty database**, and turn that off once real customers exist.
-
-- **On:** GitHub → repo → Settings → Secrets and variables → Actions →
-  **Variables** → new variable `FRESH_DB_ON_DEPLOY` = `true`.
-- **Off:** delete the variable (or set it to anything but `true`). Deploys go
-  back to the normal `db:migrate-safe`, which keeps your data.
-
-It takes effect on the next deploy; no commit needed. It also needs the
-Actions **secret** `SEED_PASSWORD` — the password the seeded
-`admin@xn--rull-eva.lv` and `employee@xn--rull-eva.lv` accounts get on the
-server (the local `password` is never used in production, and the wipe refuses
-to run without it).
-
-What a deploy does while it is on (`docker/deploy.sh` → `php artisan
-db:fresh-deploy`): snapshot the database (`pre-fresh`, last 10 kept), stop the
-app, run `migrate:fresh --seed`, start the new version. If the wipe fails the
-snapshot is put back and the old version keeps running. It runs **once per
-deploy**, not on container restarts or reboots. Uploaded files and Stripe data
-are not touched, so Stripe-side customers/subscriptions outlive a wipe.
-
-> **Turn it off before launch.** While it is on, every push to `main` deletes
-> all users, bookings and passes (the snapshots are the only way back).
-
-### Refresh db on prod
-
-Wipes all data. Take a snapshot first (`db:backup` above).
+Reservations and passes created before the `payment_status` columns existed
+(`2026_10_07_090000_add_payment_state_…`) were backfilled conservatively: anything
+confirmed paid became `paid`, but a **cancelled** reservation became `unpaid`, because
+the old schema couldn't say whether its money had been refunded or kept. Passes whose
+customer paid and never came back to the site were left `pending` or `abandoned`.
+`payments:reconcile-legacy` asks Stripe what really happened to each such row's
+Checkout session and fixes the state.
 
 ```bash
-docker exec skatepark-app-1 rm -f storage/app/database.sqlite
-docker exec skatepark-app-1 touch storage/app/database.sqlite
-docker exec skatepark-app-1 php artisan migrate --force
-docker exec skatepark-app-1 php artisan db:seed --force
+docker compose exec app php artisan db:backup                              # always snapshot first
+docker compose exec app php artisan payments:reconcile-legacy              # dry run: a table of what it found
+docker compose exec app php artisan payments:reconcile-legacy --apply      # write the changes
+docker compose exec app php artisan payments:reconcile-legacy --apply --refund-owed
 ```
 
-### Livestream (Reolink camera)
+What it does, per row:
 
-`/livestream` is public — no login required, per the spec's guest access —
-and plays an HLS feed pulled from a Reolink camera on the same network as
-the production server. The pipeline:
+| Row                                        | Stripe says                                 | Result                                                                                 |
+| ------------------------------------------ | ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Pass `pending`/`abandoned`                 | paid                                        | Activated (the same code the webhook uses).                                            |
+| Reservation `pending`                      | paid                                        | Activated, or refunded if its slot has since been taken.                               |
+| Reservation `cancelled`, recorded `unpaid` | fully / partly refunded                     | `refunded` / `partially_refunded`, with the amount.                                    |
+| Reservation `cancelled`, recorded `unpaid` | paid, nothing refunded, cancelled **late**  | `paid` — the money was kept, so revenue now counts it.                                 |
+| Reservation `cancelled`, recorded `unpaid` | paid, nothing refunded, cancelled **early** | Left alone and flagged: a refund was owed. `--apply --refund-owed` refunds it in full. |
+| Any of the above                           | never paid / unknown session                | Left as it is.                                                                         |
 
-```
-Reolink camera --RTSP--> MediaMTX (docker-compose service) --HLS--> Cloudflare Tunnel --> browser (hls.js)
-```
+Notes:
 
-MediaMTX (config inline in `docker-compose.yml`, injected at runtime) does the
-actual RTSP→HLS conversion; the app never touches the video itself. The camera's RTSP URL is
-`CAMERA_RTSP_URL` in `.env` (a `GitHub Actions` secret in prod, same pattern
-as `STRIPE_SECRET` etc.) — never commit it, since it embeds the camera's
-credentials.
+- Without `--apply` nothing is written. It is safe to run repeatedly: a settled row no
+  longer matches. Rows touched in the last 30 minutes are skipped (a checkout may still
+  be open). A Stripe error on one row is reported and the rest carry on; the command
+  then exits non-zero.
+- "Early" or "late" is judged with the current `cancellation_cutoff_hours` against the
+  row's `updated_at`, the nearest thing to a cancellation time the old schema kept. That
+  is why owed refunds need an explicit `--refund-owed` rather than happening on `--apply`.
+- It is not scheduled. Run it once after the deploy that introduced payment tracking,
+  and again only if old rows turn up.
 
-**One-time setup, in this order:**
+---
 
-1. **Find the camera's RTSP URL.** In the Reolink app: Settings → Network →
-   IP address. Build the URL as
-   `rtsp://<user>:<pass>@<camera-ip>:554/h264Preview_01_sub` (the `_sub`
-   substream — lower resolution, much lighter than `_main`, which is plenty
-   for a web embed). Test it in VLC (Media → Open Network Stream) before
-   wiring anything else up — if VLC can't play it, nothing downstream will
-   either.
-2. **Add the GitHub secret.** Repo → Settings → Secrets and variables →
-   Actions → `CAMERA_RTSP_URL`, value = the URL from step 1.
-3. **Update the live Cloudflare Tunnel config.** `docker/cloudflared-setup.sh`
-   writes the tunnel's `ingress` rules (including `^/live-cam/.*`). For an
-   already-provisioned tunnel, SSH into the server and re-run it in
-   reconfigure mode — it keeps the tunnel and DNS, rewrites
-   `~/.cloudflared/config.yml` and recreates the container on the compose
-   network:
-    ```bash
-    ./docker/cloudflared-setup.sh --reconfigure
-    ```
-4. **Deploy** (push to `main`, or re-run the workflow) so the new
-   `CAMERA_RTSP_URL` reaches the server's `.env` and the `mediamtx` service
-   starts.
-5. **Check it.** `https://www.xn--rull-eva.lv/livestream` should show the
-   feed within a few seconds. If it shows "Camera feed isn't available right
-   now", check `docker logs skatepark-mediamtx-1` on the server — almost
-   always either the RTSP URL/credentials are wrong, or the camera and
-   server aren't actually on the same network.
+## 7. How it works
 
-#### The stream is public by design
+### Payments
 
-Anyone who knows `https://<site>/live-cam/index.m3u8` can watch the feed
-without an account — it's the same video the public `/livestream` page shows
-guests, and the spec requires guest access. That is deliberate, not an
-oversight, so don't "fix" it by adding auth in front of it:
+- **The webhook is the source of truth** for fulfilling purchases and reservations
+  (`App\Support\Payments\CheckoutFulfillment`). The success URLs verify that the
+  Checkout Session belongs to the logged-in user and show the outcome; they do not
+  decide it. `checkout.session.expired` clears abandoned checkouts.
+- Payment state is separate from lifecycle state: `payment_status` (unpaid, paid,
+  refunded, partially refunded, `refund_failed`) and `refunded_cents` live next to
+  the reservation/purchase `status`. Revenue statistics count what was paid minus
+  what was refunded, so a late cancellation without refund still counts as revenue.
+- Every state-changing action is POST/PUT/PATCH/DELETE. The GET routes Stripe
+  redirects to (`*.checkout-cancelled`, `*.success`) change nothing.
+- A subscription records the amount actually billed (`subscriptions.price_cents`),
+  so the Payments ledger doesn't change when a plan's price does.
 
-- `/live-cam/*` never touches Laravel. Cloudflare Tunnel routes it straight to
-  MediaMTX (see the ingress rules in `docker/cloudflared-setup.sh`), so no
-  middleware, session or security header from the app applies to it.
-- What _is_ secret is the camera's RTSP URL (it embeds the camera's login).
-  MediaMTX only exposes the converted HLS output; the RTSP URL and the
-  camera's own address never reach the browser.
-- The park doesn't record or store the feed (the page says so), so there is no
-  archive behind that URL — only the last few seconds of segments.
+### Concurrency
+
+- SQLite runs with `transaction_mode = IMMEDIATE`, so a check followed by a write
+  inside `DB::transaction` can't be interleaved with another request. **Never call
+  Stripe inside a transaction** — the write lock is held until it ends.
+- Two paid reservations can't overlap: checked in a transaction at booking and at
+  payment, and enforced by `reservations_no_active_overlap_*` triggers.
+- A scan (state check, visit spent, event written) is one transaction.
+- One live subscription per customer: a per-user lock and reuse of the open
+  Stripe session at checkout, a check in the `customer.subscription.created`
+  webhook (a duplicate is cancelled at Stripe and logged `critical`; its first
+  payment then needs a manual refund), and the partial unique index
+  `subscriptions_one_live_per_user_type`.
+- Posting in the global chat takes a per-user lock; both chats are rate limited
+  (`chat-send`, 20 messages/minute/user).
+
+### Database integrity
+
+- **Foreign keys never cascade.** Everything pointing at a user, reservation or plan
+  is `ON DELETE RESTRICT`, including Cashier's tables.
+- **Status columns only hold known values**, via triggers that abort the write with
+  `invalid_<table>_<column>`. A new status needs a migration that updates the
+  trigger (see `2026_10_09_090000_harden_data_integrity.php`).
+- `users.name` and `users.pending_name` are unique, closed accounts included.
+
+### Closing an account
+
+"Delete" on a user in the admin panel _closes_ the account
+(`App\Support\Accounts\AccountClosure`): the Stripe subscription is cancelled first
+(if Stripe refuses, nothing changes), then the row is soft-deleted and its name,
+email, password, QR secret and card details are replaced with placeholders. Purchases,
+reservations, check-ins and payments are kept and show as "Deleted user N"; chat
+messages and participant links are removed. An account with an upcoming paid
+reservation can't be closed, an admin can't close themselves or the last admin,
+and there is no bulk delete.
+
+### Reservations, participants and group chat
+
+- Adding someone sends an **invitation** (`invited` → `accepted` / `declined`). Only
+  the owner of a paid, not-yet-ended reservation can invite, and only verified
+  customers. Only accepted participants count toward the paid group size, can enter
+  with the group and see the group chat; capacity is rechecked under the write lock
+  when the invitation is accepted. A declined invitation stays on record so the owner
+  can't re-invite.
+- The group chat exists while the reservation is paid for: writable until it ends,
+  read-only for 7 days after, then closed. The WebSocket channel authorisation
+  (`routes/channels.php`) uses the same rule as the page.
+- Customer search for invitations matches display names only, treats `%` and `_`
+  literally, is throttled and returns just id and name.
+- `App\Rules\NoInappropriateContent` is a short word list. It stops casual abuse and
+  nothing more; it is not content safety. Mute/delete tools and admin review of
+  requested names are the real moderation.
+
+### Entry QR and check-in
+
+The QR on a customer's dashboard is not a fixed ID but a **signed, single-use token**
+(`App\Support\CheckIn\QrToken`) that expires after 60 s (`CHECKIN_TOKEN_TTL_SECONDS`).
+The dashboard fetches a new one from `/dashboard/qr-token` before the old one runs
+out, so a screenshot is useless. A scan that is refused (wrong mode, no pass) doesn't
+spend the token. The per-user `qr_code` column is only the secret the tokens are signed
+with and is never sent to a page; closing an account rotates it.
+
+Someone who leaves without scanning out would otherwise count as inside forever.
+`checkins:close-stale` writes the missing check-out dated to the moment they should
+have left, and the live headcount ignores check-ins older than `CHECKIN_MAX_VISIT_MINUTES`
+even before the job has run. After a deploy, run it once by hand to clear old check-ins.
+
+### Email addresses
+
+Emails are normalised (Unicode domains → punycode) at registration, login and
+password reset, so the same address is always stored and looked up in one form. This
+needs the PHP `intl` extension (required in `composer.json`).
 
 ### Security headers
 
-`App\Http\Middleware\SetSecurityHeaders` runs on every web response (and on the
-Filament panel, which has its own middleware stack) and sends:
+`App\Http\Middleware\SetSecurityHeaders` runs on every web response, including the
+Filament panel:
 
-| Header                      | Value                                                                                       |
-| --------------------------- | ------------------------------------------------------------------------------------------- |
-| `Content-Security-Policy`   | see below                                                                                   |
-| `X-Content-Type-Options`    | `nosniff`                                                                                   |
-| `Referrer-Policy`           | `strict-origin-when-cross-origin`                                                           |
-| `Permissions-Policy`        | camera for this site only (the staff QR scanner); microphone, geolocation, payment, usb off |
-| `X-Frame-Options`           | `SAMEORIGIN` (the CSP's `frame-ancestors 'self'` says the same; this covers older browsers) |
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains`, **production over HTTPS only**                       |
+| Header                      | Value                                                                              |
+| --------------------------- | ---------------------------------------------------------------------------------- |
+| `Content-Security-Policy`   | strict for the public site, looser for `/admin` (below)                            |
+| `X-Content-Type-Options`    | `nosniff`                                                                          |
+| `Referrer-Policy`           | `strict-origin-when-cross-origin`                                                  |
+| `Permissions-Policy`        | camera for this site only (the scanner); microphone, geolocation, payment, USB off |
+| `X-Frame-Options`           | `SAMEORIGIN`                                                                       |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` — production over HTTPS only                 |
 
-**The app's CSP** (everything outside `/admin`) is `default-src 'self'` with
-scripts allowed only from this origin or carrying a per-request nonce (Vite's
-tags get it automatically), no `unsafe-inline`/`unsafe-eval` for scripts, and
-`object-src 'none'`. The exceptions exist for two features, and changing
-either one means revisiting the policy:
+The public CSP is `default-src 'self'` with scripts only from this origin or carrying
+a per-request nonce, and `object-src 'none'`. Two features need exceptions, and
+changing either means revisiting the policy:
 
-- **Reverb (chat, live headcount)** — `connect-src` allows the WebSocket to
-  this same host, built from `VITE_REVERB_PORT` / `VITE_REVERB_SCHEME`
-  (`config/security.php`). In production that is plain `wss://<host>` on 443;
-  locally it is `ws://localhost:8080`. If `resources/js/echo.ts` ever points at
-  another host, add it to `reverbSources()`.
-- **Livestream (HLS)** — playlists and segments are fetched same-origin from
-  `/live-cam/` (`connect-src 'self'`). hls.js plays them through a
-  `MediaSource`, which the `<video>` reads from a `blob:` URL (`media-src
-blob:`), and parses them in a Web Worker created from a `blob:` URL
-  (`worker-src blob:`). Safari plays HLS natively from the same-origin URL.
-  Hosting the stream on another domain would need that origin in
-  `connect-src` and `media-src`, plus CORS on MediaMTX.
+- **Reverb** — `connect-src` allows the WebSocket to this host, built from
+  `VITE_REVERB_PORT`/`VITE_REVERB_SCHEME` (`config/security.php`). If `echo.ts` ever
+  points at another host, add it to `reverbSources()`.
+- **Livestream (HLS)** — playlists and segments load same-origin from `/live-cam/`;
+  hls.js needs `blob:` for `media-src` and `worker-src`.
 
-`style-src` keeps `'unsafe-inline'` because the `@fonts` directive writes an
-inline `<style>` block with no nonce support.
+`style-src` keeps `'unsafe-inline'` (the `@fonts` directive writes an inline style
+without nonce support). The `/admin` CSP adds `unsafe-inline`/`unsafe-eval` for scripts
+because Filament's Alpine build and Livewire need them, and allows `ui-avatars.com`
+images. With `npm run dev` running, the Vite dev server is allowed too (derived from
+`public/hot`, never in production). When something is blocked, the browser console
+names the directive and URL — start there.
 
-**The admin panel's CSP** (`/admin`) is looser: it adds `unsafe-inline` and
-`unsafe-eval` for scripts, because Filament's Alpine build evaluates
-expressions at runtime and Livewire writes inline scripts into every page. It
-also allows images from `ui-avatars.com` (Filament's default avatar). It is
-still locked to this origin for everything else, so a script from elsewhere
-can't be loaded, and it is only reachable by logged-in staff.
+---
 
-With `npm run dev` running, the policy also allows the Vite dev server (and
-its HMR WebSocket) so local development isn't blocked. That is derived from
-`public/hot` and is never added in production.
+## 8. Testing
 
-When something is blocked, the browser console says which directive and URL:
-`Refused to ... because it violates the following Content Security Policy
-directive`. That message is the starting point for any change to the policy.
+```bash
+./vendor/bin/pest                       # unit + feature tests
+./vendor/bin/pest --testsuite=Parallel  # real multi-process race tests (~20 s)
+composer ci:check                       # the full CI run
+```
+
+- `tests/Feature`, `tests/Unit` — behaviour tests, including payment lifecycles
+  (webhook-only fulfilment, foreign session IDs, refunds), account closure, and
+  chat access over a reservation's lifetime, and the legacy reconciliation command.
+  Stripe is replaced by `tests/Support/FakeStripeGateway` (`fakeStripe()` in tests).
+- `tests/Parallel` — starts several PHP processes against one on-disk SQLite file and
+  releases them at the same instant to prove that double bookings, double scans,
+  over-full groups, duplicate checkouts and chat-cooldown bypasses can't happen.
+- CI (`.github/workflows/tests.yml`) runs `composer setup` and `composer ci:check`.
+  A red run blocks the deploy.
+
+---
+
+## 9. Frontend structure
+
+Inertia pages live in `resources/js/pages/`; they stay thin and compose components.
+Anything big is split by responsibility, with the behaviour in hooks and the markup in
+small components:
+
+- **Chat** — `components/chat-thread.tsx` is the one chat room (global chat and each
+  reservation's group chat) and only wires pieces together. Its parts are in
+  `components/chat/`:
+
+    | File                                                                                | Responsibility                                                                                                  |
+    | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+    | `hooks.ts`                                                                          | `useChatChannel` (websocket events), `useSlowMode`, `useStickyScroll`, `useMessageJump`, `useModerationActions` |
+    | `header.tsx`, `pinned-panel.tsx`, `muted-users-panel.tsx`, `custom-mute-dialog.tsx` | Header and the moderation panels/dialog                                                                         |
+    | `message-list.tsx`, `message-row.tsx`                                               | Day/author grouping and one message with its actions                                                            |
+    | `composer.tsx`                                                                      | Message box, slow-mode banner, muted/read-only states                                                           |
+    | `types.ts`, `avatar.tsx`, `icons.tsx`                                               | Shared types, avatar, icons                                                                                     |
+
+- **Reservations** — `pages/reservations/index.tsx` composes `components/reservations/`:
+  `booking-section.tsx` (form + calendar of taken slots), `invitations-section.tsx`,
+  `my-reservations-section.tsx` (one card per reservation), `add-participant.tsx`.
+  The day timeline (`components/reservation-timeline.tsx`) keeps the selection logic and
+  delegates to `timeline-chart.tsx` (SVG), `timeline-selects.tsx` (start/duration lists)
+  and `time.ts` (minute/time helpers).
+
+Checks: `npm run check` (format + lint), `npm run types:check` (tsc), `npm run build`.
