@@ -58,6 +58,8 @@ type Props = {
     postUrl: string;
     muted?: boolean;
     mutedUntil?: string | null;
+    /** The conversation is over: shown, but nothing more can be posted. */
+    readOnly?: boolean;
     moderation?: Moderation;
     /** Who this room's moderator can currently unmute — fed from the
      * server rather than derived from messages, since a muted account
@@ -85,6 +87,7 @@ export default function ChatThread({
     postUrl,
     muted = false,
     mutedUntil = null,
+    readOnly = false,
     moderation,
     mutedUsers = [],
     slowMode,
@@ -1076,7 +1079,11 @@ export default function ChatThread({
                     </p>
                 )}
 
-                {muted ? (
+                {readOnly ? (
+                    <p className="border-ink text-muted border-2 px-4 py-3 text-base font-medium">
+                        {t('chatThread.readOnly')}
+                    </p>
+                ) : muted ? (
                     <p className="border-danger text-danger border-2 px-4 py-3 text-base font-medium">
                         {mutedUntil
                             ? t('chatThread.mutedUntil', {

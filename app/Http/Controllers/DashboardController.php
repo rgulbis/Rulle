@@ -105,7 +105,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * The soonest paid reservation the user is part of, as owner or added
+     * The soonest paid reservation the user is part of, as owner or accepted
      * participant — only its time and size, same shape the rest of the app
      * shows a participant.
      *
@@ -113,10 +113,7 @@ class DashboardController extends Controller
      */
     protected function nextReservation(User $user): ?array
     {
-        $reservation = Reservation::where(function ($query) use ($user) {
-            $query->where('user_id', $user->id)
-                ->orWhereHas('participants', fn ($q) => $q->whereKey($user->id));
-        })
+        $reservation = Reservation::involving($user)
             ->where('status', 'active')
             ->where('ends_at', '>', now())
             ->orderBy('starts_at')

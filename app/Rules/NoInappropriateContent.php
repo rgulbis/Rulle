@@ -6,13 +6,13 @@ use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
- * A deliberately simple denylist-and-pattern check for chat messages and
- * display names — meant to catch overt profanity, slurs, and crude ASCII
- * art (e.g. "8====D"), not to be a bulletproof moderation system. A
- * determined user can still get around a word list like this one (creative
- * spelling, a different language entirely); this only raises the floor for
- * casual abuse, it doesn't replace the existing human moderation tools
- * (mute/delete) for anything that slips through.
+ * A short denylist of words plus one ASCII-art pattern, applied to chat
+ * messages and display names. That is all it is: it refuses the most obvious
+ * abuse and is easy to get around (different spelling, spacing, another
+ * language, anything not on the list), and it also has no idea of context. It
+ * is not content moderation or content safety, and nothing should be built on
+ * the assumption that text which passes it is acceptable — that is what the
+ * mute/delete tools and the admin review of requested names are for.
  */
 class NoInappropriateContent implements ValidationRule
 {

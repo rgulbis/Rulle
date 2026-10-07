@@ -320,7 +320,7 @@ test('a reservation participant can still enter during the reservation', functio
     $owner = User::factory()->create();
     $reservation = makeActiveReservation($owner);
     $participant = User::factory()->create([]);
-    $reservation->participants()->attach($participant->id);
+    $reservation->invitations()->attach($participant->id, ['status' => 'accepted']);
 
     $response = $this->actingAs($staff)->postJson('/staff/scan', [
         'code' => $participant->qr_code,

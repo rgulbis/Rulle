@@ -99,7 +99,7 @@ test('the dashboard shows the next reservation the customer is part of', functio
     $participant = User::factory()->create();
     $later = makeReservation($owner, now()->addDays(3), now()->addDays(3)->addHour());
     $sooner = makeReservation($owner, now()->addDay(), now()->addDay()->addHours(2), ['group_size' => 6]);
-    $sooner->participants()->attach($participant);
+    $sooner->invitations()->attach($participant, ['status' => 'accepted']);
     // Cancelled and past ones never count as "next".
     makeReservation($owner, now()->addHours(2), now()->addHours(3), ['status' => 'cancelled']);
     makeReservation($owner, now()->subDays(2), now()->subDays(2)->addHour());

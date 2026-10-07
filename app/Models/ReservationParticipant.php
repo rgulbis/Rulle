@@ -7,15 +7,24 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Carbon;
 
 /**
- * The reservation_user pivot row, given its own class only so
- * chat_muted_until casts to Carbon — plain ->withPivot() leaves pivot
- * attributes as raw strings, and there's no fluent way to cast a pivot
- * column from the relationship definition itself.
+ * The reservation_user pivot row: one person's invitation to a reservation
+ * and what became of it (invited, accepted, declined). Given its own class
+ * so chat_muted_until and responded_at cast to Carbon — plain ->withPivot()
+ * leaves pivot attributes as raw strings, and there's no fluent way to cast a
+ * pivot column from the relationship definition itself.
  *
+ * @property string $status
+ * @property Carbon|null $responded_at
  * @property Carbon|null $chat_muted_until
  */
 class ReservationParticipant extends Pivot
 {
+    public const INVITED = 'invited';
+
+    public const ACCEPTED = 'accepted';
+
+    public const DECLINED = 'declined';
+
     protected $table = 'reservation_user';
 
     /**
@@ -29,6 +38,7 @@ class ReservationParticipant extends Pivot
     protected function casts(): array
     {
         return [
+            'responded_at' => 'datetime',
             'chat_muted_until' => 'datetime',
         ];
     }

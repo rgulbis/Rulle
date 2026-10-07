@@ -133,7 +133,7 @@ test('their chat messages and participant links are removed, and replies to them
     $gone = ChatMessage::create(['user_id' => $user->id, 'body' => 'my secret phone number']);
     $reply = ChatMessage::create(['user_id' => $other->id, 'body' => 'ok', 'reply_to_message_id' => $gone->id]);
     $reservation = makeReservation($owner, now()->addDays(2), now()->addDays(2)->addHour());
-    $reservation->participants()->attach($user->id);
+    $reservation->invitations()->attach($user->id, ['status' => 'accepted']);
 
     app(AccountClosure::class)->close($user);
 

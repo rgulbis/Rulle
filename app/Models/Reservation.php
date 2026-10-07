@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -30,6 +31,11 @@ use Illuminate\Support\Carbon;
 class Reservation extends Model
 {
     use HasPaymentState;
+
+    /**
+     * How long a finished reservation's group chat stays readable.
+     */
+    public const CHAT_READABLE_DAYS_AFTER_END = 7;
 
     protected function casts(): array
     {
@@ -53,22 +59,73 @@ class Reservation extends Model
     }
 
     /**
-     * Everyone besides the owner who's part of this reservation.
+     * Every invitation to this reservation, whatever became of it: someone
+     * who has not answered yet, who accepted, or who declined. Only
+     * {@see self::participants()} are actually part of the reservation.
+     *
+     * @return BelongsToMany<User, $this, ReservationParticipant>
+     */
+    public function invitations(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class)
+            ->using(ReservationParticipant::class)
+            ->withTimestamps()
+            ->withPivot('status', 'responded_at', 'chat_muted_until');
+    }
+
+    /**
+     * The same invitations as {@see self::invitations()}, as rows rather than
+     * as users: for listing who was invited and what became of it.
+     *
+     * @return HasMany<ReservationParticipant, $this>
+     */
+    public function invitationRows(): HasMany
+    {
+        return $this->hasMany(ReservationParticipant::class);
+    }
+
+    /**
+     * Everyone besides the owner who accepted an invitation. An invited or
+     * declined person is not one of them: they take no seat of the paid
+     * group size and have no access to the group chat.
      *
      * @return BelongsToMany<User, $this, ReservationParticipant>
      */
     public function participants(): BelongsToMany
     {
-        return $this->belongsToMany(User::class)
-            ->using(ReservationParticipant::class)
-            ->withTimestamps()
-            ->withPivot('chat_muted_until');
+        return $this->invitations()->wherePivot('status', ReservationParticipant::ACCEPTED);
+    }
+
+    /**
+     * Reservations a user takes part in: they own it, or accepted an
+     * invitation to it.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeInvolving(Builder $query, User $user): Builder
+    {
+        return $query->where(function (Builder $query) use ($user) {
+            $query->where('user_id', $user->id)
+                ->orWhereHas('participants', fn ($q) => $q->whereKey($user->id));
+        });
     }
 
     public function includesParticipant(User $user): bool
     {
         return $this->user_id === $user->id
             || $this->participants()->whereKey($user->id)->exists();
+    }
+
+    /**
+     * The invitation a user holds for this reservation, answered or not.
+     */
+    public function invitationFor(User $user): ?ReservationParticipant
+    {
+        /** @var ReservationParticipant|null $pivot */
+        $pivot = $this->invitations()->whereKey($user->id)->first()?->pivot;
+
+        return $pivot;
     }
 
     /**
@@ -103,6 +160,28 @@ class Reservation extends Model
     }
 
     /**
+     * Whether messages can be posted (and the chat moderated): only while
+     * the reservation is paid for and has not ended. Before it starts is
+     * fine — that is when a group arranges things.
+     */
+    public function chatIsWritable(): bool
+    {
+        return $this->isUpcomingOrOngoing();
+    }
+
+    /**
+     * Whether the chat can be opened at all: a paid reservation, until a
+     * week after it ended, read-only once it is over. A pending or
+     * cancelled reservation has no chat. The websocket channel uses this
+     * same rule.
+     */
+    public function chatIsReadable(): bool
+    {
+        return $this->status === 'active'
+            && $this->ends_at->gt(now()->subDays(self::CHAT_READABLE_DAYS_AFTER_END));
+    }
+
+    /**
      * True if some other reservation already claimed (paid for) an
      * overlapping slot. Checked right when a payment completes, since two
      * people can both have a pending reservation for the same overlapping
@@ -125,24 +204,26 @@ class Reservation extends Model
      * scanner to know whether the park is privately reserved right now.
      */
     /**
-     * The reservation group chats a user can open — ones they own or were
-     * added to, not cancelled, and not long over — for the chat sidebar.
+     * The reservation group chats a user can open — ones they own or accepted
+     * an invitation to, that are paid for and not over for more than a week —
+     * for the chat sidebar.
      *
      * @return Collection<int, self>
      */
     public static function chatGroupsFor(User $user): Collection
     {
         return self::query()
-            ->where(function (Builder $query) use ($user) {
-                $query->where('user_id', $user->id)
-                    ->orWhereHas('participants', fn ($q) => $q->whereKey($user->id));
-            })
-            ->where('status', '!=', 'cancelled')
-            ->where('ends_at', '>', now()->subDays(7))
+            ->involving($user)
+            ->where('status', 'active')
+            ->where('ends_at', '>', now()->subDays(self::CHAT_READABLE_DAYS_AFTER_END))
             ->orderBy('starts_at')
             ->get(['id', 'starts_at', 'ends_at']);
     }
 
+    /**
+     * The reservation currently blocking general entry, if any. Used by the
+     * scanner to know whether the park is privately reserved right now.
+     */
     public static function activeNow(): ?self
     {
         $now = now();

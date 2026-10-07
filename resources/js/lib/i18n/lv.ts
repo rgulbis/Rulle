@@ -60,6 +60,13 @@ const lv: Record<TranslationKey, string> = {
     'reservations.statusSlotTaken':
         'Kāds cits šo laiku rezervēja pirmais, kamēr jūs maksājāt — nauda jums atmaksāta, un rezervācija atcelta. Izvēlieties citu laiku.',
     'reservations.statusLeft': 'Jūs pametāt rezervāciju.',
+    'reservations.statusInvited': 'Ielūgums nosūtīts.',
+    'reservations.statusInvitationAccepted': 'Jūs pievienojāties rezervācijai.',
+    'reservations.statusInvitationDeclined': 'Ielūgums noraidīts.',
+    'reservations.statusInvitationFull':
+        'Šīs rezervācijas grupa jau ir pilna, tāpēc jūs nevarējāt pievienoties.',
+    'reservations.statusInvitationUnavailable':
+        'Šis ielūgums vairs nav pieejams.',
     'reservations.reserveATime': 'Rezervēt laiku',
     'reservations.date': 'Datums',
     'reservations.time': 'Laiks',
@@ -76,7 +83,15 @@ const lv: Record<TranslationKey, string> = {
     'reservations.mine': 'Manas rezervācijas',
     'reservations.noneUpcoming': 'Jums nav gaidāmu rezervāciju.',
     'reservations.peopleCount': '{count} cilvēki',
-    'reservations.namedOf': '{named} no {total} pievienoti',
+    'reservations.namedOf': '{named} no {total} pievienojušies',
+    'reservations.invitations': 'Ielūgumi',
+    'reservations.invitedBy': '{name} jūs ielūdza',
+    'reservations.accept': 'Pieņemt',
+    'reservations.decline': 'Noraidīt',
+    'reservations.participantStatus.invited': 'ielūgts',
+    'reservations.participantStatus.accepted': 'pievienojies',
+    'reservations.participantStatus.declined': 'noraidījis',
+    'reservations.withdrawInvitation': 'Atsaukt',
     'reservations.groupChat': 'Grupas tērzētava',
     'reservations.finishPayment': 'Pabeigt maksājumu',
     'reservations.cancel': 'Atcelt rezervāciju',
@@ -87,10 +102,9 @@ const lv: Record<TranslationKey, string> = {
         'Pamest šo rezervāciju? Jūs zaudēsiet piekļuvi tās grupas čatam, un atpakaļ jūs var pievienot tikai īpašnieks.',
     'reservations.groupFull':
         'Šīs rezervācijas grupa ir pilna — noņemiet kādu vai izveidojiet jaunu rezervāciju vairāk cilvēkiem.',
-    'reservations.searchPlaceholder':
-        'Meklēt pēc vārda vai e-pasta, lai pievienotu draugu',
+    'reservations.searchPlaceholder': 'Meklēt pēc vārda, lai ielūgtu draugu',
     'reservations.searching': 'Meklē…',
-    'reservations.add': 'Pievienot',
+    'reservations.add': 'Ielūgt',
     'reservations.selectDayHint':
         'Izvēlieties dienu, lai redzētu rezervētos laikus.',
     'reservations.noneThatDay': 'Šajā dienā nav rezervāciju.',
@@ -183,6 +197,8 @@ const lv: Record<TranslationKey, string> = {
         'Ir ieslēgts lēnais režīms — viena ziņa ik pēc {seconds}s.',
     'chatThread.mutedUntil': 'Jūs esat apklusināts čatā līdz {date}.',
     'chatThread.muted': 'Jūs esat apklusināts čatā.',
+    'chatThread.readOnly':
+        'Šī rezervācija ir beigusies, tāpēc tērzētava ir tikai lasāma. Tā tiks aizvērta nedēļu pēc rezervācijas beigām.',
     'chatThread.placeholder': 'Uzrakstiet kaut ko…',
     'chatThread.slowModeWait':
         'Ieslēgts lēnais režīms — pagaidiet {seconds} s, pirms sūtāt nākamo ziņu.',

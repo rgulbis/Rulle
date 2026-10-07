@@ -75,6 +75,11 @@ class AppServiceProvider extends ServiceProvider
         // the room is busy; this is the always-on ceiling for both.
         RateLimiter::for('chat-send', fn (Request $request) => Limit::perMinute(20)->by('send:'.($request->user()->id ?? $request->ip())));
 
+        // Looking up customers to invite: a search box that fires as someone
+        // types, so it gets a budget of its own, and a small one — it's also
+        // the only way to enumerate customers by name.
+        RateLimiter::for('user-search', fn (Request $request) => Limit::perMinute(20)->by('user-search:'.($request->user()->id ?? $request->ip())));
+
         // Everything else in the global room: loading it, moderating it.
         RateLimiter::for('chat', fn (Request $request) => Limit::perMinute(90)->by('chat:'.($request->user()->id ?? $request->ip())));
     }

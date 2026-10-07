@@ -28,9 +28,9 @@ class ProfileController extends Controller
      * in chat and reservation groups. Email stays as registered, since it's
      * also the login and the verified address.
      *
-     * A name change doesn't take effect immediately: the profanity filter
-     * catches overt abuse, but not everything (a name that's only crude in
-     * context, for instance), so it goes to pending_name for an admin to
+     * A name change doesn't take effect immediately: the word list in
+     * NoInappropriateContent only refuses the most obvious abuse and is easy
+     * to get around, so every change goes to pending_name for an admin to
      * approve or reject first — see Filament\Resources\Users\Tables\UsersTable.
      * `name` itself (what actually shows everywhere) never changes here.
      */

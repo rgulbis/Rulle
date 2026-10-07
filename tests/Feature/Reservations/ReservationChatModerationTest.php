@@ -23,7 +23,7 @@ test('the owner can delete a participant message but not their own', function ()
     $owner = User::factory()->create();
     $friend = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
-    $reservation->participants()->attach($friend->id);
+    $reservation->invitations()->attach($friend->id, ['status' => 'accepted']);
 
     $friendMessage = ChatMessage::create(['user_id' => $friend->id, 'reservation_id' => $reservation->id, 'body' => 'from friend']);
     $ownMessage = ChatMessage::create(['user_id' => $owner->id, 'reservation_id' => $reservation->id, 'body' => 'from owner']);
@@ -39,7 +39,7 @@ test('a participant has no moderation rights in their own reservation chat', fun
     $owner = User::factory()->create();
     $friend = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
-    $reservation->participants()->attach($friend->id);
+    $reservation->invitations()->attach($friend->id, ['status' => 'accepted']);
 
     $message = ChatMessage::create(['user_id' => $owner->id, 'reservation_id' => $reservation->id, 'body' => 'from owner']);
 
@@ -111,10 +111,10 @@ test('muting a participant blocks them from posting in this reservation chat onl
     $owner = User::factory()->create();
     $friend = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
-    $reservation->participants()->attach($friend->id);
+    $reservation->invitations()->attach($friend->id, ['status' => 'accepted']);
 
     $otherReservation = makeReservation($owner, now()->addDay()->addDays(2), now()->addDay()->addDays(2)->addHour());
-    $otherReservation->participants()->attach($friend->id);
+    $otherReservation->invitations()->attach($friend->id, ['status' => 'accepted']);
 
     $this->actingAs($owner)->post("/reservations/{$reservation->id}/chat/users/{$friend->id}/mute", ['hours' => 1])->assertRedirect();
 
@@ -133,7 +133,7 @@ test('unmuting a participant restores their ability to post', function () {
     $owner = User::factory()->create();
     $friend = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
-    $reservation->participants()->attach($friend->id, ['chat_muted_until' => now()->addHour()]);
+    $reservation->invitations()->attach($friend->id, ['status' => 'accepted', 'chat_muted_until' => now()->addHour()]);
 
     $this->actingAs($friend)->post("/reservations/{$reservation->id}/chat", ['body' => 'still muted'])->assertSessionHasErrors('body');
 
@@ -159,13 +159,13 @@ test('the owner gets the list of currently muted participants of this reservatio
     $expired = User::factory()->create();
     $fine = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour(), ['group_size' => 4]);
-    $reservation->participants()->attach($muted->id, ['chat_muted_until' => now()->addHour()]);
-    $reservation->participants()->attach($expired->id, ['chat_muted_until' => now()->subHour()]);
-    $reservation->participants()->attach($fine->id);
+    $reservation->invitations()->attach($muted->id, ['status' => 'accepted', 'chat_muted_until' => now()->addHour()]);
+    $reservation->invitations()->attach($expired->id, ['status' => 'accepted', 'chat_muted_until' => now()->subHour()]);
+    $reservation->invitations()->attach($fine->id, ['status' => 'accepted']);
 
     // Muted in a different reservation — must not show up here.
     $elsewhere = makeReservation($owner, now()->addDays(2), now()->addDays(2)->addHour());
-    $elsewhere->participants()->attach($fine->id, ['chat_muted_until' => now()->addHour()]);
+    $elsewhere->invitations()->attach($fine->id, ['status' => 'accepted', 'chat_muted_until' => now()->addHour()]);
 
     $this->actingAs($owner)->get("/reservations/{$reservation->id}/chat")->assertInertia(fn ($page) => $page
         ->has('mutedParticipants', 1)
@@ -180,8 +180,8 @@ test('a participant never receives the muted participants list', function () {
     $friend = User::factory()->create();
     $muted = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour(), ['group_size' => 3]);
-    $reservation->participants()->attach($friend->id);
-    $reservation->participants()->attach($muted->id, ['chat_muted_until' => now()->addHour()]);
+    $reservation->invitations()->attach($friend->id, ['status' => 'accepted']);
+    $reservation->invitations()->attach($muted->id, ['status' => 'accepted', 'chat_muted_until' => now()->addHour()]);
 
     $this->actingAs($friend)->get("/reservations/{$reservation->id}/chat")->assertInertia(fn ($page) => $page->has('mutedParticipants', 0));
 });

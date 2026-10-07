@@ -6,6 +6,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LivestreamController;
 use App\Http\Controllers\Reservations\ReservationChatController;
 use App\Http\Controllers\Reservations\ReservationController;
+use App\Http\Controllers\Reservations\ReservationInvitationController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Staff\ScanController;
@@ -69,10 +70,12 @@ Route::middleware(['auth', 'customer-only', 'verified', 'throttle:30,1'])->group
     Route::get('reservations/checkout-cancelled', [ReservationController::class, 'checkoutCancelled'])->name('reservations.checkout-cancelled');
     Route::delete('reservations/{reservation}', [ReservationController::class, 'cancel'])->name('reservations.cancel');
     Route::post('reservations/{reservation}/resume', [ReservationController::class, 'resume'])->name('reservations.resume');
-    Route::get('reservations/users/search', [ReservationController::class, 'searchUsers'])->name('reservations.users.search');
+    Route::get('reservations/users/search', [ReservationController::class, 'searchUsers'])->middleware('throttle:user-search')->name('reservations.users.search');
     Route::post('reservations/{reservation}/participants', [ReservationController::class, 'addParticipant'])->name('reservations.participants.add');
     Route::delete('reservations/{reservation}/participants/{participant}', [ReservationController::class, 'removeParticipant'])->name('reservations.participants.remove');
     Route::post('reservations/{reservation}/leave', [ReservationController::class, 'leave'])->name('reservations.leave');
+    Route::post('reservations/{reservation}/invitation/accept', [ReservationInvitationController::class, 'accept'])->name('reservations.invitation.accept');
+    Route::post('reservations/{reservation}/invitation/decline', [ReservationInvitationController::class, 'decline'])->name('reservations.invitation.decline');
 
     Route::get('reservations/{reservation}/chat', [ReservationChatController::class, 'show'])->name('reservations.chat.show');
     Route::post('reservations/{reservation}/chat', [ReservationChatController::class, 'store'])->middleware('throttle:chat-send')->name('reservations.chat.store');

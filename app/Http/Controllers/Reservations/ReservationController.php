@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Reservations;
 
 use App\Http\Controllers\Controller;
 use App\Models\Reservation;
+use App\Models\ReservationParticipant;
 use App\Models\ReservationSetting;
 use App\Models\User;
 use App\Support\CheckInOccupancy;
@@ -55,27 +56,55 @@ class ReservationController extends Controller
                 ->where('ends_at', '>', now())
                 ->orderBy('starts_at')
                 ->get(['id', 'starts_at', 'ends_at']),
-            // Reservations the user owns, or was added to as a participant —
+            // Reservations the user owns, or accepted an invitation to —
             // shaped explicitly so a participant's view doesn't leak the
-            // owner's raw user_id, just whether *they* are the owner.
-            'mine' => Reservation::where(function ($query) use ($user) {
-                $query->where('user_id', $user->id)
-                    ->orWhereHas('participants', fn ($q) => $q->whereKey($user->id));
-            })
+            // owner's raw user_id, just whether *they* are the owner. Only
+            // the owner sees who is merely invited or declined; everyone
+            // else sees who is actually in.
+            'mine' => Reservation::involving($user)
                 ->where('ends_at', '>', now())
                 ->where('status', '!=', 'cancelled')
-                ->with('participants:id,name,email')
+                ->with('invitationRows.user:id,name')
                 ->orderBy('starts_at')
                 ->get(['id', 'user_id', 'starts_at', 'ends_at', 'group_size', 'price_cents', 'status'])
+                ->map(function (Reservation $reservation) use ($user) {
+                    $isOwner = $reservation->user_id === $user->id;
+
+                    return [
+                        'id' => $reservation->id,
+                        'starts_at' => $reservation->starts_at,
+                        'ends_at' => $reservation->ends_at,
+                        'group_size' => $reservation->group_size,
+                        'price_cents' => $reservation->price_cents,
+                        'status' => $reservation->status,
+                        'is_owner' => $isOwner,
+                        'participants' => $reservation->invitationRows
+                            ->filter(fn (ReservationParticipant $row) => $isOwner || $row->status === ReservationParticipant::ACCEPTED)
+                            ->map(fn (ReservationParticipant $row) => [
+                                'id' => $row->user_id,
+                                'name' => $row->user->name,
+                                'status' => $row->status,
+                            ])
+                            ->values(),
+                    ];
+                }),
+            // Invitations to someone else's reservation that are still open
+            // to answer: the reservation is paid for and has not ended.
+            'invitations' => Reservation::query()
+                ->where('status', 'active')
+                ->where('ends_at', '>', now())
+                ->whereHas('invitations', fn ($query) => $query
+                    ->whereKey($user->id)
+                    ->where('reservation_user.status', ReservationParticipant::INVITED))
+                ->with('user:id,name')
+                ->orderBy('starts_at')
+                ->get(['id', 'user_id', 'starts_at', 'ends_at', 'group_size'])
                 ->map(fn (Reservation $reservation) => [
                     'id' => $reservation->id,
                     'starts_at' => $reservation->starts_at,
                     'ends_at' => $reservation->ends_at,
                     'group_size' => $reservation->group_size,
-                    'price_cents' => $reservation->price_cents,
-                    'status' => $reservation->status,
-                    'is_owner' => $reservation->user_id === $user->id,
-                    'participants' => $reservation->participants,
+                    'owner_name' => $reservation->user->name,
                 ]),
             'status' => $request->session()->get('status'),
         ]);
@@ -270,57 +299,84 @@ class ReservationController extends Controller
         });
     }
 
+    /**
+     * Invites someone to a reservation. They are not on it until they
+     * accept (see ReservationInvitationController), so an invitation takes
+     * no seat of the paid group size and gives no access to the group chat.
+     */
     public function addParticipant(Request $request, Reservation $reservation): RedirectResponse
     {
         abort_unless($reservation->user_id === $request->user()->id, 403);
-        abort_if($reservation->ends_at->isPast(), 422, 'This reservation has already ended.');
+        abort_unless($reservation->isUpcomingOrOngoing(), 422, 'Only a paid reservation that has not ended can have participants.');
 
         $validated = $request->validate([
             'user_id' => [
                 'required',
-                Rule::exists('users', 'id')->where('role', 'user')->withoutTrashed(),
+                // Only a customer who has confirmed their email: an invitation
+                // to an unverified address would go to somebody who may not
+                // even be the owner of it.
+                Rule::exists('users', 'id')
+                    ->where('role', 'user')
+                    ->whereNotNull('email_verified_at')
+                    ->withoutTrashed(),
                 Rule::notIn([$reservation->user_id]),
             ],
         ]);
 
-        // Counting the participants and attaching one is a single transaction,
-        // otherwise two simultaneous requests both see "one seat left" and
-        // both add someone, pushing the group past the size that was paid for.
-        $added = DB::transaction(function () use ($reservation, $validated) {
-            if ($reservation->participants()->whereKey($validated['user_id'])->exists()) {
-                return true;
+        // Looking at the existing invitations, counting the accepted ones and
+        // adding one is a single transaction, otherwise two simultaneous
+        // requests both see "one seat left" and both invite for it.
+        $outcome = DB::transaction(function () use ($reservation, $validated) {
+            $existing = $reservation->invitations()->whereKey($validated['user_id'])->first()?->pivot;
+
+            if ($existing !== null) {
+                return $existing->status === ReservationParticipant::DECLINED ? 'declined' : 'already';
             }
 
             if (! $reservation->hasParticipantCapacity()) {
-                return false;
+                return 'full';
             }
 
-            $reservation->participants()->attach($validated['user_id']);
+            $reservation->invitations()->attach($validated['user_id'], ['status' => ReservationParticipant::INVITED]);
 
-            return true;
+            return 'invited';
         });
 
-        if (! $added) {
+        if ($outcome === 'full') {
             return back()->withErrors([
                 'user_id' => __('This reservation is already at its paid group size.'),
             ]);
         }
 
-        return back()->with('status', 'participant-added');
+        if ($outcome === 'declined') {
+            return back()->withErrors([
+                'user_id' => __('This person already declined an invitation to this reservation.'),
+            ]);
+        }
+
+        return back()->with('status', 'participant-invited');
     }
 
+    /**
+     * Takes someone off the reservation, or withdraws an invitation that
+     * has not been answered. A declined invitation stays on record, so the
+     * owner can't keep re-inviting someone who said no.
+     */
     public function removeParticipant(Request $request, Reservation $reservation, User $participant): RedirectResponse
     {
         abort_unless($reservation->user_id === $request->user()->id, 403);
 
-        $reservation->participants()->detach($participant->id);
+        $reservation->invitations()
+            ->wherePivot('status', '!=', ReservationParticipant::DECLINED)
+            ->detach($participant->id);
 
         return back()->with('status', 'participant-removed');
     }
 
     /**
-     * A named participant taking themselves off someone else's reservation.
-     * The owner can't leave their own booking — that's what cancelling is.
+     * A participant who accepted taking themselves off someone else's
+     * reservation (an invitation not yet answered is declined instead). The
+     * owner can't leave their own booking — that's what cancelling is.
      */
     public function leave(Request $request, Reservation $reservation): RedirectResponse
     {
@@ -335,31 +391,39 @@ class ReservationController extends Controller
         return to_route('reservations.index')->with('status', 'reservation-left');
     }
 
+    /**
+     * Finds customers to invite, by display name only. Throttled, and what
+     * comes back is just an id and a name: nobody should be able to use this
+     * to walk the list of customers or their email addresses.
+     */
     public function searchUsers(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'q' => ['required', 'string', 'min:2'],
+            'q' => ['required', 'string', 'min:2', 'max:100'],
         ]);
 
         $matches = User::query()
             ->where('role', 'user')
+            ->whereNotNull('email_verified_at')
             ->where('id', '!=', $request->user()->id)
-            ->where(function ($query) use ($validated) {
-                $query->where('name', 'like', "%{$validated['q']}%")
-                    ->orWhere('email', 'like', "%{$validated['q']}%");
-            })
+            ->whereRaw('name LIKE ? ESCAPE ?', ['%'.self::escapeLike($validated['q']).'%', '\\'])
             ->orderBy('name')
             ->limit(10)
-            ->get(['id', 'name', 'email'])
+            ->get(['id', 'name'])
             ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
-                // Masked, not omitted — enough to disambiguate same-named
-                // people without letting any customer harvest every other
-                // customer's real email address through this search.
-                'email' => User::maskEmail($user->email),
             ]);
 
         return response()->json($matches);
+    }
+
+    /**
+     * Makes LIKE treat what was typed literally: without this "%" or "_"
+     * are wildcards, so searching "%%" would match every customer.
+     */
+    private static function escapeLike(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 }

@@ -171,7 +171,7 @@ test('reservation owner and participants are not blocked from entering, other cu
     $outsider = User::factory()->create();
 
     $reservation = makeReservation($owner, now()->subMinutes(10), now()->addHour());
-    $reservation->participants()->attach($participant->id);
+    $reservation->invitations()->attach($participant->id, ['status' => 'accepted']);
 
     expect($reservation->includesParticipant($owner))->toBeTrue();
     expect($reservation->includesParticipant($participant))->toBeTrue();
@@ -193,7 +193,7 @@ test('only the reservation owner can add a participant', function () {
     expect($reservation->participants()->count())->toBe(0);
 });
 
-test('owner can add an existing customer as a participant', function () {
+test('owner can invite an existing customer, who is not a participant until they accept', function () {
     $owner = User::factory()->create();
     $friend = User::factory()->create();
     $reservation = makeReservation($owner, now()->addHour(), now()->addHours(2), ['group_size' => 3]);
@@ -203,14 +203,15 @@ test('owner can add an existing customer as a participant', function () {
     ]);
 
     $response->assertRedirect();
-    expect($reservation->participants()->whereKey($friend->id)->exists())->toBeTrue();
+    expect($reservation->invitations()->whereKey($friend->id)->first()->pivot->status)->toBe('invited');
+    expect($reservation->participants()->whereKey($friend->id)->exists())->toBeFalse();
 });
 
 test('cannot add a participant beyond the paid group size', function () {
     $owner = User::factory()->create();
     // group_size 3 = owner + 2 named participants max.
     $reservation = makeReservation($owner, now()->addHour(), now()->addHours(2), ['group_size' => 3]);
-    $reservation->participants()->attach(User::factory()->count(2)->create()->pluck('id'));
+    $reservation->invitations()->attach(User::factory()->count(2)->create()->pluck('id'), ['status' => 'accepted']);
 
     $oneMore = User::factory()->create();
     $response = $this->actingAs($owner)->post("/reservations/{$reservation->id}/participants", [
@@ -248,7 +249,7 @@ test('owner can remove a participant', function () {
     $owner = User::factory()->create();
     $friend = User::factory()->create();
     $reservation = makeReservation($owner, now()->addHour(), now()->addHours(2));
-    $reservation->participants()->attach($friend->id);
+    $reservation->invitations()->attach($friend->id, ['status' => 'accepted']);
 
     $response = $this->actingAs($owner)->delete("/reservations/{$reservation->id}/participants/{$friend->id}");
 
@@ -269,16 +270,53 @@ test('user search excludes staff and the searching user themselves', function ()
     expect($names)->not->toContain('Findable Frank');
 });
 
-test('user search masks emails instead of exposing them in full', function () {
+test('user search returns only ids and names, and never matches on email', function () {
     $searcher = User::factory()->create();
-    User::factory()->create(['name' => 'Findable Fiona', 'email' => 'fiona@example.com']);
+    User::factory()->create(['name' => 'Findable Fiona', 'email' => 'secret.address@example.com']);
 
-    $response = $this->actingAs($searcher)->getJson('/reservations/users/search?q=Findable');
+    $byName = $this->actingAs($searcher)->getJson('/reservations/users/search?q=Findable');
+    expect($byName->json())->toHaveCount(1);
+    expect(array_keys($byName->json(0)))->toEqualCanonicalizing(['id', 'name']);
 
-    $response->assertOk();
-    expect(collect($response->json())->pluck('email'))
-        ->toContain('f***@example.com')
-        ->not->toContain('fiona@example.com');
+    $this->actingAs($searcher)->getJson('/reservations/users/search?q=secret.address')->assertOk()->assertExactJson([]);
+});
+
+test('user search treats percent and underscore literally', function () {
+    $searcher = User::factory()->create();
+    User::factory()->create(['name' => 'Alice Anderson']);
+    User::factory()->create(['name' => 'Fifty%Off Fred']);
+    User::factory()->create(['name' => 'Snake_Case Sam']);
+
+    $wildcards = $this->actingAs($searcher)->getJson('/reservations/users/search?q=%25%25')->assertOk();
+    expect($wildcards->json())->toBe([]);
+
+    $underscores = $this->actingAs($searcher)->getJson('/reservations/users/search?q=__')->assertOk();
+    expect($underscores->json())->toBe([]);
+
+    expect(collect($this->actingAs($searcher)->getJson('/reservations/users/search?q=y%25O')->json())->pluck('name')->all())
+        ->toBe(['Fifty%Off Fred']);
+    expect(collect($this->actingAs($searcher)->getJson('/reservations/users/search?q=e_C')->json())->pluck('name')->all())
+        ->toBe(['Snake_Case Sam']);
+});
+
+test('user search only offers verified customers', function () {
+    $searcher = User::factory()->create();
+    User::factory()->unverified()->create(['name' => 'Findable Ursula']);
+    User::factory()->create(['name' => 'Findable Vera']);
+
+    $names = collect($this->actingAs($searcher)->getJson('/reservations/users/search?q=Findable')->json())->pluck('name');
+
+    expect($names->all())->toBe(['Findable Vera']);
+});
+
+test('user search is throttled', function () {
+    $searcher = User::factory()->create();
+
+    foreach (range(1, 20) as $i) {
+        $this->actingAs($searcher)->getJson('/reservations/users/search?q=ab')->assertOk();
+    }
+
+    $this->actingAs($searcher)->getJson('/reservations/users/search?q=ab')->assertStatus(429);
 });
 
 test('reservations index shows upcoming reservations without exposing who booked them', function () {
@@ -300,7 +338,7 @@ test('a named participant sees the reservation in their own list, but not as the
     $owner = User::factory()->create();
     $friend = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
-    $reservation->participants()->attach($friend->id);
+    $reservation->invitations()->attach($friend->id, ['status' => 'accepted']);
 
     $ownerResponse = $this->actingAs($owner)->get('/reservations');
     $ownerResponse->assertInertia(fn ($page) => $page
@@ -402,7 +440,7 @@ test('a participant can leave a reservation and loses access to its chat', funct
     $owner = User::factory()->create();
     $friend = User::factory()->create();
     $reservation = makeReservation($owner, now()->addHour(), now()->addHours(2), ['group_size' => 3]);
-    $reservation->participants()->attach($friend->id);
+    $reservation->invitations()->attach($friend->id, ['status' => 'accepted']);
 
     $response = $this->actingAs($friend)->post("/reservations/{$reservation->id}/leave");
 
@@ -416,7 +454,7 @@ test('leaving frees the seat for the owner to add someone else', function () {
     $owner = User::factory()->create();
     $friend = User::factory()->create();
     $reservation = makeReservation($owner, now()->addHour(), now()->addHours(2), ['group_size' => 2]);
-    $reservation->participants()->attach($friend->id);
+    $reservation->invitations()->attach($friend->id, ['status' => 'accepted']);
     expect($reservation->hasParticipantCapacity())->toBeFalse();
 
     $this->actingAs($friend)->post("/reservations/{$reservation->id}/leave");
@@ -436,7 +474,7 @@ test('someone who is not a participant cannot leave', function () {
     $friend = User::factory()->create();
     $stranger = User::factory()->create();
     $reservation = makeReservation($owner, now()->addHour(), now()->addHours(2), ['group_size' => 3]);
-    $reservation->participants()->attach($friend->id);
+    $reservation->invitations()->attach($friend->id, ['status' => 'accepted']);
 
     $this->actingAs($stranger)->post("/reservations/{$reservation->id}/leave")->assertForbidden();
     expect($reservation->participants()->count())->toBe(1);

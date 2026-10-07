@@ -137,23 +137,6 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     }
 
     /**
-     * For showing an email address to someone other than its owner (e.g.
-     * disambiguating same-named results in a customer search) without
-     * handing out the full address — enough is visible to tell two people
-     * apart, not enough to be scraped as a usable contact list.
-     */
-    public static function maskEmail(string $email): string
-    {
-        if (! str_contains($email, '@')) {
-            return $email;
-        }
-
-        [$local, $domain] = explode('@', $email, 2);
-
-        return mb_substr($local, 0, 1).'***@'.$domain;
-    }
-
-    /**
      * A browser doesn't convert a Unicode domain typed into a form field the
      * way it converts one typed into the address bar, so "admin@rullē.lv"
      * and "admin@xn--rull-eva.lv" are literally different strings as far as

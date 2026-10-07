@@ -58,6 +58,13 @@ const en = {
     'reservations.statusSlotTaken':
         "Someone else booked that time first while you were paying — you've been refunded and the reservation was cancelled. Pick another time.",
     'reservations.statusLeft': 'You left the reservation.',
+    'reservations.statusInvited': 'Invitation sent.',
+    'reservations.statusInvitationAccepted': 'You joined the reservation.',
+    'reservations.statusInvitationDeclined': 'Invitation declined.',
+    'reservations.statusInvitationFull':
+        "This reservation's group is already full, so you couldn't join.",
+    'reservations.statusInvitationUnavailable':
+        'That invitation is no longer available.',
     'reservations.reserveATime': 'Reserve a time',
     'reservations.date': 'Date',
     'reservations.time': 'Time',
@@ -74,7 +81,15 @@ const en = {
     'reservations.mine': 'My reservations',
     'reservations.noneUpcoming': "You don't have any upcoming reservations.",
     'reservations.peopleCount': '{count} people',
-    'reservations.namedOf': '{named} of {total} named',
+    'reservations.namedOf': '{named} of {total} joined',
+    'reservations.invitations': 'Invitations',
+    'reservations.invitedBy': '{name} invited you',
+    'reservations.accept': 'Accept',
+    'reservations.decline': 'Decline',
+    'reservations.participantStatus.invited': 'invited',
+    'reservations.participantStatus.accepted': 'joined',
+    'reservations.participantStatus.declined': 'declined',
+    'reservations.withdrawInvitation': 'Withdraw',
     'reservations.groupChat': 'Group chat',
     'reservations.finishPayment': 'Finish payment',
     'reservations.cancel': 'Cancel reservation',
@@ -85,9 +100,9 @@ const en = {
         "Leave this reservation? You'll lose access to its group chat, and only the owner can add you back.",
     'reservations.groupFull':
         "This reservation's group size is full — remove someone or make a new reservation for more people.",
-    'reservations.searchPlaceholder': 'Search by name or email to add a friend',
+    'reservations.searchPlaceholder': 'Search by name to invite a friend',
     'reservations.searching': 'Searching…',
-    'reservations.add': 'Add',
+    'reservations.add': 'Invite',
     'reservations.selectDayHint': 'Select a day to see reserved times.',
     'reservations.noneThatDay': 'No reservations that day.',
     'reservations.previousMonth': 'Previous month',
@@ -109,7 +124,7 @@ const en = {
     'reservationChat.back': '← Back to reservations',
     'reservationChat.title': 'Group chat — {range}',
     'reservationChat.subtitle':
-        "Only visible to your group — the owner and the friends they've added.",
+        'Only visible to your group — the owner and the friends who accepted their invitation.',
 
     // Subscriptions (pages/subscriptions/index.tsx)
     'subscriptions.title': 'Subscriptions',
@@ -179,6 +194,8 @@ const en = {
         'Slow mode is on — one message every {seconds}s.',
     'chatThread.mutedUntil': "You're muted from chat until {date}.",
     'chatThread.muted': "You're muted from chat.",
+    'chatThread.readOnly':
+        'This reservation is over, so its chat is read-only. It will close a week after the reservation ended.',
     'chatThread.placeholder': 'Say something…',
     'chatThread.slowModeWait':
         'Slow mode is on — wait {seconds}s before sending another message.',

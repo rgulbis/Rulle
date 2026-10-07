@@ -22,7 +22,7 @@ test('a named participant can view and post in the group chat', function () {
     $owner = User::factory()->create();
     $friend = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
-    $reservation->participants()->attach($friend->id);
+    $reservation->invitations()->attach($friend->id, ['status' => 'accepted']);
 
     $response = $this->actingAs($friend)->get("/reservations/{$reservation->id}/chat");
     $response->assertOk();
@@ -60,7 +60,7 @@ test('a reply within a reservation chat carries a quote of the original', functi
     $owner = User::factory()->create();
     $friend = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
-    $reservation->participants()->attach($friend->id);
+    $reservation->invitations()->attach($friend->id, ['status' => 'accepted']);
     $original = ChatMessage::create(['user_id' => $owner->id, 'reservation_id' => $reservation->id, 'body' => 'bring your own pads']);
 
     $this->actingAs($friend)->post("/reservations/{$reservation->id}/chat", [

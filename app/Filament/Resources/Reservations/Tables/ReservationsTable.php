@@ -31,7 +31,7 @@ class ReservationsTable
                 TextColumn::make('group_size')
                     ->label('Group size'),
                 TextColumn::make('participants_count')
-                    ->label('Named')
+                    ->label('Accepted')
                     ->counts('participants'),
                 TextColumn::make('price_cents')
                     ->label('Price')

@@ -79,6 +79,27 @@ chat-cooldown bypasses can't happen. It takes ~20 s.
 - Posting in the global chat takes a per-user lock; both chats are rate-limited
   (`chat-send`, 20 messages/minute/user).
 
+### Participants and group chat
+
+- Adding someone to a reservation sends an **invitation** (`reservation_user.status`:
+  `invited` → `accepted` / `declined`). Only the owner of a paid, not yet ended
+  reservation can invite, and only a customer with a verified email. Only
+  **accepted** participants count towards the paid group size, enter with the
+  group, and see the group chat; the seat is checked again, with the write lock
+  held, when the invitation is accepted. A declined invitation stays on record, so
+  the owner can't keep re-inviting the same person.
+- A reservation's group chat exists while the reservation is paid for (not
+  `pending`, not `cancelled`). It can be written to until the reservation ends,
+  stays **read-only for 7 days** after that, and is closed after. The websocket
+  channel authorisation (`routes/channels.php`) uses the same rule as the page
+  (`Reservation::chatIsReadable()` / `chatIsWritable()`).
+- The customer search used to invite people matches display names only, treats
+  `%` and `_` literally, is throttled (`user-search`) and returns just id and name.
+- `App\Rules\NoInappropriateContent` is a short word list plus one pattern. It
+  stops casual, obvious abuse and nothing more: it is not content safety, and
+  anything it misses is for the mute/delete tools and admin review of requested
+  names to catch.
+
 ### Database: SQLite only
 
 The application is written for SQLite and is **not** portable to MySQL or
@@ -96,8 +117,8 @@ What the database enforces, whatever the application does:
   plan is `ON DELETE RESTRICT`, including Cashier's `subscriptions` and
   `subscription_items`. History can't disappear because a parent row went.
 - **Status columns only hold known values** (`users.role`, `purchases.status`,
-  `reservations.status`, both `payment_status` columns,
-  `subscription_types.billing_interval`), by triggers that abort the write
+  `reservations.status`, `reservation_user.status`, both `payment_status`
+  columns, `subscription_types.billing_interval`), by triggers that abort the write
   with `invalid_<table>_<column>`. A new status therefore needs a migration that
   updates the trigger (see `2026_10_09_090000_harden_data_integrity.php`).
   Stripe's own `subscriptions.stripe_status` is left open on purpose.

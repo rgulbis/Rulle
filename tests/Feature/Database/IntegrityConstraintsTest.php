@@ -157,7 +157,7 @@ test('a reservation with participants or chat cannot be deleted for real', funct
     $owner = User::factory()->create();
     $guest = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
-    $reservation->participants()->attach($guest->id);
+    $reservation->invitations()->attach($guest->id, ['status' => 'accepted']);
 
     expect(fn () => DB::table('reservations')->where('id', $reservation->id)->delete())->toThrow(QueryException::class, 'FOREIGN KEY');
 });

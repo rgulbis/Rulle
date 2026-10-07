@@ -111,13 +111,14 @@ test('booking over a paid slot through the form is turned away with a message', 
 
 // --- Participant capacity -------------------------------------------------
 
-test('adding someone who is already a participant is a no-op even when the group is full', function () {
+test('inviting someone who already joined is a no-op even when the group is full', function () {
     $owner = User::factory()->create();
     [$one, $two] = User::factory()->count(2)->create();
     $reservation = makeReservation($owner, now()->addDay()->setTime(12, 0), now()->addDay()->setTime(13, 0), ['group_size' => 3]);
 
     foreach ([$one, $two] as $friend) {
         $this->actingAs($owner)->post("/reservations/{$reservation->id}/participants", ['user_id' => $friend->id])->assertSessionHasNoErrors();
+        $this->actingAs($friend)->post("/reservations/{$reservation->id}/invitation/accept")->assertSessionHas('status', 'invitation-accepted');
     }
 
     $this->actingAs($owner)->post("/reservations/{$reservation->id}/participants", ['user_id' => $one->id])->assertSessionHasNoErrors();

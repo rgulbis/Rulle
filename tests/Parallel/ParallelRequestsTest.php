@@ -220,17 +220,19 @@ test('simultaneous scans on the last visit let in one person and use the pass up
     expect($purchase->visits_remaining)->toBe(0)->and($purchase->status)->toBe('used_up');
 });
 
-test('simultaneously adding participants never goes past the paid group size', function () {
+test('simultaneously accepting invitations never goes past the paid group size', function () {
     $owner = User::factory()->create();
     $friends = User::factory()->count(5)->create();
     // group_size 3 = the owner plus two guests.
     $reservation = makeReservation($owner, now()->addDay()->setTime(12, 0), now()->addDay()->setTime(13, 0), ['group_size' => 3]);
+    // Invitations take no seat, so all five can be invited.
+    $reservation->invitations()->attach($friends->pluck('id'));
 
     $results = race($friends->map(fn (User $friend) => [
-        'user_id' => $owner->id,
+        'user_id' => $friend->id,
         'method' => 'POST',
-        'uri' => "/reservations/{$reservation->id}/participants",
-        'params' => ['user_id' => $friend->id],
+        'uri' => "/reservations/{$reservation->id}/invitation/accept",
+        'params' => [],
     ])->all());
 
     expectNoServerErrors($results);

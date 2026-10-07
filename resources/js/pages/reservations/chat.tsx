@@ -16,6 +16,7 @@ type Props = {
     messages: ChatMessage[];
     pinned: ChatMessage[];
     chatGroups: ChatGroup[];
+    readOnly: boolean;
     canModerate: boolean;
     muted: boolean;
     mutedUntil: string | null;
@@ -27,6 +28,7 @@ export default function ReservationChat({
     messages,
     pinned,
     chatGroups,
+    readOnly,
     canModerate,
     muted,
     mutedUntil,
@@ -51,6 +53,7 @@ export default function ReservationChat({
                     initialPinned={pinned}
                     postUrl={`/reservations/${reservation.id}/chat`}
                     muted={muted}
+                    readOnly={readOnly}
                     mutedUntil={mutedUntil}
                     mutedUsers={mutedParticipants}
                     moderation={

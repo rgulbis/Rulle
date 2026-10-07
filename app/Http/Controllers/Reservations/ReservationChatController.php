@@ -21,6 +21,7 @@ class ReservationChatController extends Controller
     {
         $user = $request->user();
         abort_unless($reservation->includesParticipant($user), 403);
+        abort_unless($reservation->chatIsReadable(), 403);
 
         $messages = ChatMessage::with(['user:id,name,role', 'replyTo.user:id,name,role'])
             ->where('reservation_id', $reservation->id)
@@ -49,7 +50,10 @@ class ReservationChatController extends Controller
             'messages' => ChatMessage::shapeForClient($messages),
             'pinned' => ChatMessage::shapeForClient($pinned),
             'chatGroups' => Reservation::chatGroupsFor($user),
-            'canModerate' => $isOwner,
+            // Over, but still within the week it stays readable: nothing
+            // can be posted or moderated any more.
+            'readOnly' => ! $reservation->chatIsWritable(),
+            'canModerate' => $isOwner && $reservation->chatIsWritable(),
             'muted' => $mutedUntil !== null && $mutedUntil->isFuture(),
             'mutedUntil' => $mutedUntil,
             // Only for the owner — otherwise a participant muted with no
@@ -72,6 +76,7 @@ class ReservationChatController extends Controller
     {
         $user = $request->user();
         abort_unless($reservation->includesParticipant($user), 403);
+        abort_unless($reservation->chatIsWritable(), 403);
 
         if (! $reservation->isOwnedBy($user)) {
             $mutedUntil = $reservation->participantMutedUntil($user);
@@ -107,6 +112,7 @@ class ReservationChatController extends Controller
     {
         abort_unless($message->reservation_id === $reservation->id, 404);
         abort_unless(ReservationChatModeration::canDelete($request->user(), $message, $reservation), 403);
+        abort_unless($reservation->chatIsWritable(), 403);
 
         $message->delete();
 
@@ -117,6 +123,7 @@ class ReservationChatController extends Controller
     {
         abort_unless($message->reservation_id === $reservation->id, 404);
         abort_unless(ReservationChatModeration::canModerate($request->user(), $reservation), 403);
+        abort_unless($reservation->chatIsWritable(), 403);
 
         $message->pin();
 
@@ -127,6 +134,7 @@ class ReservationChatController extends Controller
     {
         abort_unless($message->reservation_id === $reservation->id, 404);
         abort_unless(ReservationChatModeration::canModerate($request->user(), $reservation), 403);
+        abort_unless($reservation->chatIsWritable(), 403);
 
         $message->unpin();
 
@@ -136,6 +144,7 @@ class ReservationChatController extends Controller
     public function mute(Request $request, Reservation $reservation, User $user): RedirectResponse
     {
         abort_unless(ReservationChatModeration::canMute($request->user(), $user, $reservation), 403);
+        abort_unless($reservation->chatIsWritable(), 403);
 
         $validated = $request->validate([
             'hours' => ['required', 'integer', 'min:1', 'max:8760'],
@@ -151,6 +160,7 @@ class ReservationChatController extends Controller
     public function unmute(Request $request, Reservation $reservation, User $user): RedirectResponse
     {
         abort_unless(ReservationChatModeration::canMute($request->user(), $user, $reservation), 403);
+        abort_unless($reservation->chatIsWritable(), 403);
 
         $reservation->participants()->updateExistingPivot($user->id, [
             'chat_muted_until' => null,
