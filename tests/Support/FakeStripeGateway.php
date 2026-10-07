@@ -79,6 +79,60 @@ class FakeStripeGateway extends StripeGateway
         return $this->openSession('pass', $user, $priceId);
     }
 
+    /** @var list<array{customer: string, name: string, email: string}> */
+    public array $anonymisedCustomers = [];
+
+    /** Throw on the next anonymiseCustomer() call. */
+    public bool $anonymiseFails = false;
+
+    /** @var array<string, string> product id by idempotency key */
+    public array $products = [];
+
+    /** @var array<string, string> product id => current name */
+    public array $productNames = [];
+
+    /** @var array<string, array{id: string, product: string, amount: int, interval: string|null}> price by idempotency key */
+    public array $prices = [];
+
+    /** Fail the next createPrice() calls the way a Stripe outage would. */
+    public bool $priceFails = false;
+
+    public function anonymiseCustomer(string $customerId, string $name, string $email): void
+    {
+        if ($this->anonymiseFails) {
+            throw new ApiConnectionException('Could not connect to Stripe.');
+        }
+
+        $this->anonymisedCustomers[] = ['customer' => $customerId, 'name' => $name, 'email' => $email];
+    }
+
+    public function createProduct(string $name, string $idempotencyKey): string
+    {
+        $id = $this->products[$idempotencyKey] ??= 'prod_fake_'.(count($this->products) + 1);
+        $this->productNames[$id] = $name;
+
+        return $id;
+    }
+
+    public function renameProduct(string $productId, string $name): void
+    {
+        $this->productNames[$productId] = $name;
+    }
+
+    public function createPrice(string $productId, int $amountCents, ?string $interval, string $idempotencyKey): string
+    {
+        if ($this->priceFails) {
+            throw new ApiConnectionException('Could not connect to Stripe.');
+        }
+
+        return ($this->prices[$idempotencyKey] ??= [
+            'id' => 'price_fake_'.(count($this->prices) + 1),
+            'product' => $productId,
+            'amount' => $amountCents,
+            'interval' => $interval,
+        ])['id'];
+    }
+
     public function cancelSubscriptionNow(string $stripeSubscriptionId): void
     {
         $this->cancelledSubscriptions[] = $stripeSubscriptionId;

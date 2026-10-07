@@ -79,6 +79,60 @@ chat-cooldown bypasses can't happen. It takes ~20 s.
 - Posting in the global chat takes a per-user lock; both chats are rate-limited
   (`chat-send`, 20 messages/minute/user).
 
+### Database: SQLite only
+
+The application is written for SQLite and is **not** portable to MySQL or
+Postgres as it stands. This is a decision, not an accident: the integrity rules
+below live in the database itself, and the check-in statistics and the payments
+ledger use SQLite's dialect (`strftime`, `||`). Migrating the migrations would be
+the smaller part; the real cost is re-proving the concurrency guarantees, which
+rely on SQLite's single-writer locking (`transaction_mode = IMMEDIATE`, WAL).
+The migrations that add triggers or partial indexes abort on any other driver
+rather than silently skipping them.
+
+What the database enforces, whatever the application does:
+
+- **Foreign keys never cascade.** Everything pointing at a user, reservation or
+  plan is `ON DELETE RESTRICT`, including Cashier's `subscriptions` and
+  `subscription_items`. History can't disappear because a parent row went.
+- **Status columns only hold known values** (`users.role`, `purchases.status`,
+  `reservations.status`, both `payment_status` columns,
+  `subscription_types.billing_interval`), by triggers that abort the write
+  with `invalid_<table>_<column>`. A new status therefore needs a migration that
+  updates the trigger (see `2026_10_09_090000_harden_data_integrity.php`).
+  Stripe's own `subscriptions.stripe_status` is left open on purpose.
+- **`users.name` and `users.pending_name` are unique**, closed accounts
+  included.
+- No two paid reservations overlap, and no customer has two live subscriptions
+  (see above).
+
+### Closing an account
+
+"Delete" on a user in the admin panel _closes_ the account (`App\Support\Accounts\AccountClosure`):
+their Stripe subscription is cancelled first (if Stripe refuses, nothing is
+changed), then the row is soft-deleted and its name, email, password, QR code and
+card details are replaced with placeholders, so they can't sign in, can't be
+found, and their email can be registered again. Purchases, reservations,
+check-ins and payments are kept and show as "Deleted user N". Their chat
+messages and participant links are removed.
+
+An account can't be closed while it has an upcoming paid reservation, and an
+admin can't close their own account or the last admin. There is no bulk delete.
+
+### Plans and Stripe
+
+Saving a plan never calls Stripe. `App\Support\Payments\PlanStripeSync` creates
+or updates the Stripe Product and Price: right after an admin saves, from the
+"Sync to Stripe" action, and every 15 minutes for anything out of step
+(`php artisan plans:sync-stripe`, run by the scheduler). Renaming a plan only
+renames its Product; a new Price is made only when the amount or billing
+interval changes. A plan that is not synced can't be bought.
+
+A plan can't be deleted once it has purchases or subscribers (deactivate it
+instead), and its billing type is locked once it has sales. Prices are at least
+€0.50, a one-time plan needs a visit limit of at least 1 unless it is unlimited,
+and reservation pricing must keep even the smallest booking above €0.50.
+
 ### Testing Stripe locally
 
 The local `.env` already has Stripe **test-mode** keys (`pk_test_...` /

@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\SubscriptionTypes\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
+use App\Filament\Resources\SubscriptionTypes\Actions\DeletePlanAction;
+use App\Filament\Resources\SubscriptionTypes\Actions\SyncToStripeAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -39,20 +39,17 @@ class SubscriptionTypesTable
 
                 TextColumn::make('stripe_price_id')
                     ->label('Synced to Stripe')
-                    ->formatStateUsing(fn (?string $state) => $state ? 'Yes' : 'No')
+                    ->getStateUsing(fn ($record) => $record->needsStripeSync() ? 'No' : 'Yes')
                     ->badge()
-                    ->color(fn (?string $state) => $state ? 'success' : 'gray'),
+                    ->color(fn (string $state) => $state === 'Yes' ? 'success' : 'warning'),
             ])
             ->filters([
                 //
             ])
             ->recordActions([
+                SyncToStripeAction::make(),
                 EditAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
+                DeletePlanAction::make(),
             ]);
     }
 }

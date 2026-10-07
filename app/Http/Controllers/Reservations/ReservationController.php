@@ -278,7 +278,7 @@ class ReservationController extends Controller
         $validated = $request->validate([
             'user_id' => [
                 'required',
-                Rule::exists('users', 'id')->where('role', 'user'),
+                Rule::exists('users', 'id')->where('role', 'user')->withoutTrashed(),
                 Rule::notIn([$reservation->user_id]),
             ],
         ]);

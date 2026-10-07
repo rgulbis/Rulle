@@ -23,3 +23,11 @@ Schedule::command('payments:retry-refunds')
     ->everyFifteenMinutes()
     ->withoutOverlapping()
     ->onFailure(fn () => Log::error('Some refunds are still failing; see payments:retry-refunds.'));
+
+// Saving a plan never waits for Stripe, so a plan whose sync failed (Stripe
+// down, a typo'd price) is retried here. Safe to repeat: each step is
+// recorded as it completes and the Stripe calls carry idempotency keys.
+Schedule::command('plans:sync-stripe')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->onFailure(fn () => Log::error('Some plans are still not synced to Stripe; see plans:sync-stripe.'));

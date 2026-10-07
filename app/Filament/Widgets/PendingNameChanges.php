@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\Users\Actions\ApproveNameAction;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Support\Icons\Heroicon;
@@ -38,12 +39,9 @@ class PendingNameChanges extends TableWidget
                     ->color('gray'),
             ])
             ->recordActions([
-                Action::make('approveName')
+                ApproveNameAction::make()
                     ->label('Approve')
-                    ->icon(Heroicon::OutlinedCheck)
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->action(fn (User $record) => $record->approvePendingName()),
+                    ->icon(Heroicon::OutlinedCheck),
                 Action::make('rejectName')
                     ->label('Reject')
                     ->icon(Heroicon::OutlinedXMark)

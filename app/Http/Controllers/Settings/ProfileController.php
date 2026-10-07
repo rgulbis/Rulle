@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Rules\NoInappropriateContent;
 use Closure;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -66,7 +67,13 @@ class ProfileController extends Controller
 
         // Back to the name they already have — nothing to review, and
         // clears out any earlier request that's now moot.
-        $user->update(['pending_name' => $name === $user->name ? null : $name]);
+        try {
+            $user->update(['pending_name' => $name === $user->name ? null : $name]);
+        } catch (UniqueConstraintViolationException) {
+            // Someone else asked for the same name in the same instant: the
+            // unique index on pending_name let only one request through.
+            return back()->withErrors(['name' => trans('validation.unique', ['attribute' => trans('validation.attributes.name')])]);
+        }
 
         return back()->with(
             'status',

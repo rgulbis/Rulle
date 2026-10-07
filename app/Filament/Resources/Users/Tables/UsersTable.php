@@ -2,10 +2,10 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Filament\Resources\Users\Actions\ApproveNameAction;
+use App\Filament\Resources\Users\Actions\CloseAccountAction;
 use App\Models\User;
 use Filament\Actions\Action;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -59,12 +59,8 @@ class UsersTable
                     ->nullable(),
             ])
             ->recordActions([
-                Action::make('approveName')
-                    ->label('Approve name')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->visible(fn (User $record) => $record->pending_name !== null)
-                    ->action(fn (User $record) => $record->approvePendingName()),
+                ApproveNameAction::make()
+                    ->visible(fn (User $record) => $record->pending_name !== null),
                 Action::make('rejectName')
                     ->label('Reject name')
                     ->color('danger')
@@ -72,11 +68,10 @@ class UsersTable
                     ->visible(fn (User $record) => $record->pending_name !== null)
                     ->action(fn (User $record) => $record->rejectPendingName()),
                 EditAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
+                // No bulk close: every account needs its own Stripe call and
+                // its own guards (last admin, upcoming reservations), and a
+                // mistake here can't be undone.
+                CloseAccountAction::make(),
             ]);
     }
 }

@@ -10,9 +10,12 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Cashier\Billable;
 
@@ -29,6 +32,7 @@ use Laravel\Cashier\Billable;
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
  */
 // 'role' is deliberately left out — it's a privilege boundary, not just
 // another profile field, so it should never be settable via a mass-assigned
@@ -40,7 +44,7 @@ use Laravel\Cashier\Billable;
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use Billable, HasFactory, Notifiable;
+    use Billable, HasFactory, Notifiable, SoftDeletes;
 
     protected static function booted(): void
     {
@@ -85,9 +89,46 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $this->chat_muted_until !== null && $this->chat_muted_until->isFuture();
     }
 
-    public function approvePendingName(): void
+    /**
+     * Makes the requested name the real one — unless somebody else has
+     * taken it since the request was made (it was unique when they asked,
+     * which says nothing about now). Then the request is dropped instead and
+     * false is returned, so the caller can tell the admin why nothing
+     * changed. The check and the change are one transaction, and the unique
+     * index on `users.name` is the backstop if anything ever slips between.
+     */
+    public function approvePendingName(): bool
     {
-        $this->update(['name' => $this->pending_name, 'pending_name' => null]);
+        try {
+            return DB::transaction(function (): bool {
+                $this->refresh();
+
+                $name = $this->pending_name;
+
+                if ($name === null) {
+                    return false;
+                }
+
+                $taken = static::withTrashed()
+                    ->where('id', '!=', $this->id)
+                    ->where('name', $name)
+                    ->exists();
+
+                if ($taken) {
+                    $this->update(['pending_name' => null]);
+
+                    return false;
+                }
+
+                $this->update(['name' => $name, 'pending_name' => null]);
+
+                return true;
+            });
+        } catch (UniqueConstraintViolationException) {
+            $this->update(['pending_name' => null]);
+
+            return false;
+        }
     }
 
     public function rejectPendingName(): void

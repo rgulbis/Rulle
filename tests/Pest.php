@@ -98,16 +98,16 @@ function makeReservationSettings(array $attributes = []): ReservationSetting
     ], $attributes));
 }
 
-// withoutEvents() skips the model's `saved` hook, which would otherwise try
-// to sync this to Stripe over the network. Defaults to a one-time plan
-// since that's the one that produces a Purchase (a recurring plan goes
-// through Cashier's own subscriptions instead).
+// Saving a plan never talks to Stripe (PlanStripeSync does, on request), so
+// this has no Stripe product or price until a test syncs it. Defaults to a
+// one-time plan since that's the one that produces a Purchase (a recurring
+// plan goes through Cashier's own subscriptions instead).
 function makeSubscriptionType(array $attributes = []): SubscriptionType
 {
-    return SubscriptionType::withoutEvents(fn () => SubscriptionType::create(array_merge([
+    return SubscriptionType::create(array_merge([
         'name' => 'Day pass',
         'price_cents' => 500,
         'billing_interval' => 'one_time',
         'visit_limit' => 1,
-    ], $attributes)));
+    ], $attributes));
 }

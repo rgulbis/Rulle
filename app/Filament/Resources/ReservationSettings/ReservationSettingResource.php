@@ -4,10 +4,13 @@ namespace App\Filament\Resources\ReservationSettings;
 
 use App\Filament\Resources\ReservationSettings\Pages\ManageReservationSettings;
 use App\Models\ReservationSetting;
+use App\Models\SubscriptionType;
 use BackedEnum;
+use Closure;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -29,13 +32,29 @@ class ReservationSettingResource extends Resource
     {
         return $schema
             ->components([
+                // A reservation is charged through Stripe, which refuses a
+                // payment under €0.50 — so the rate has to make even the
+                // smallest booking (shortest slot, smallest group) reach it.
                 TextInput::make('price_cents_per_person_per_hour')
                     ->label('Price per person, per hour (EUR)')
                     ->required()
                     ->numeric()
+                    ->minValue(SubscriptionType::MIN_PRICE_CENTS / 100)
+                    ->step(0.01)
                     ->prefix('€')
                     ->formatStateUsing(fn (?int $state) => $state !== null ? $state / 100 : null)
-                    ->dehydrateStateUsing(fn ($state) => (int) round(((float) $state) * 100)),
+                    ->dehydrateStateUsing(fn ($state) => (int) round(((float) $state) * 100))
+                    ->rules([
+                        fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get) {
+                            $smallest = (new ReservationSetting([
+                                'price_cents_per_person_per_hour' => (int) round(((float) $value) * 100),
+                            ]))->priceFor((int) $get('min_duration_minutes'), (int) $get('min_group_size'));
+
+                            if ($smallest < SubscriptionType::MIN_PRICE_CENTS) {
+                                $fail('At this price the smallest booking ('.(int) $get('min_group_size').' people for '.(int) $get('min_duration_minutes').' minutes) would cost €'.number_format($smallest / 100, 2).', under the €'.number_format(SubscriptionType::MIN_PRICE_CENTS / 100, 2).' Stripe accepts.');
+                            }
+                        },
+                    ]),
 
                 TextInput::make('min_group_size')
                     ->label('Minimum group size')
@@ -47,6 +66,7 @@ class ReservationSettingResource extends Resource
                     ->label('Maximum group size')
                     ->required()
                     ->numeric()
+                    ->minValue(1)
                     ->gte('min_group_size')
                     ->helperText('Caps how many people a single reservation can be made for.'),
 
@@ -60,6 +80,7 @@ class ReservationSettingResource extends Resource
                     ->label('Maximum reservation length (minutes)')
                     ->required()
                     ->numeric()
+                    ->minValue(15)
                     ->gte('min_duration_minutes'),
 
                 TextInput::make('opening_time')

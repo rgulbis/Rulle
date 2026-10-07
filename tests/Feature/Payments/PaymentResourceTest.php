@@ -16,8 +16,8 @@ use Livewire\Livewire;
 | as a single ledger.
 */
 
-// stripe_product_id isn't mass-assignable (SubscriptionType::syncToStripe()
-// is the only normal writer), so tests that need one set have to bypass
+// stripe_product_id isn't mass-assignable (PlanStripeSync is the
+// only normal writer), so tests that need one set have to bypass
 // Eloquent entirely, the same way other tests in this suite set other
 // deliberately-unfillable columns (e.g. User::role).
 function withStripeProductId(SubscriptionType $type, string $productId): SubscriptionType
