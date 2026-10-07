@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Purchase;
 use App\Models\Reservation;
+use App\Models\User;
 use App\Support\Payments\CheckoutFulfillment;
+use App\Support\Payments\StripeGateway;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Laravel\Cashier\Http\Controllers\WebhookController as CashierWebhookController;
 use Stripe\Checkout\Session;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,8 +23,10 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class StripeWebhookController extends CashierWebhookController
 {
-    public function __construct(private readonly CheckoutFulfillment $fulfillment)
-    {
+    public function __construct(
+        private readonly CheckoutFulfillment $fulfillment,
+        private readonly StripeGateway $stripe,
+    ) {
         parent::__construct();
     }
 
@@ -77,15 +82,83 @@ class StripeWebhookController extends CashierWebhookController
     }
 
     /**
+     * The customer is meant to have one live subscription. The checkout
+     * route makes a second one hard to start, but the webhook is the last
+     * place it can be stopped: if this event is for a second live
+     * subscription it is NOT recorded (the customer keeps the one they
+     * have) and it is cancelled at Stripe so it never bills again. The
+     * payment it already took has to be refunded by hand, hence `critical`.
+     *
+     * Checking and recording are one transaction, so two such events handled
+     * at the same moment can't both see "no live subscription yet".
+     *
      * @param  array<string, mixed>  $payload
      */
     protected function handleCustomerSubscriptionCreated(array $payload): Response
     {
-        $response = parent::handleCustomerSubscriptionCreated($payload);
+        $response = null;
 
-        $this->recordBilledAmount($payload);
+        $duplicateOf = DB::transaction(function () use ($payload, &$response) {
+            $existing = $this->liveSubscriptionBesides($payload);
 
-        return $response;
+            if ($existing !== null) {
+                return $existing;
+            }
+
+            $response = parent::handleCustomerSubscriptionCreated($payload);
+
+            $this->recordBilledAmount($payload);
+
+            return null;
+        });
+
+        if ($duplicateOf === null) {
+            return $response;
+        }
+
+        $this->stripe->cancelSubscriptionNow($payload['data']['object']['id']);
+
+        Log::critical('A second live subscription was created for a customer and has been cancelled at Stripe. Its first payment must be refunded manually.', [
+            'user_id' => $duplicateOf['user_id'],
+            'kept_subscription' => $duplicateOf['stripe_id'],
+            'cancelled_subscription' => $payload['data']['object']['id'],
+        ]);
+
+        return $this->successMethod();
+    }
+
+    /**
+     * The customer's other live subscription of the same type, if this event
+     * would give them a second one. "Live" matches the partial unique index
+     * on `subscriptions`: not ended or set to end, and active/trialing/past due.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{user_id: int, stripe_id: string}|null
+     */
+    private function liveSubscriptionBesides(array $payload): ?array
+    {
+        $data = $payload['data']['object'];
+
+        if (! in_array($data['status'] ?? null, ['active', 'trialing', 'past_due', 'incomplete'], true)) {
+            return null;
+        }
+
+        $user = User::where('stripe_id', $data['customer'])->first();
+
+        if (! $user) {
+            return null;
+        }
+
+        $type = $data['metadata']['type'] ?? $data['metadata']['name'] ?? 'default';
+
+        $existingId = $user->subscriptions()
+            ->where('type', $type)
+            ->where('stripe_id', '!=', $data['id'])
+            ->whereNull('ends_at')
+            ->whereIn('stripe_status', ['active', 'trialing', 'past_due'])
+            ->value('stripe_id');
+
+        return is_string($existingId) ? ['user_id' => $user->id, 'stripe_id' => $existingId] : null;
     }
 
     /**

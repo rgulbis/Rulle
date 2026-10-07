@@ -8,8 +8,10 @@ use App\Models\User;
 use App\Rules\NoInappropriateContent;
 use App\Support\ChatModeration;
 use App\Support\ChatSlowMode;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -77,6 +79,22 @@ class ChatController extends Controller
             ]);
         }
 
+        // Slow mode is "read when this user last posted, then post". Done
+        // as two separate steps, a user firing several requests at once (a
+        // held Enter key, a script) has every one of them read the same old
+        // timestamp and every one get through the cooldown. A lock per user
+        // makes each request wait for the previous one's message to exist
+        // before it looks.
+        try {
+            return Cache::lock("chat-post:{$request->user()->id}", 10)
+                ->block(3, fn () => $this->post($request));
+        } catch (LockTimeoutException) {
+            abort(429, 'Too many messages at once.');
+        }
+    }
+
+    private function post(Request $request): RedirectResponse
+    {
         $wait = ChatSlowMode::secondsUntilMayPost($request->user());
 
         if ($wait > 0) {

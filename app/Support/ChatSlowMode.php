@@ -85,16 +85,27 @@ class ChatSlowMode
             return;
         }
 
-        $recent = ChatMessage::whereNull('reservation_id')
-            ->where('created_at', '>=', now()->subSeconds(self::TRIGGER_WINDOW_SECONDS))
-            ->count();
+        // Only one request at a time gets to switch it on, and it re-checks
+        // once it holds the lock: otherwise several messages arriving
+        // together each see "not active yet", each switch it on and each
+        // broadcast the announcement. A request that can't get the lock
+        // simply leaves it to the one that has.
+        Cache::lock(self::CACHE_KEY.'.evaluate', 5)->get(function () {
+            if (self::isActive()) {
+                return;
+            }
 
-        if ($recent < self::TRIGGER_MESSAGES) {
-            return;
-        }
+            $recent = ChatMessage::whereNull('reservation_id')
+                ->where('created_at', '>=', now()->subSeconds(self::TRIGGER_WINDOW_SECONDS))
+                ->count();
 
-        Cache::put(self::CACHE_KEY, now()->getTimestamp() + self::DURATION_SECONDS, self::DURATION_SECONDS + 60);
+            if ($recent < self::TRIGGER_MESSAGES) {
+                return;
+            }
 
-        ChatSlowModeActivated::dispatch(self::DURATION_SECONDS, self::COOLDOWN_SECONDS);
+            Cache::put(self::CACHE_KEY, now()->getTimestamp() + self::DURATION_SECONDS, self::DURATION_SECONDS + 60);
+
+            ChatSlowModeActivated::dispatch(self::DURATION_SECONDS, self::COOLDOWN_SECONDS);
+        });
     }
 }

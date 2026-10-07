@@ -16,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -112,23 +113,35 @@ class ReservationController extends Controller
             ]);
         }
 
-        if (Reservation::overlapping($startsAt, $endsAt)->exists()) {
+        $user = $request->user();
+        $priceCents = $settings->priceFor($validated['duration_minutes'], $validated['group_size']);
+
+        // The overlap check and the insert are one transaction: with SQLite's
+        // IMMEDIATE mode the write lock is taken at BEGIN, so a second request
+        // for the same slot waits here and then sees the first one's row.
+        // Checked outside it, two requests could both find the slot free. The
+        // Stripe call stays outside — the lock must not be held over a
+        // network round trip.
+        $reservation = DB::transaction(function () use ($startsAt, $endsAt, $user, $validated, $priceCents) {
+            if (Reservation::overlapping($startsAt, $endsAt)->exists()) {
+                return null;
+            }
+
+            return Reservation::create([
+                'user_id' => $user->id,
+                'starts_at' => $startsAt,
+                'ends_at' => $endsAt,
+                'group_size' => $validated['group_size'],
+                'price_cents' => $priceCents,
+                'status' => 'pending',
+            ]);
+        });
+
+        if ($reservation === null) {
             return back()->withErrors([
                 'starts_at' => __('That time overlaps with an existing reservation.'),
             ]);
         }
-
-        $user = $request->user();
-        $priceCents = $settings->priceFor($validated['duration_minutes'], $validated['group_size']);
-
-        $reservation = Reservation::create([
-            'user_id' => $user->id,
-            'starts_at' => $startsAt,
-            'ends_at' => $endsAt,
-            'group_size' => $validated['group_size'],
-            'price_cents' => $priceCents,
-            'status' => 'pending',
-        ]);
 
         return $this->startCheckout($user, $reservation);
     }
@@ -157,20 +170,13 @@ class ReservationController extends Controller
 
     private function startCheckout(User $user, Reservation $reservation): BaseResponse
     {
-        $durationMinutes = $reservation->starts_at->diffInMinutes($reservation->ends_at);
-
         $successUrl = route('reservations.success').'?session_id={CHECKOUT_SESSION_ID}';
         // A read-only landing page: leaving Stripe by the back link changes
         // nothing, the reservation stays pending until it is paid, cancelled
         // explicitly, or Stripe expires the session.
         $cancelUrl = route('reservations.checkout-cancelled');
 
-        $session = $user->checkoutCharge(
-            $reservation->price_cents,
-            'Park reservation ('.$durationMinutes.' min, '.$reservation->group_size.' people)',
-            1,
-            ['success_url' => $successUrl, 'cancel_url' => $cancelUrl, 'mode' => 'payment'],
-        )->asStripeCheckoutSession();
+        $session = $this->stripe->createReservationCheckout($user, $reservation, $successUrl, $cancelUrl);
 
         $reservation->update(['stripe_checkout_session_id' => $session->id]);
 
@@ -269,12 +275,6 @@ class ReservationController extends Controller
         abort_unless($reservation->user_id === $request->user()->id, 403);
         abort_if($reservation->ends_at->isPast(), 422, 'This reservation has already ended.');
 
-        if (! $reservation->hasParticipantCapacity()) {
-            return back()->withErrors([
-                'user_id' => __('This reservation is already at its paid group size.'),
-            ]);
-        }
-
         $validated = $request->validate([
             'user_id' => [
                 'required',
@@ -283,8 +283,27 @@ class ReservationController extends Controller
             ],
         ]);
 
-        if (! $reservation->participants()->whereKey($validated['user_id'])->exists()) {
+        // Counting the participants and attaching one is a single transaction,
+        // otherwise two simultaneous requests both see "one seat left" and
+        // both add someone, pushing the group past the size that was paid for.
+        $added = DB::transaction(function () use ($reservation, $validated) {
+            if ($reservation->participants()->whereKey($validated['user_id'])->exists()) {
+                return true;
+            }
+
+            if (! $reservation->hasParticipantCapacity()) {
+                return false;
+            }
+
             $reservation->participants()->attach($validated['user_id']);
+
+            return true;
+        });
+
+        if (! $added) {
+            return back()->withErrors([
+                'user_id' => __('This reservation is already at its paid group size.'),
+            ]);
         }
 
         return back()->with('status', 'participant-added');

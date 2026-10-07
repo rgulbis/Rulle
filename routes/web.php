@@ -39,9 +39,9 @@ Route::middleware('auth')->group(function () {
 // Open to every logged-in role (customer, employee, admin) — chat isn't
 // customer-only like reservations/subscriptions — but still requires a
 // verified email, same bar as subscriptions/reservations.
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'throttle:chat'])->group(function () {
     Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
-    Route::post('chat', [ChatController::class, 'store'])->name('chat.store');
+    Route::post('chat', [ChatController::class, 'store'])->middleware('throttle:chat-send')->name('chat.store');
     Route::delete('chat/{globalMessage}', [ChatController::class, 'destroy'])->name('chat.destroy');
     Route::post('chat/{globalMessage}/pin', [ChatController::class, 'pin'])->name('chat.pin');
     Route::delete('chat/{globalMessage}/pin', [ChatController::class, 'unpin'])->name('chat.unpin');
@@ -75,7 +75,7 @@ Route::middleware(['auth', 'customer-only', 'verified', 'throttle:30,1'])->group
     Route::post('reservations/{reservation}/leave', [ReservationController::class, 'leave'])->name('reservations.leave');
 
     Route::get('reservations/{reservation}/chat', [ReservationChatController::class, 'show'])->name('reservations.chat.show');
-    Route::post('reservations/{reservation}/chat', [ReservationChatController::class, 'store'])->name('reservations.chat.store');
+    Route::post('reservations/{reservation}/chat', [ReservationChatController::class, 'store'])->middleware('throttle:chat-send')->name('reservations.chat.store');
     Route::delete('reservations/{reservation}/chat/{message}', [ReservationChatController::class, 'destroy'])->name('reservations.chat.destroy');
     Route::post('reservations/{reservation}/chat/{message}/pin', [ReservationChatController::class, 'pin'])->name('reservations.chat.pin');
     Route::delete('reservations/{reservation}/chat/{message}/pin', [ReservationChatController::class, 'unpin'])->name('reservations.chat.unpin');

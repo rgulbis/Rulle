@@ -57,6 +57,28 @@ composer types:check    # Larastan/PHPStan
 composer ci:check       # everything CI runs: lint, types, tests
 ```
 
+`tests/Parallel` is different from the rest: it starts several PHP processes
+against one on-disk SQLite file and releases them at the same instant, to prove
+that double bookings, double scans, over-full groups, duplicate checkouts and
+chat-cooldown bypasses can't happen. It takes ~20 s.
+
+### How concurrent requests are kept safe
+
+- SQLite runs with `transaction_mode = IMMEDIATE` (`config/database.php`): a
+  transaction takes the write lock at `BEGIN`, so a check followed by a write
+  inside `DB::transaction` can't be interleaved with another request's. Never
+  call Stripe inside a transaction — the lock is held until it ends.
+- Two paid reservations can't overlap: checked in a transaction at booking and
+  at payment, and enforced by the `reservations_no_active_overlap_*` triggers.
+- A scan (state check, visit spent, event written) is one transaction.
+- One live subscription per customer: a per-user lock and reuse of the open
+  Stripe session at checkout, a check in the `customer.subscription.created`
+  webhook (a duplicate is cancelled at Stripe and logged as `critical` — its
+  first payment must then be refunded by hand), and the partial unique index
+  `subscriptions_one_live_per_user_type`.
+- Posting in the global chat takes a per-user lock; both chats are rate-limited
+  (`chat-send`, 20 messages/minute/user).
+
 ### Testing Stripe locally
 
 The local `.env` already has Stripe **test-mode** keys (`pk_test_...` /

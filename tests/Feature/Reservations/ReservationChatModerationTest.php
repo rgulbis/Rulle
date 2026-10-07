@@ -55,7 +55,7 @@ test('the owner of a different reservation cannot moderate this one', function (
     $owner = User::factory()->create();
     $otherOwner = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour());
-    makeReservation($otherOwner, now()->addDay(), now()->addDay()->addHour());
+    makeReservation($otherOwner, now()->addDays(3), now()->addDays(3)->addHour());
 
     $message = ChatMessage::create(['user_id' => $owner->id, 'reservation_id' => $reservation->id, 'body' => 'hi']);
 
@@ -146,7 +146,7 @@ test('cross-reservation message ids 404 instead of leaking a 403', function () {
     $ownerA = User::factory()->create();
     $ownerB = User::factory()->create();
     $reservationA = makeReservation($ownerA, now()->addDay(), now()->addDay()->addHour());
-    $reservationB = makeReservation($ownerB, now()->addDay(), now()->addDay()->addHour());
+    $reservationB = makeReservation($ownerB, now()->addDays(3), now()->addDays(3)->addHour());
     $messageA = ChatMessage::create(['user_id' => $ownerA->id, 'reservation_id' => $reservationA->id, 'body' => 'in A']);
 
     $this->actingAs($ownerB)->delete("/reservations/{$reservationB->id}/chat/{$messageA->id}")->assertNotFound();

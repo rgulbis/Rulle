@@ -7,10 +7,13 @@ use Carbon\CarbonImmutable;
 use Filament\Auth\Http\Responses\Contracts\LogoutResponse as LogoutResponseContract;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\DevCommands;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -32,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureRateLimiting();
 
         Event::listen(Registered::class, SendEmailVerificationNotification::class);
 
@@ -57,6 +61,22 @@ class AppServiceProvider extends ServiceProvider
             ->symbols()
             ->uncompromised(),
         );
+    }
+
+    /**
+     * Chat limiters are named, not `throttle:N,M`: numeric throttles are keyed
+     * by user alone, so every one of them would share a single counter with
+     * the reservation and subscription pages' own throttle.
+     */
+    protected function configureRateLimiting(): void
+    {
+        // Posting a message, in either the global room or a reservation's
+        // group chat. Slow mode only exists in the global room and only when
+        // the room is busy; this is the always-on ceiling for both.
+        RateLimiter::for('chat-send', fn (Request $request) => Limit::perMinute(20)->by('send:'.($request->user()->id ?? $request->ip())));
+
+        // Everything else in the global room: loading it, moderating it.
+        RateLimiter::for('chat', fn (Request $request) => Limit::perMinute(90)->by('chat:'.($request->user()->id ?? $request->ip())));
     }
 
     /**

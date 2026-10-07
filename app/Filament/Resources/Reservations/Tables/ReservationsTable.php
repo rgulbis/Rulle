@@ -89,13 +89,22 @@ class ReservationsTable
                         // refunded here, without the cancellation-cutoff
                         // grace window that only exists to discourage
                         // last-minute customer-initiated cancellations.
-                        $refundDue = $record->status === 'active' && $record->starts_at->isFuture();
+                        //
+                        // The refund is decided by what *this* click changed:
+                        // a conditional UPDATE, so if the customer cancelled
+                        // (and was refunded) a moment earlier it matches no
+                        // row and nobody is refunded twice.
+                        $wasPaid = Reservation::whereKey($record->id)->where('status', 'active')->update(['status' => 'cancelled']) > 0;
 
-                        $record->update(['status' => 'cancelled']);
+                        if (! $wasPaid) {
+                            Reservation::whereKey($record->id)->where('status', 'pending')->update(['status' => 'cancelled']);
+                        }
 
-                        if (! $refundDue) {
+                        if (! $wasPaid || ! $record->starts_at->isFuture()) {
                             return;
                         }
+
+                        $record->refresh();
 
                         // Recorded before Stripe is called, and retried by
                         // `payments:retry-refunds` if Stripe doesn't confirm.

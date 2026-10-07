@@ -6,10 +6,12 @@ use App\Events\OccupancyUpdated;
 use App\Events\UserCheckInStatusUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\CheckInEvent;
+use App\Models\Purchase;
 use App\Models\Reservation;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -38,27 +40,49 @@ class ScanController extends Controller
 
         $entering = $validated['mode'] === 'entry';
 
+        // Reading the check-in state, validating, spending a visit and
+        // recording the event are one transaction. Two scanners reading the
+        // same QR code at once would otherwise both see "not inside" and both
+        // let it in (two entries, two visits spent), or both spend the last
+        // visit. The write lock is taken at BEGIN, so the second scan waits
+        // and then sees the first one's event.
+        [$status, $payload] = DB::transaction(fn () => $this->decide($user, $entering));
+
+        if ($status === 200) {
+            // After the commit: a listener must never see an event that a
+            // rollback could still take away.
+            UserCheckInStatusUpdated::dispatch($user);
+            OccupancyUpdated::dispatch();
+        }
+
+        return response()->json($payload, $status);
+    }
+
+    /**
+     * Must run inside the transaction opened by store().
+     *
+     * @return array{0: int, 1: array<string, mixed>}
+     */
+    private function decide(User $user, bool $entering): array
+    {
+        $deny = fn (int $status, string $message): array => [$status, [
+            'found' => true,
+            'allowed' => false,
+            'name' => $user->name,
+            'message' => $message,
+        ]];
+
         // Staff picks the mode explicitly rather than the server inferring
         // it from the current state, so a code that's already inside can't
         // be scanned for entry again (e.g. a screenshot passed to a friend
         // while the real owner is still on-site) and vice versa.
         if ($entering === $user->isCurrentlyCheckedIn()) {
-            return response()->json([
-                'found' => true,
-                'allowed' => false,
-                'name' => $user->name,
-                'message' => $entering ? __('Already checked in.') : __('Not currently checked in.'),
-            ], 409);
+            return $deny(409, $entering ? __('Already checked in.') : __('Not currently checked in.'));
         }
 
         if ($entering) {
             if (! $user->hasVerifiedEmail()) {
-                return response()->json([
-                    'found' => true,
-                    'allowed' => false,
-                    'name' => $user->name,
-                    'message' => __('Email not verified.'),
-                ], 403);
+                return $deny(403, __('Email not verified.'));
             }
 
             // Staff and admins always work here regardless of a private
@@ -67,12 +91,7 @@ class ScanController extends Controller
             $isReservationParty = $activeReservation && $activeReservation->includesParticipant($user);
 
             if ($activeReservation && ! $isReservationParty) {
-                return response()->json([
-                    'found' => true,
-                    'allowed' => false,
-                    'name' => $user->name,
-                    'message' => __('Park privately reserved until :time.', ['time' => $activeReservation->ends_at->format('H:i')]),
-                ], 403);
+                return $deny(403, __('Park privately reserved until :time.', ['time' => $activeReservation->ends_at->format('H:i')]));
             }
 
             // Being part of the currently-running reservation is itself
@@ -80,19 +99,12 @@ class ScanController extends Controller
             // slot, so it doesn't also require a separate subscription.
             if (! $isReservationParty) {
                 if (! $user->hasActiveAccess()) {
-                    return response()->json([
-                        'found' => true,
-                        'allowed' => false,
-                        'name' => $user->name,
-                        'message' => __('No active subscription.'),
-                    ], 403);
+                    return $deny(403, __('No active subscription.'));
                 }
 
                 if (! $user->subscribed('default') && ($purchase = $user->activeOneTimePurchase()) && ! $purchase->subscriptionType->unlimited_entries) {
-                    $purchase->decrement('visits_remaining');
-
-                    if ($purchase->visits_remaining <= 0) {
-                        $purchase->update(['status' => 'used_up']);
+                    if (! $this->spendVisit($purchase)) {
+                        return $deny(403, __('No active subscription.'));
                     }
                 }
             }
@@ -103,14 +115,34 @@ class ScanController extends Controller
             'checked_in' => $entering,
         ]);
 
-        UserCheckInStatusUpdated::dispatch($user);
-        OccupancyUpdated::dispatch();
-
-        return response()->json([
+        return [200, [
             'found' => true,
             'allowed' => true,
             'name' => $user->name,
             'checked_in' => $entering,
-        ]);
+        ]];
+    }
+
+    /**
+     * One conditional UPDATE: it only takes a visit if one is left, so the
+     * counter can never go below zero even if something other than a scan
+     * is spending visits too.
+     */
+    private function spendVisit(Purchase $purchase): bool
+    {
+        $spent = Purchase::whereKey($purchase->id)
+            ->where('status', 'active')
+            ->where('visits_remaining', '>', 0)
+            ->decrement('visits_remaining');
+
+        if ($spent === 0) {
+            return false;
+        }
+
+        Purchase::whereKey($purchase->id)
+            ->where('visits_remaining', '<=', 0)
+            ->update(['status' => 'used_up']);
+
+        return true;
     }
 }

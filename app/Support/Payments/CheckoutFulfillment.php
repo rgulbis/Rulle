@@ -4,6 +4,8 @@ namespace App\Support\Payments;
 
 use App\Models\Purchase;
 use App\Models\Reservation;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Stripe\Checkout\Session;
 
 /**
@@ -58,26 +60,53 @@ class CheckoutFulfillment
 
     private function fulfillReservation(Reservation $reservation): FulfillmentOutcome
     {
+        // The overlap check and the activation are one transaction (SQLite
+        // takes the write lock at BEGIN), so two payments for overlapping
+        // slots landing at the same moment — webhook and success URL, or two
+        // webhooks — are decided one after the other and exactly one wins.
+        // The refund is a Stripe call and so happens after the lock is
+        // released. The `reservations_no_active_overlap_*` triggers back this
+        // up at the database level.
+        [$outcome, $refundNeeded] = DB::transaction(fn () => $this->settleReservation($reservation));
+
+        if ($refundNeeded) {
+            $this->refunds->refundInFull($reservation->refresh());
+        }
+
+        return $outcome;
+    }
+
+    /**
+     * @return array{0: FulfillmentOutcome, 1: bool} the outcome, and whether the payment has to be refunded
+     */
+    private function settleReservation(Reservation $reservation): array
+    {
+        // The model was loaded before this transaction took its lock; decide
+        // from the row as it is now.
+        $reservation->refresh();
+
         // Two people can both hold a pending reservation for overlapping
         // times; whoever's payment lands first gets the slot.
         if ($reservation->status === 'pending' && $reservation->overlappedByAnotherActiveReservation()) {
-            $won = Reservation::whereKey($reservation->id)
-                ->where('status', 'pending')
-                ->update(['status' => 'cancelled', 'payment_status' => Reservation::PAYMENT_PAID]);
-
-            if ($won > 0) {
-                $this->refunds->refundInFull($reservation->refresh());
-            }
-
-            return FulfillmentOutcome::SlotTaken;
+            return [FulfillmentOutcome::SlotTaken, $this->cancelPaid($reservation)];
         }
 
-        $won = Reservation::whereKey($reservation->id)
-            ->where('status', 'pending')
-            ->update(['status' => 'active', 'payment_status' => Reservation::PAYMENT_PAID]);
+        try {
+            $won = Reservation::whereKey($reservation->id)
+                ->where('status', 'pending')
+                ->update(['status' => 'active', 'payment_status' => Reservation::PAYMENT_PAID]);
+        } catch (QueryException $e) {
+            if (! str_contains($e->getMessage(), 'reservation_overlap')) {
+                throw $e;
+            }
+
+            // The database caught a double booking the check above did not
+            // (it only looks at what the row said when this call started).
+            return [FulfillmentOutcome::SlotTaken, $this->cancelPaid($reservation)];
+        }
 
         if ($won > 0) {
-            return FulfillmentOutcome::Fulfilled;
+            return [FulfillmentOutcome::Fulfilled, false];
         }
 
         // Cancelled while the checkout was still open (the customer cancelled
@@ -89,17 +118,27 @@ class CheckoutFulfillment
             ->update(['payment_status' => Reservation::PAYMENT_PAID]);
 
         if ($lateWin > 0) {
-            $this->refunds->refundInFull($reservation->refresh());
-
-            return FulfillmentOutcome::RefundedAfterCancel;
+            return [FulfillmentOutcome::RefundedAfterCancel, true];
         }
 
         $reservation->refresh();
 
-        return match (true) {
+        return [match (true) {
             $reservation->status === 'active' => FulfillmentOutcome::Fulfilled,
             $reservation->status === 'cancelled' && $reservation->hasBeenPaid() => FulfillmentOutcome::RefundedAfterCancel,
             default => FulfillmentOutcome::NotFulfilled,
-        };
+        }, false];
+    }
+
+    /**
+     * Writes off a still-pending reservation whose money has arrived but
+     * whose slot has gone. True only for the caller that actually changed
+     * the row, so the refund is requested once.
+     */
+    private function cancelPaid(Reservation $reservation): bool
+    {
+        return Reservation::whereKey($reservation->id)
+            ->where('status', 'pending')
+            ->update(['status' => 'cancelled', 'payment_status' => Reservation::PAYMENT_PAID]) > 0;
     }
 }

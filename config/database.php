@@ -52,7 +52,17 @@ return [
             'busy_timeout' => 5000,
             'journal_mode' => 'wal',
             'synchronous' => 'normal',
-            'transaction_mode' => 'DEFERRED',
+            // DEFERRED (SQLite's default) starts every transaction as a
+            // reader and only takes the write lock at the first write. Two
+            // requests that both read ("is the slot free?") and then write
+            // therefore both pass the check, and the loser's read->write
+            // upgrade fails at once with SQLITE_BUSY (busy_timeout can't
+            // help, it would deadlock). IMMEDIATE takes the write lock at
+            // BEGIN, so concurrent check-then-write transactions queue up
+            // behind each other (waiting up to busy_timeout) and each one
+            // sees the previous one's result. Keep Stripe/network calls out
+            // of transactions: the lock is held for their whole duration.
+            'transaction_mode' => 'IMMEDIATE',
         ],
 
         'mysql' => [

@@ -2,6 +2,8 @@
 
 namespace App\Support\Payments;
 
+use App\Models\Reservation;
+use App\Models\User;
 use Laravel\Cashier\Cashier;
 use Stripe\Checkout\Session;
 use Stripe\Refund;
@@ -15,6 +17,45 @@ class StripeGateway
     public function retrieveCheckoutSession(string $sessionId): Session
     {
         return Cashier::stripe()->checkout->sessions->retrieve($sessionId);
+    }
+
+    /**
+     * A one-off charge for a reservation, priced at what it was booked for.
+     */
+    public function createReservationCheckout(User $user, Reservation $reservation, string $successUrl, string $cancelUrl): Session
+    {
+        $durationMinutes = $reservation->starts_at->diffInMinutes($reservation->ends_at);
+
+        return $user->checkoutCharge(
+            $reservation->price_cents,
+            'Park reservation ('.$durationMinutes.' min, '.$reservation->group_size.' people)',
+            1,
+            ['success_url' => $successUrl, 'cancel_url' => $cancelUrl, 'mode' => 'payment'],
+        )->asStripeCheckoutSession();
+    }
+
+    public function createSubscriptionCheckout(User $user, string $priceId, string $successUrl, string $cancelUrl): Session
+    {
+        return $user->newSubscription('default', $priceId)
+            ->checkout(['success_url' => $successUrl, 'cancel_url' => $cancelUrl])
+            ->asStripeCheckoutSession();
+    }
+
+    public function createPassCheckout(User $user, string $priceId, string $successUrl, string $cancelUrl): Session
+    {
+        return $user->checkout([$priceId => 1], [
+            'success_url' => $successUrl,
+            'cancel_url' => $cancelUrl,
+            'mode' => 'payment',
+        ])->asStripeCheckoutSession();
+    }
+
+    /**
+     * Ends a subscription at Stripe immediately (no further billing).
+     */
+    public function cancelSubscriptionNow(string $stripeSubscriptionId): void
+    {
+        Cashier::stripe()->subscriptions->cancel($stripeSubscriptionId);
     }
 
     /**

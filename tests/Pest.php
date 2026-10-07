@@ -25,6 +25,10 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
 
+// No RefreshDatabase: these tests build their own on-disk SQLite file, which
+// separate PHP processes can share (an in-memory database can't be).
+pest()->extend(TestCase::class)->in('Parallel');
+
 /*
 |--------------------------------------------------------------------------
 | Expectations

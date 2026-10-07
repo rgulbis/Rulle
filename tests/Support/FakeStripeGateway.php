@@ -2,6 +2,8 @@
 
 namespace Tests\Support;
 
+use App\Models\Reservation;
+use App\Models\User;
 use App\Support\Payments\StripeGateway;
 use Stripe\Checkout\Session;
 use Stripe\Exception\ApiConnectionException;
@@ -38,6 +40,48 @@ class FakeStripeGateway extends StripeGateway
             'payment_intent' => 'pi_'.$id,
             'customer' => null,
         ], $attributes));
+    }
+
+    /** @var list<array{kind: string, session: string, user: int, price: string|null}> */
+    public array $createdCheckouts = [];
+
+    /** @var list<string> */
+    public array $cancelledSubscriptions = [];
+
+    /**
+     * An open (unpaid) session, as Stripe returns right after creating one.
+     */
+    private function openSession(string $kind, User $user, ?string $price): Session
+    {
+        $id = 'cs_fake_'.(count($this->createdCheckouts) + 1);
+        $this->createdCheckouts[] = ['kind' => $kind, 'session' => $id, 'user' => $user->id, 'price' => $price];
+
+        return $this->addSession($id, [
+            'status' => 'open',
+            'payment_status' => 'unpaid',
+            'url' => 'https://checkout.test/'.$id,
+            'customer' => $user->stripe_id,
+        ]);
+    }
+
+    public function createReservationCheckout(User $user, Reservation $reservation, string $successUrl, string $cancelUrl): Session
+    {
+        return $this->openSession('reservation', $user, null);
+    }
+
+    public function createSubscriptionCheckout(User $user, string $priceId, string $successUrl, string $cancelUrl): Session
+    {
+        return $this->openSession('subscription', $user, $priceId);
+    }
+
+    public function createPassCheckout(User $user, string $priceId, string $successUrl, string $cancelUrl): Session
+    {
+        return $this->openSession('pass', $user, $priceId);
+    }
+
+    public function cancelSubscriptionNow(string $stripeSubscriptionId): void
+    {
+        $this->cancelledSubscriptions[] = $stripeSubscriptionId;
     }
 
     public function retrieveCheckoutSession(string $sessionId): Session
