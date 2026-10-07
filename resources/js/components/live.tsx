@@ -32,6 +32,55 @@ export function LiveVideo({ className = '' }: { className?: string }) {
 
         setError(null);
 
+        let hls: Hls | null = null;
+        let cancelled = false;
+
+        // Browsers pause (or throttle) background and occluded video to save
+        // power, and there are no controls here for a viewer to press play
+        // again — so without this the stream stays frozen until a refresh.
+        // Whatever time passed while paused is also gone from the live
+        // playlist, so jump back to the live edge instead of resuming from
+        // a position the server no longer has.
+        const resume = () => {
+            if (document.hidden) {
+                return;
+            }
+
+            const liveEdge =
+                hls?.liveSyncPosition ??
+                (video.seekable.length > 0
+                    ? video.seekable.end(video.seekable.length - 1)
+                    : null);
+
+            if (liveEdge !== null && liveEdge - video.currentTime > 5) {
+                video.currentTime = liveEdge;
+            }
+
+            video.play().catch(() => {});
+        };
+
+        const handleVisibility = () => resume();
+
+        // The player has no controls, so any pause while the page is visible
+        // wasn't the viewer's doing.
+        const handlePause = () => {
+            if (!document.hidden && !video.ended) {
+                resume();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibility);
+        window.addEventListener('focus', resume);
+        window.addEventListener('pageshow', resume);
+        video.addEventListener('pause', handlePause);
+
+        const removeListeners = () => {
+            document.removeEventListener('visibilitychange', handleVisibility);
+            window.removeEventListener('focus', resume);
+            window.removeEventListener('pageshow', resume);
+            video.removeEventListener('pause', handlePause);
+        };
+
         // Safari (and WebKit generally) plays HLS natively; every other
         // browser needs hls.js to remux it into something <video>
         // understands. The native path only reports failures through the
@@ -44,15 +93,15 @@ export function LiveVideo({ className = '' }: { className?: string }) {
             video.addEventListener('error', handleNativeError);
             video.src = STREAM_URL;
 
-            return () => video.removeEventListener('error', handleNativeError);
+            return () => {
+                removeListeners();
+                video.removeEventListener('error', handleNativeError);
+            };
         }
 
         // hls.js is ~500 kB, so it's only fetched here, when a browser
         // actually needs it — not bundled into every page that shows the
         // player (the home page included).
-        let hls: Hls | null = null;
-        let cancelled = false;
-
         void import('hls.js').then(({ default: HlsPlayer }) => {
             if (cancelled) {
                 return;
@@ -66,10 +115,38 @@ export function LiveVideo({ className = '' }: { className?: string }) {
 
             hls = new HlsPlayer();
 
+            // A tab left in the background for a while commonly comes back
+            // with a fatal network/media error (expired segments, a decoder
+            // the browser tore down). Retry a few times before declaring the
+            // stream offline; any successfully loaded fragment resets this.
+            let recoveries = 0;
+
+            hls.on(HlsPlayer.Events.FRAG_LOADED, () => {
+                recoveries = 0;
+            });
+
             hls.on(HlsPlayer.Events.ERROR, (_event, data) => {
-                if (data.fatal) {
-                    setError('offline');
+                if (!data.fatal) {
+                    return;
                 }
+
+                if (recoveries < 3) {
+                    recoveries++;
+
+                    if (data.type === HlsPlayer.ErrorTypes.MEDIA_ERROR) {
+                        hls?.recoverMediaError();
+
+                        return;
+                    }
+
+                    if (data.type === HlsPlayer.ErrorTypes.NETWORK_ERROR) {
+                        hls?.startLoad();
+
+                        return;
+                    }
+                }
+
+                setError('offline');
             });
 
             hls.loadSource(STREAM_URL);
@@ -78,6 +155,7 @@ export function LiveVideo({ className = '' }: { className?: string }) {
 
         return () => {
             cancelled = true;
+            removeListeners();
             hls?.destroy();
         };
     }, []);
