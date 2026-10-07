@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPaymentState;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,11 +20,17 @@ use Illuminate\Support\Carbon;
  * @property int $group_size
  * @property int $price_cents
  * @property string $status
+ * @property string $payment_status
+ * @property int|null $refund_requested_cents
+ * @property int $refunded_cents
+ * @property Carbon|null $refunded_at
  * @property string|null $stripe_checkout_session_id
  */
-#[Fillable(['user_id', 'starts_at', 'ends_at', 'group_size', 'price_cents', 'status', 'stripe_checkout_session_id'])]
+#[Fillable(['user_id', 'starts_at', 'ends_at', 'group_size', 'price_cents', 'status', 'payment_status', 'refund_requested_cents', 'refunded_cents', 'refunded_at', 'stripe_checkout_session_id'])]
 class Reservation extends Model
 {
+    use HasPaymentState;
+
     protected function casts(): array
     {
         return [
@@ -31,6 +38,9 @@ class Reservation extends Model
             'ends_at' => 'datetime',
             'group_size' => 'integer',
             'price_cents' => 'integer',
+            'refund_requested_cents' => 'integer',
+            'refunded_cents' => 'integer',
+            'refunded_at' => 'datetime',
         ];
     }
 

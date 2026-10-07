@@ -49,6 +49,10 @@ const lv: Record<TranslationKey, string> = {
     'reservations.statusCancelled': 'Rezervācija atcelta.',
     'reservations.statusCancelledRefunded':
         'Rezervācija atcelta un nauda atmaksāta.',
+    'reservations.statusCancelledRefundPending':
+        'Rezervācija atcelta. Naudas atmaksa ir ceļā — tā vēl nav apstiprināta, un to automātiski mēģinās vēlreiz.',
+    'reservations.statusCancelledNoPayment':
+        'Rezervācija atcelta. Nav atrasts neviens tiešsaistes maksājums, ko atmaksāt.',
     'reservations.statusCancelledNoRefund':
         'Rezervācija atcelta, bet tas bija pārāk tuvu sākuma laikam, lai atmaksātu naudu.',
     'reservations.statusCannotCancel':

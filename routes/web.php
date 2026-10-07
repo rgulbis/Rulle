@@ -59,14 +59,15 @@ Route::middleware(['auth', 'customer-only', 'verified', 'throttle:30,1'])->group
     Route::get('subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
     Route::post('subscriptions/{subscriptionType}/checkout', [SubscriptionController::class, 'checkout'])->name('subscriptions.checkout');
     Route::get('subscriptions/success', [SubscriptionController::class, 'success'])->name('subscriptions.success');
-    Route::get('subscriptions/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
+    Route::get('subscriptions/checkout-cancelled', [SubscriptionController::class, 'checkoutCancelled'])->name('subscriptions.checkout-cancelled');
     Route::delete('subscriptions/subscription', [SubscriptionController::class, 'cancelSubscription'])->name('subscriptions.cancel-subscription');
     Route::post('subscriptions/subscription/swap', [SubscriptionController::class, 'swapToCurrentPrice'])->name('subscriptions.swap-price');
 
     Route::get('reservations', [ReservationController::class, 'index'])->name('reservations.index');
     Route::post('reservations', [ReservationController::class, 'store'])->name('reservations.store');
     Route::get('reservations/success', [ReservationController::class, 'success'])->name('reservations.success');
-    Route::get('reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->name('reservations.cancel');
+    Route::get('reservations/checkout-cancelled', [ReservationController::class, 'checkoutCancelled'])->name('reservations.checkout-cancelled');
+    Route::delete('reservations/{reservation}', [ReservationController::class, 'cancel'])->name('reservations.cancel');
     Route::post('reservations/{reservation}/resume', [ReservationController::class, 'resume'])->name('reservations.resume');
     Route::get('reservations/users/search', [ReservationController::class, 'searchUsers'])->name('reservations.users.search');
     Route::post('reservations/{reservation}/participants', [ReservationController::class, 'addParticipant'])->name('reservations.participants.add');

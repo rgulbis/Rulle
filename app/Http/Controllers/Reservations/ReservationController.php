@@ -7,7 +7,11 @@ use App\Models\Reservation;
 use App\Models\ReservationSetting;
 use App\Models\User;
 use App\Support\CheckInOccupancy;
-use App\Support\StripeRefunds;
+use App\Support\Payments\CheckoutFulfillment;
+use App\Support\Payments\FulfillmentOutcome;
+use App\Support\Payments\RefundOutcome;
+use App\Support\Payments\Refunds;
+use App\Support\Payments\StripeGateway;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,11 +19,16 @@ use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use Laravel\Cashier\Cashier;
 use Symfony\Component\HttpFoundation\Response as BaseResponse;
 
 class ReservationController extends Controller
 {
+    public function __construct(
+        private readonly StripeGateway $stripe,
+        private readonly CheckoutFulfillment $fulfillment,
+        private readonly Refunds $refunds,
+    ) {}
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -136,7 +145,7 @@ class ReservationController extends Controller
         abort_unless($reservation->status === 'pending', 422, 'This reservation is no longer pending.');
 
         if ($reservation->stripe_checkout_session_id) {
-            $existing = Cashier::stripe()->checkout->sessions->retrieve($reservation->stripe_checkout_session_id);
+            $existing = $this->stripe->retrieveCheckoutSession($reservation->stripe_checkout_session_id);
 
             if ($existing->status === 'open') {
                 return Inertia::location($existing->url);
@@ -151,7 +160,10 @@ class ReservationController extends Controller
         $durationMinutes = $reservation->starts_at->diffInMinutes($reservation->ends_at);
 
         $successUrl = route('reservations.success').'?session_id={CHECKOUT_SESSION_ID}';
-        $cancelUrl = route('reservations.cancel', ['reservation' => $reservation]);
+        // A read-only landing page: leaving Stripe by the back link changes
+        // nothing, the reservation stays pending until it is paid, cancelled
+        // explicitly, or Stripe expires the session.
+        $cancelUrl = route('reservations.checkout-cancelled');
 
         $session = $user->checkoutCharge(
             $reservation->price_cents,
@@ -165,82 +177,91 @@ class ReservationController extends Controller
         return Inertia::location($session->url);
     }
 
+    /**
+     * Where Stripe sends the customer after paying. Fulfilment itself is the
+     * webhook's job; this runs the same idempotent code so the customer sees
+     * the result at once, and only for a session that is their own.
+     */
     public function success(Request $request): RedirectResponse
     {
         $sessionId = $request->query('session_id');
+
+        $owned = is_string($sessionId) && Reservation::where('stripe_checkout_session_id', $sessionId)
+            ->where('user_id', $request->user()->id)
+            ->exists();
+
         $status = 'reservation-incomplete';
 
-        if ($sessionId) {
-            $session = Cashier::stripe()->checkout->sessions->retrieve($sessionId);
+        if ($owned) {
+            $outcome = $this->fulfillment->fulfill($this->stripe->retrieveCheckoutSession($sessionId));
 
-            if ($session->status === 'complete' && $session->payment_status === 'paid') {
-                $reservation = Reservation::where('stripe_checkout_session_id', $sessionId)->first();
-
-                if ($reservation && $reservation->status === 'pending') {
-                    // Someone else's reservation for an overlapping slot may
-                    // have finished paying first while this checkout was
-                    // still open. If so, this payment already went through —
-                    // refund it and cancel the reservation rather than
-                    // creating a second, conflicting active booking.
-                    if ($reservation->overlappedByAnotherActiveReservation()) {
-                        $reservation->update(['status' => 'cancelled']);
-
-                        if ($session->payment_intent) {
-                            Cashier::stripe()->refunds->create(['payment_intent' => $session->payment_intent]);
-                        }
-
-                        $status = 'reservation-slot-taken';
-                    } else {
-                        $reservation->update(['status' => 'active']);
-                        $status = 'reservation-complete';
-                    }
-                } elseif ($reservation && $reservation->status === 'active') {
-                    // Revisiting the success URL (e.g. a page reload).
-                    $status = 'reservation-complete';
-                }
-            }
+            $status = match ($outcome) {
+                FulfillmentOutcome::Fulfilled => 'reservation-complete',
+                FulfillmentOutcome::SlotTaken => 'reservation-slot-taken',
+                FulfillmentOutcome::RefundedAfterCancel => 'reservation-cancelled-refunded',
+                FulfillmentOutcome::NotFulfilled => 'reservation-incomplete',
+            };
         }
 
         return redirect()->route('reservations.index')->with('status', $status);
     }
 
+    /**
+     * Stripe's cancel_url. Strictly read-only — a GET that changes state can
+     * be triggered by a link, a prefetch or a crawler.
+     */
+    public function checkoutCancelled(): RedirectResponse
+    {
+        return redirect()->route('reservations.index')->with('status', 'reservation-incomplete');
+    }
+
+    /**
+     * The customer calling off their own reservation (DELETE).
+     */
     public function cancel(Request $request, Reservation $reservation): RedirectResponse
     {
-        if ($reservation->user_id !== $request->user()->id) {
-            return redirect()->route('reservations.index')->with('status', 'reservation-cancelled');
-        }
+        abort_unless($reservation->user_id === $request->user()->id, 403);
 
         // Frees up the slot immediately instead of waiting out the pending
         // grace window in Reservation::scopeOverlapping(). Nothing was ever
-        // charged for a pending reservation, so there's nothing to refund.
+        // charged for a pending reservation, so there's nothing to refund
+        // (and if the payment does land afterwards, fulfilment refunds it).
         if ($reservation->status === 'pending') {
-            $reservation->update(['status' => 'cancelled']);
+            Reservation::whereKey($reservation->id)->where('status', 'pending')->update(['status' => 'cancelled']);
 
             return redirect()->route('reservations.index')->with('status', 'reservation-cancelled');
+        }
+
+        if ($reservation->status !== 'active') {
+            return redirect()->route('reservations.index')->with('status', 'reservation-cancelled');
+        }
+
+        if (! $reservation->starts_at->isFuture()) {
+            return redirect()->route('reservations.index')->with('status', 'reservation-cannot-cancel');
         }
 
         // A paid reservation can still be called off if the customer
         // changes their mind, as long as it hasn't started yet. Whether
         // that refunds them depends on how close to the start time it is.
-        if ($reservation->status === 'active' && $reservation->starts_at->isFuture()) {
-            $settings = ReservationSetting::current();
-            $refunded = false;
+        $cancelled = Reservation::whereKey($reservation->id)->where('status', 'active')->update(['status' => 'cancelled']);
 
-            if ($settings->isEligibleForCancellationRefund($reservation->starts_at)) {
-                $refunded = StripeRefunds::refundCheckoutSession($reservation->stripe_checkout_session_id);
-            }
-
-            $reservation->update(['status' => 'cancelled']);
-
-            return redirect()->route('reservations.index')
-                ->with('status', $refunded ? 'reservation-cancelled-refunded' : 'reservation-cancelled-no-refund');
+        if ($cancelled === 0) {
+            return redirect()->route('reservations.index')->with('status', 'reservation-cancelled');
         }
 
-        if ($reservation->status === 'active') {
-            return redirect()->route('reservations.index')->with('status', 'reservation-cannot-cancel');
+        // Too close to the start: the slot is freed but the payment is kept.
+        if (! ReservationSetting::current()->isEligibleForCancellationRefund($reservation->starts_at)) {
+            return redirect()->route('reservations.index')->with('status', 'reservation-cancelled-no-refund');
         }
 
-        return redirect()->route('reservations.index')->with('status', 'reservation-cancelled');
+        $outcome = $this->refunds->refundInFull($reservation->refresh());
+
+        return redirect()->route('reservations.index')->with('status', match ($outcome) {
+            RefundOutcome::Refunded => 'reservation-cancelled-refunded',
+            RefundOutcome::Pending => 'reservation-cancelled-refund-pending',
+            // Eligible, but no online payment is on record to give back.
+            RefundOutcome::NothingToRefund => 'reservation-cancelled-no-payment',
+        });
     }
 
     public function addParticipant(Request $request, Reservation $reservation): RedirectResponse

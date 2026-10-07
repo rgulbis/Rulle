@@ -1,9 +1,13 @@
 <?php
 
 use App\Support\DatabaseBackup;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Process\ProcessResult;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Process;
 
 // These tests work on a throwaway SQLite *file* (the suite's own database is
 // in-memory, which has nothing to back up), reached through a dedicated
@@ -226,4 +230,125 @@ test('db:migrate-safe creates a missing database file on first run', function ()
     $this->artisan('db:migrate-safe')->assertSuccessful();
 
     expect(Schema::connection('backup_test')->hasTable('users'))->toBeTrue();
+});
+
+// The pre-launch switch: every deploy can wipe and reseed the database, but
+// only on purpose (FRESH_DB_ON_DEPLOY=true), and never half way.
+
+test('db:fresh-deploy leaves the database alone unless the switch is on', function () {
+    config(['database.default' => 'backup_test', 'app.fresh_db_on_deploy' => false]);
+
+    $this->artisan('db:fresh-deploy')->assertFailed();
+
+    expect(liveItems())->toBe(['original'])
+        ->and($this->backups->all())->toBe([]);
+});
+
+test('db:fresh-deploy refuses to wipe production without a seed password', function () {
+    config(['database.default' => 'backup_test', 'app.fresh_db_on_deploy' => true, 'app.seed_password' => null]);
+    $this->app['env'] = 'production';
+
+    $this->artisan('db:fresh-deploy')->assertFailed();
+
+    expect(liveItems())->toBe(['original'])
+        ->and($this->backups->all())->toBe([]);
+});
+
+test('db:fresh-deploy restores the snapshot when the wipe fails', function () {
+    config(['database.default' => 'backup_test', 'app.fresh_db_on_deploy' => true, 'app.seed_password' => 'a-long-seed-secret']);
+    useFailingMigration($this->workdir.'/failing', $this->dbPath);
+
+    $this->artisan('db:fresh-deploy')->assertFailed();
+
+    DB::purge('backup_test');
+
+    expect(liveItems())->toBe(['original'])
+        ->and(Schema::connection('backup_test')->hasTable('users'))->toBeFalse();
+});
+
+test('the seeder refuses to create staff accounts in production without a seed password', function () {
+    config(['app.seed_password' => null]);
+    $this->app['env'] = 'production';
+
+    expect(fn () => (new DatabaseSeeder)->run())->toThrow(RuntimeException::class, 'SEED_PASSWORD');
+});
+
+// The same command as a real process, in production mode, against a throwaway
+// database file that has already been migrated and has data in it — the
+// closest a test gets to what docker/deploy.sh does on the server. This is
+// also the only place the destructive-command guard (on in production) is
+// exercised for real.
+
+function runFreshDeployProcess(string $workdir, array $env): ProcessResult
+{
+    $database = $workdir.'/deployed.sqlite';
+    $storage = $workdir.'/proc-storage';
+
+    if (! is_dir($storage)) {
+        foreach (['app/backups', 'framework/cache', 'framework/sessions', 'framework/views', 'logs'] as $dir) {
+            mkdir("{$storage}/{$dir}", 0775, true);
+        }
+    }
+
+    $base = [
+        'APP_ENV' => 'production',
+        'DB_CONNECTION' => 'sqlite',
+        'DB_DATABASE' => $database,
+        'DB_URL' => '',
+        'LARAVEL_STORAGE_PATH' => $storage,
+        'CACHE_STORE' => 'array',
+        'SESSION_DRIVER' => 'array',
+        'FRESH_DB_ON_DEPLOY' => '',
+        'SEED_PASSWORD' => '',
+    ];
+
+    if (! file_exists($database)) {
+        touch($database);
+        $deployed = Process::path(base_path())->env($base)->run('php artisan migrate --force');
+        expect($deployed->successful())->toBeTrue($deployed->output().$deployed->errorOutput());
+
+        $pdo = new PDO('sqlite:'.$database);
+        $pdo->exec('CREATE TABLE items (name TEXT)');
+        $pdo->exec("INSERT INTO items VALUES ('real data')");
+        $pdo = null;
+    }
+
+    return Process::path(base_path())->env(array_merge($base, $env))->run('php artisan db:fresh-deploy');
+}
+
+function deployedTables(string $workdir): array
+{
+    $pdo = new PDO('sqlite:'.$workdir.'/deployed.sqlite');
+
+    return $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table'")->fetchAll(PDO::FETCH_COLUMN);
+}
+
+test('db:fresh-deploy as a process leaves a deployed database alone when the switch is off', function () {
+    $result = runFreshDeployProcess($this->workdir, ['FRESH_DB_ON_DEPLOY' => 'false', 'SEED_PASSWORD' => 'a-long-seed-secret']);
+
+    expect($result->failed())->toBeTrue()
+        ->and(deployedTables($this->workdir))->toContain('items');
+});
+
+test('db:fresh-deploy as a process refuses to wipe production without a seed password', function () {
+    $result = runFreshDeployProcess($this->workdir, ['FRESH_DB_ON_DEPLOY' => 'true']);
+
+    expect($result->failed())->toBeTrue()
+        ->and($result->output())->toContain('SEED_PASSWORD')
+        ->and(deployedTables($this->workdir))->toContain('items');
+});
+
+test('db:fresh-deploy as a process wipes and reseeds production, past the destructive-command guard', function () {
+    $result = runFreshDeployProcess($this->workdir, ['FRESH_DB_ON_DEPLOY' => 'true', 'SEED_PASSWORD' => 'a-long-seed-secret']);
+
+    expect($result->successful())->toBeTrue($result->output().$result->errorOutput())
+        ->and(deployedTables($this->workdir))->not->toContain('items')->toContain('users');
+
+    $pdo = new PDO('sqlite:'.$this->workdir.'/deployed.sqlite');
+    $hash = $pdo->query("SELECT password FROM users WHERE email = 'admin@xn--rull-eva.lv'")->fetchColumn();
+
+    expect($pdo->query('SELECT COUNT(*) FROM users')->fetchColumn())->toBe(2)
+        ->and(Hash::check('a-long-seed-secret', $hash))->toBeTrue()
+        ->and(Hash::check('password', $hash))->toBeFalse()
+        ->and(glob($this->workdir.'/proc-storage/app/backups/*-pre-fresh.sqlite'))->toHaveCount(1);
 });

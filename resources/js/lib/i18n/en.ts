@@ -47,6 +47,10 @@ const en = {
     'reservations.statusCancelled': 'Reservation cancelled.',
     'reservations.statusCancelledRefunded':
         'Reservation cancelled and refunded.',
+    'reservations.statusCancelledRefundPending':
+        'Reservation cancelled. Your refund is on its way — it was not confirmed yet and will be retried automatically.',
+    'reservations.statusCancelledNoPayment':
+        'Reservation cancelled. There was no online payment on record to refund.',
     'reservations.statusCancelledNoRefund':
         'Reservation cancelled, but it was too close to the start time to be refunded.',
     'reservations.statusCannotCancel':

@@ -54,15 +54,29 @@ class PaymentsTable
                     ->icon(fn (string $state): Heroicon => match ($state) {
                         'active', 'trialing', 'used_up' => Heroicon::OutlinedCheckCircle,
                         'pending', 'incomplete', 'past_due' => Heroicon::OutlinedClock,
-                        'refunded', 'cancelled', 'canceled', 'incomplete_expired', 'unpaid' => Heroicon::OutlinedXCircle,
+                        'cancelled', 'canceled', 'incomplete_expired', 'unpaid' => Heroicon::OutlinedXCircle,
                         default => Heroicon::OutlinedClock,
                     })
                     ->color(fn (string $state): string => match ($state) {
                         'active', 'trialing', 'used_up' => 'success',
                         'pending', 'incomplete', 'past_due' => 'warning',
-                        'refunded', 'cancelled', 'canceled', 'incomplete_expired', 'unpaid' => 'danger',
+                        'cancelled', 'canceled', 'incomplete_expired', 'unpaid' => 'danger',
                         default => 'gray',
                     }),
+                TextColumn::make('payment_status')
+                    ->label('Payment')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => str($state)->replace('_', ' ')->ucfirst()->toString())
+                    ->color(fn (string $state): string => match ($state) {
+                        'paid' => 'success',
+                        'refunded', 'partially_refunded' => 'info',
+                        'refund_failed' => 'danger',
+                        default => 'gray',
+                    }),
+                TextColumn::make('refunded_cents')
+                    ->label('Refunded')
+                    ->formatStateUsing(fn (int $state): string => $state === 0 ? '—' : number_format($state / 100, 2).' €')
+                    ->color('gray'),
                 TextColumn::make('created_at')
                     ->label('Date')
                     ->dateTime('Y-m-d H:i')
@@ -76,6 +90,15 @@ class PaymentsTable
                         'purchase' => 'One-time passes',
                         'reservation' => 'Reservations',
                         'subscription' => 'Subscriptions',
+                    ]),
+                SelectFilter::make('payment_status')
+                    ->label('Payment')
+                    ->options([
+                        'unpaid' => 'Unpaid',
+                        'paid' => 'Paid',
+                        'refunded' => 'Refunded',
+                        'partially_refunded' => 'Partially refunded',
+                        'refund_failed' => 'Refund failed',
                     ]),
             ]);
     }

@@ -17,6 +17,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Pre-launch database wipe
+    |--------------------------------------------------------------------------
+    |
+    | While the project is still being built, each deploy can wipe the
+    | database and reseed it (`php artisan db:fresh-deploy`, called by
+    | docker/deploy.sh). It is driven by the FRESH_DB_ON_DEPLOY repository
+    | variable on GitHub and is off unless that is exactly "true". The seeded
+    | staff accounts get SEED_PASSWORD, which production requires.
+    |
+    */
+
+    'fresh_db_on_deploy' => env('FRESH_DB_ON_DEPLOY', false),
+
+    'seed_password' => env('SEED_PASSWORD'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

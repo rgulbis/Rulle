@@ -68,7 +68,7 @@ test('unfinished checkouts and refunds do not count as sales', function () {
 
     sellPurchase($day);
     sellPurchase($ten, 'pending');
-    sellPurchase($ten, 'refunded');
+    sellPurchase($ten, 'cancelled');
 
     expect(SubscriptionType::mostPopularId())->toBe($day->id);
 });

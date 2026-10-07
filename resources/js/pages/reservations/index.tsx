@@ -240,7 +240,7 @@ export default function ReservationsIndex({
 
     const cancelReservation = (reservationId: number) => {
         if (confirm(t('reservations.confirmCancel'))) {
-            router.get(`/reservations/${reservationId}/cancel`);
+            router.delete(`/reservations/${reservationId}`);
         }
     };
 
@@ -260,6 +260,12 @@ export default function ReservationsIndex({
         'reservation-cancelled-refunded': t(
             'reservations.statusCancelledRefunded',
         ),
+        'reservation-cancelled-refund-pending': t(
+            'reservations.statusCancelledRefundPending',
+        ),
+        'reservation-cancelled-no-payment': t(
+            'reservations.statusCancelledNoPayment',
+        ),
         'reservation-cancelled-no-refund': t(
             'reservations.statusCancelledNoRefund',
         ),
@@ -273,7 +279,8 @@ export default function ReservationsIndex({
         key === 'reservation-cannot-cancel' ||
         key === 'reservation-slot-taken'
             ? 'error'
-            : key === 'reservation-cancelled-no-refund'
+            : key === 'reservation-cancelled-no-refund' ||
+                key === 'reservation-cancelled-refund-pending'
               ? 'warning'
               : 'info';
 

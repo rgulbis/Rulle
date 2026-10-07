@@ -79,6 +79,15 @@ jobs:
       # Builds, snapshots the database, starts the stack, waits for the health
       # checks and rolls back to the previous image if they fail. See
       # docker/deploy.sh.
+      #
+      # Pre-launch switch: set the repository variable FRESH_DB_ON_DEPLOY to
+      # `true` (Settings > Secrets and variables > Actions > Variables) and
+      # every deploy wipes and reseeds the database. Delete it or set it to
+      # anything else to go back to normal migrations. It needs the
+      # SEED_PASSWORD secret (the seeded staff accounts' password).
       - name: Deploy
         if: steps.fresh.outputs.current == 'true'
+        env:
+          FRESH_DB_ON_DEPLOY: ${{ vars.FRESH_DB_ON_DEPLOY }}
+          SEED_PASSWORD: ${{ secrets.SEED_PASSWORD }}
         run: ./docker/deploy.sh

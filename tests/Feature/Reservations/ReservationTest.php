@@ -340,7 +340,7 @@ test('cancelling a pending reservation frees the slot', function () {
     $owner = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDay(), now()->addDay()->addHour(), ['status' => 'pending']);
 
-    $response = $this->actingAs($owner)->get("/reservations/{$reservation->id}/cancel");
+    $response = $this->actingAs($owner)->delete("/reservations/{$reservation->id}");
 
     $response->assertRedirect(route('reservations.index'));
     expect($reservation->fresh()->status)->toBe('cancelled');
@@ -357,7 +357,7 @@ test('a customer can cancel a paid reservation before it starts, and it frees th
     $owner = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDays(3), now()->addDays(3)->addHour(), ['status' => 'active']);
 
-    $response = $this->actingAs($owner)->get("/reservations/{$reservation->id}/cancel");
+    $response = $this->actingAs($owner)->delete("/reservations/{$reservation->id}");
 
     $response->assertRedirect(route('reservations.index'));
     expect($reservation->fresh()->status)->toBe('cancelled');
@@ -370,10 +370,10 @@ test('cancelling a paid reservation with no checkout session on record does not 
     // actually refund against, even though it's well outside the cutoff.
     $reservation = makeReservation($owner, now()->addDays(3), now()->addDays(3)->addHour(), ['status' => 'active']);
 
-    $response = $this->actingAs($owner)->get("/reservations/{$reservation->id}/cancel");
+    $response = $this->actingAs($owner)->delete("/reservations/{$reservation->id}");
 
     $response->assertRedirect(route('reservations.index'));
-    $response->assertSessionHas('status', 'reservation-cancelled-no-refund');
+    $response->assertSessionHas('status', 'reservation-cancelled-no-payment');
     expect($reservation->fresh()->status)->toBe('cancelled');
 });
 
@@ -381,7 +381,7 @@ test('a paid reservation that has already started cannot be cancelled', function
     $owner = User::factory()->create();
     $reservation = makeReservation($owner, now()->subMinutes(10), now()->addHour(), ['status' => 'active']);
 
-    $response = $this->actingAs($owner)->get("/reservations/{$reservation->id}/cancel");
+    $response = $this->actingAs($owner)->delete("/reservations/{$reservation->id}");
 
     $response->assertRedirect(route('reservations.index'));
     $response->assertSessionHas('status', 'reservation-cannot-cancel');
@@ -393,7 +393,7 @@ test('only the reservation owner can cancel it', function () {
     $someoneElse = User::factory()->create();
     $reservation = makeReservation($owner, now()->addDays(3), now()->addDays(3)->addHour(), ['status' => 'active']);
 
-    $this->actingAs($someoneElse)->get("/reservations/{$reservation->id}/cancel");
+    $this->actingAs($someoneElse)->delete("/reservations/{$reservation->id}")->assertForbidden();
 
     expect($reservation->fresh()->status)->toBe('active');
 });

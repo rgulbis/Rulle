@@ -4,8 +4,10 @@ use App\Models\Reservation;
 use App\Models\ReservationSetting;
 use App\Models\SubscriptionType;
 use App\Models\User;
+use App\Support\Payments\StripeGateway;
 use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\FakeStripeGateway;
 use Tests\TestCase;
 
 /*
@@ -54,14 +56,27 @@ expect()->extend('toBeOne', function () {
 // now()->addDay() etc. actually return Carbon\CarbonImmutable instances.
 function makeReservation(User $owner, CarbonInterface $start, CarbonInterface $end, array $attributes = []): Reservation
 {
+    $status = $attributes['status'] ?? 'active';
+
     return Reservation::create(array_merge([
         'user_id' => $owner->id,
         'starts_at' => $start,
         'ends_at' => $end,
         'group_size' => 3,
         'price_cents' => 3000,
-        'status' => 'active',
+        'status' => $status,
+        // An active reservation has been paid for; anything else hasn't.
+        'payment_status' => $status === 'active' ? 'paid' : 'unpaid',
     ], $attributes));
+}
+
+// Swaps the real Stripe API for an in-memory one for the rest of the test.
+function fakeStripe(): FakeStripeGateway
+{
+    $fake = new FakeStripeGateway;
+    app()->instance(StripeGateway::class, $fake);
+
+    return $fake;
 }
 
 function makeReservationSettings(array $attributes = []): ReservationSetting

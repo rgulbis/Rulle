@@ -35,6 +35,9 @@ function makeSubscriptionRow(User $user, SubscriptionType $type, array $attribut
         'stripe_id' => 'sub_test_'.str()->random(10),
         'stripe_status' => 'active',
         'stripe_price' => $type->stripe_price_id ?? 'price_test',
+        // What the subscriber is billed, recorded when the subscription was
+        // created — independent of the plan's price today.
+        'price_cents' => $type->price_cents,
         'created_at' => now(),
         'updated_at' => now(),
     ], $attributes));
@@ -115,4 +118,34 @@ test('the payments ledger is read-only', function () {
     expect(PaymentResource::canCreate())->toBeFalse();
     expect(PaymentResource::canEdit(new Payment))->toBeFalse();
     expect(PaymentResource::canDelete(new Payment))->toBeFalse();
+});
+
+test('a subscription row shows what was billed, not the plan price today', function () {
+    $customer = User::factory()->create();
+    $planType = withStripeProductId(makeSubscriptionType([
+        'name' => 'Monthly plan',
+        'billing_interval' => 'month',
+        'price_cents' => 3500,
+    ]), 'prod_monthly');
+    makeSubscriptionRow($customer, $planType);
+
+    // The plan is repriced after the customer subscribed.
+    DB::table('subscription_types')->where('id', $planType->id)->update(['price_cents' => 5000]);
+
+    expect(Payment::where('type', 'subscription')->first()->amount_cents)->toBe(3500);
+});
+
+test('the ledger carries each row\'s payment state and refunded amount', function () {
+    $customer = User::factory()->create();
+    $reservation = makeReservation($customer, now()->addDay(), now()->addDay()->addHour(), [
+        'status' => 'cancelled',
+        'price_cents' => 3000,
+        'payment_status' => 'partially_refunded',
+        'refunded_cents' => 1000,
+    ]);
+
+    $row = Payment::find('reservation-'.$reservation->id);
+
+    expect($row->payment_status)->toBe('partially_refunded');
+    expect($row->refunded_cents)->toBe(1000);
 });

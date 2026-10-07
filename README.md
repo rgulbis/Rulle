@@ -74,6 +74,14 @@ stripe listen --forward-to localhost:8000/stripe/webhook
 up the change. Leave `stripe listen` running in its own terminal while you
 test.
 
+The webhook is what actually fulfils a payment (the success page only shows
+the result), so the Stripe endpoint — in production too — must be subscribed to
+`checkout.session.completed`, `checkout.session.async_payment_succeeded` and
+`checkout.session.expired`, plus the `customer.subscription.*` events Cashier
+uses. Refunds are recorded before Stripe is called; anything Stripe doesn't
+confirm is retried every 15 minutes by `php artisan payments:retry-refunds`
+(run by the scheduler).
+
 Then, logged in as a customer, go to `/subscriptions` and check out with
 Stripe's test card `4242 4242 4242 4242` (any future expiry, any CVC, any
 postal code) — `4000 0000 0000 0002` simulates a declined card. Watch the
@@ -210,6 +218,32 @@ Then: re-run the **Deploy** workflow on GitHub, run
 which checks that all four services are healthy, no host ports are
 published, the tunnel is on the compose network and uses `www`, the database
 is at the pinned path, a backup exists, and the site answers.
+
+### Pre-launch: wipe the database on every deploy
+
+While the project is still being built you can have **every deploy start from
+an empty database**, and turn that off once real customers exist.
+
+- **On:** GitHub → repo → Settings → Secrets and variables → Actions →
+  **Variables** → new variable `FRESH_DB_ON_DEPLOY` = `true`.
+- **Off:** delete the variable (or set it to anything but `true`). Deploys go
+  back to the normal `db:migrate-safe`, which keeps your data.
+
+It takes effect on the next deploy; no commit needed. It also needs the
+Actions **secret** `SEED_PASSWORD` — the password the seeded
+`admin@xn--rull-eva.lv` and `employee@xn--rull-eva.lv` accounts get on the
+server (the local `password` is never used in production, and the wipe refuses
+to run without it).
+
+What a deploy does while it is on (`docker/deploy.sh` → `php artisan
+db:fresh-deploy`): snapshot the database (`pre-fresh`, last 10 kept), stop the
+app, run `migrate:fresh --seed`, start the new version. If the wipe fails the
+snapshot is put back and the old version keeps running. It runs **once per
+deploy**, not on container restarts or reboots. Uploaded files and Stripe data
+are not touched, so Stripe-side customers/subscriptions outlive a wipe.
+
+> **Turn it off before launch.** While it is on, every push to `main` deletes
+> all users, bookings and passes (the snapshots are the only way back).
 
 ### Refresh db on prod
 

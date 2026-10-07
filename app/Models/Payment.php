@@ -12,11 +12,9 @@ use Illuminate\Support\Carbon;
  * a single ledger. Nothing ever saves one of these — there's no table to
  * write to, only the view.
  *
- * A subscription row's amount is that plan's *current* price, not
- * necessarily what was actually charged historically (Stripe doesn't mirror
- * invoice amounts locally, and this view only reads local tables) — correct
- * for an active subscriber, approximate for one whose plan was repriced
- * since they joined.
+ * A subscription row's amount is what the subscriber is billed
+ * (`subscriptions.price_cents`, recorded from Stripe's subscription events),
+ * not the plan's current price — repricing a plan doesn't rewrite history.
  *
  * @property string $id
  * @property string $type 'purchase' | 'reservation' | 'subscription'
@@ -24,6 +22,8 @@ use Illuminate\Support\Carbon;
  * @property string $description
  * @property int $amount_cents
  * @property string $status
+ * @property string $payment_status 'unpaid' | 'paid' | 'refunded' | 'partially_refunded' | 'refund_failed'
+ * @property int $refunded_cents
  * @property Carbon $created_at
  */
 class Payment extends Model
@@ -40,6 +40,7 @@ class Payment extends Model
     {
         return [
             'amount_cents' => 'integer',
+            'refunded_cents' => 'integer',
             'created_at' => 'datetime',
         ];
     }
