@@ -50,9 +50,18 @@ $app->make(Kernel::class)->bootstrap();
  * A Stripe whose checkout sessions outlive the process, so a session created
  * by one worker can be found (and found open) by another.
  */
-$stripe = new class($spec['stripe_log'] ?? null) extends FakeStripeGateway
+$stripe = new class($spec['stripe_log'] ?? null, $spec['cancel_log'] ?? null) extends FakeStripeGateway
 {
-    public function __construct(private readonly ?string $log) {}
+    public function __construct(private readonly ?string $log, private readonly ?string $cancelLog) {}
+
+    public function cancelSubscriptionNow(string $stripeSubscriptionId): void
+    {
+        parent::cancelSubscriptionNow($stripeSubscriptionId);
+
+        if ($this->cancelLog) {
+            file_put_contents($this->cancelLog, $stripeSubscriptionId."\n", FILE_APPEND | LOCK_EX);
+        }
+    }
 
     public function createSubscriptionCheckout(User $user, string $priceId, string $successUrl, string $cancelUrl): Session
     {
@@ -76,6 +85,15 @@ $stripe = new class($spec['stripe_log'] ?? null) extends FakeStripeGateway
     }
 };
 $app->instance(StripeGateway::class, $stripe);
+
+// Webhook requests are sent unsigned; the real signature check is tested on
+// its own, and has nothing to do with what a race does to the data.
+$app['config']->set('cashier.webhook.secret', null);
+
+// Sessions Stripe would report as paid, for the workers that look one up.
+foreach ($spec['paid_sessions'] ?? [] as $paidSession) {
+    $stripe->addSession($paidSession);
+}
 
 // Everything slow happens before the barrier: the first query, the user, the
 // kernel. Only the contested operation is left to race.
@@ -123,10 +141,12 @@ if (($spec['action'] ?? 'http') === 'fulfil') {
         $result = ['status' => 500, 'body' => $e->getMessage()];
     }
 } else {
-    $request = Request::create($spec['uri'], $spec['method'], $spec['params'] ?? [], [], [], [
+    // `json` is a request body (a webhook); `params` are form fields.
+    $request = Request::create($spec['uri'], $spec['method'], $spec['params'] ?? [], [], [], array_filter([
         'HTTP_ACCEPT' => 'application/json',
         'HTTP_REFERER' => url('/'),
-    ]);
+        'CONTENT_TYPE' => isset($spec['json']) ? 'application/json' : null,
+    ]), isset($spec['json']) ? json_encode($spec['json']) : null);
 
     $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
     $response = $kernel->handle($request);

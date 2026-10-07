@@ -246,13 +246,16 @@ class SubscriptionController extends Controller
                 ->where('user_id', $user->id)
                 ->exists();
 
-            $session = $this->stripe->retrieveCheckoutSession($sessionId);
+            // Null for an id Stripe does not know, or when Stripe is
+            // unreachable: nothing to show yet. The webhook fulfils a real
+            // payment either way.
+            $session = $this->stripe->findCheckoutSession($sessionId);
 
-            if ($isOwnPurchase) {
+            if ($session !== null && $isOwnPurchase) {
                 $this->fulfillment->fulfill($session);
 
                 $completed = $session->status === 'complete';
-            } elseif ($user->stripe_id && $session->customer === $user->stripe_id) {
+            } elseif ($session !== null && $user->stripe_id && $session->customer === $user->stripe_id) {
                 // Recurring subscription: Cashier mirrors it from Stripe's
                 // subscription webhooks, there is no local pass to fulfil.
                 $completed = $session->status === 'complete';

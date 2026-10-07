@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Laravel\Cashier\Http\Controllers\WebhookController as CashierWebhookController;
 use Stripe\Checkout\Session;
+use Stripe\Exception\InvalidRequestException;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -96,6 +97,12 @@ class StripeWebhookController extends CashierWebhookController
      */
     protected function handleCustomerSubscriptionCreated(array $payload): Response
     {
+        if ($closed = $this->closedAccountTakingNewSubscription($payload)) {
+            return $this->refuseSubscription($payload, 'A subscription was created for a closed account and has been cancelled at Stripe. Its first payment must be refunded manually.', [
+                'user_id' => $closed->id,
+            ]);
+        }
+
         $response = null;
 
         $duplicateOf = DB::transaction(function () use ($payload, &$response) {
@@ -116,15 +123,58 @@ class StripeWebhookController extends CashierWebhookController
             return $response;
         }
 
-        $this->stripe->cancelSubscriptionNow($payload['data']['object']['id']);
-
-        Log::critical('A second live subscription was created for a customer and has been cancelled at Stripe. Its first payment must be refunded manually.', [
+        return $this->refuseSubscription($payload, 'A second live subscription was created for a customer and has been cancelled at Stripe. Its first payment must be refunded manually.', [
             'user_id' => $duplicateOf['user_id'],
             'kept_subscription' => $duplicateOf['stripe_id'],
-            'cancelled_subscription' => $payload['data']['object']['id'],
         ]);
+    }
+
+    /**
+     * Cancels a subscription at Stripe that must not exist here, without
+     * recording it. A re-delivery of the same event finds it already gone,
+     * which is what was wanted.
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $context
+     */
+    private function refuseSubscription(array $payload, string $reason, array $context): Response
+    {
+        $subscriptionId = $payload['data']['object']['id'];
+
+        try {
+            $this->stripe->cancelSubscriptionNow($subscriptionId);
+        } catch (InvalidRequestException $e) {
+            if ($e->getStripeCode() !== 'resource_missing') {
+                throw $e;
+            }
+        }
+
+        Log::critical($reason, $context + ['cancelled_subscription' => $subscriptionId]);
 
         return $this->successMethod();
+    }
+
+    /**
+     * The closed account this event would hang a subscription on, if any.
+     * Cashier looks customers up including soft-deleted users, so without
+     * this a checkout that was still open when the account was closed would
+     * start billing a person who can no longer sign in. A subscription the
+     * account already had is not new: its own cancellation events still need
+     * to be recorded.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function closedAccountTakingNewSubscription(array $payload): ?User
+    {
+        $data = $payload['data']['object'];
+
+        $user = User::onlyTrashed()->where('stripe_id', $data['customer'] ?? null)->first();
+
+        if ($user === null || $user->subscriptions()->where('stripe_id', $data['id'])->exists()) {
+            return null;
+        }
+
+        return $user;
     }
 
     /**
@@ -166,6 +216,12 @@ class StripeWebhookController extends CashierWebhookController
      */
     protected function handleCustomerSubscriptionUpdated(array $payload): ?Response
     {
+        if ($closed = $this->closedAccountTakingNewSubscription($payload)) {
+            return $this->refuseSubscription($payload, 'A subscription of a closed account changed and has been cancelled at Stripe. It was never recorded; check what was billed.', [
+                'user_id' => $closed->id,
+            ]);
+        }
+
         $response = parent::handleCustomerSubscriptionUpdated($payload);
 
         $this->recordBilledAmount($payload);

@@ -228,7 +228,8 @@ class ReservationController extends Controller
         $status = 'reservation-incomplete';
 
         if ($owned) {
-            $outcome = $this->fulfillment->fulfill($this->stripe->retrieveCheckoutSession($sessionId));
+            $session = $this->stripe->findCheckoutSession($sessionId);
+            $outcome = $session ? $this->fulfillment->fulfill($session) : FulfillmentOutcome::NotFulfilled;
 
             $status = match ($outcome) {
                 FulfillmentOutcome::Fulfilled => 'reservation-complete',

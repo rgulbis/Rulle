@@ -273,3 +273,104 @@ test('double-clicking subscribe opens one Stripe checkout, not several', functio
     expectNoServerErrors($results);
     expect(file($log, FILE_IGNORE_NEW_LINES))->toHaveCount(1);
 });
+
+test('two people accepting the one remaining seat at once get a seat between them', function () {
+    $owner = User::factory()->create();
+    [$already, $one, $other] = User::factory()->count(3)->create();
+    // group_size 3 = the owner plus two guests, and one guest is already in.
+    $reservation = makeReservation($owner, now()->addDay()->setTime(12, 0), now()->addDay()->setTime(13, 0), ['group_size' => 3]);
+    $reservation->invitations()->attach($already->id, ['status' => 'accepted']);
+    $reservation->invitations()->attach([$one->id, $other->id]);
+
+    $results = race(collect([$one, $other, $one, $other])->map(fn (User $friend) => [
+        'user_id' => $friend->id,
+        'method' => 'POST',
+        'uri' => "/reservations/{$reservation->id}/invitation/accept",
+        'params' => [],
+    ])->all());
+
+    expectNoServerErrors($results);
+    expect($reservation->participants()->count())->toBe(2);
+    // The one who lost is still just invited, not turned into a half-member.
+    expect(DB::table('reservation_user')->where('reservation_id', $reservation->id)->where('status', 'invited')->count())->toBe(1);
+});
+
+test('submitting the same invitation several times at once invites the person once', function () {
+    $owner = User::factory()->create();
+    $friend = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addDay()->setTime(12, 0), now()->addDay()->setTime(13, 0), ['group_size' => 5]);
+
+    $results = race(array_fill(0, 4, [
+        'user_id' => $owner->id,
+        'method' => 'POST',
+        'uri' => "/reservations/{$reservation->id}/participants",
+        'params' => ['user_id' => $friend->id],
+    ]));
+
+    expectNoServerErrors($results);
+    expect(DB::table('reservation_user')->where('reservation_id', $reservation->id)->count())->toBe(1);
+});
+
+test('subscriptions created for one customer at the same moment leave one, and every other is cancelled at Stripe', function () {
+    $user = User::factory()->create(['stripe_id' => 'cus_race']);
+    $cancelLog = sys_get_temp_dir().'/skatepark-cancel-'.bin2hex(random_bytes(4));
+    trackedFiles($cancelLog);
+
+    // Two checkouts that were both paid: Stripe reports a subscription for each.
+    $event = fn (string $id) => [
+        'type' => 'customer.subscription.created',
+        'data' => ['object' => [
+            'id' => $id,
+            'customer' => 'cus_race',
+            'status' => 'active',
+            'metadata' => [],
+            'items' => ['data' => [[
+                'id' => "si_{$id}",
+                'quantity' => 1,
+                'price' => ['id' => 'price_race', 'product' => 'prod_race', 'unit_amount' => 2000],
+            ]]],
+        ]],
+    ];
+
+    $results = race(array_map(fn (string $id) => [
+        'method' => 'POST',
+        'uri' => '/stripe/webhook',
+        'json' => $event($id),
+    ], ['sub_a', 'sub_b', 'sub_c']), ['cancel_log' => $cancelLog]);
+
+    // Stripe would keep retrying a webhook that answered with an error.
+    expect(statuses($results))->toBe([200, 200, 200]);
+
+    $kept = DB::table('subscriptions')->where('user_id', $user->id)->pluck('stripe_id')->all();
+    expect($kept)->toHaveCount(1);
+
+    $cancelled = file($cancelLog, FILE_IGNORE_NEW_LINES);
+    sort($cancelled);
+    expect($cancelled)->toBe(array_values(array_diff(['sub_a', 'sub_b', 'sub_c'], $kept)));
+});
+
+test('paying for a pending reservation at the instant it is cancelled ends booked or refunded, never cancelled and kept', function () {
+    makeReservationSettings(['cancellation_cutoff_hours' => 24]);
+    $owner = User::factory()->create();
+    $reservation = makeReservation($owner, now()->addDays(3)->setTime(12, 0), now()->addDays(3)->setTime(13, 0), [
+        'status' => 'pending',
+        'stripe_checkout_session_id' => 'cs_pay_cancel',
+    ]);
+
+    $results = race([
+        ['action' => 'fulfil', 'session' => 'cs_pay_cancel'],
+        ['user_id' => $owner->id, 'method' => 'DELETE', 'uri' => "/reservations/{$reservation->id}"],
+        ['action' => 'fulfil', 'session' => 'cs_pay_cancel'],
+        ['user_id' => $owner->id, 'method' => 'DELETE', 'uri' => "/reservations/{$reservation->id}"],
+    ], ['paid_sessions' => ['cs_pay_cancel']]);
+
+    expectNoServerErrors($results);
+
+    // Either the booking stands, paid for, or it is called off and the money
+    // went back. Cancelled with the payment kept would be a customer who paid
+    // for nothing.
+    $reservation->refresh();
+    $ended = [$reservation->status, $reservation->payment_status];
+    expect(in_array($ended, [['active', 'paid'], ['cancelled', 'refunded']], true))
+        ->toBeTrue('ended as '.implode('/', $ended));
+});

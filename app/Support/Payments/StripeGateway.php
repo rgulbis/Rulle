@@ -4,8 +4,10 @@ namespace App\Support\Payments;
 
 use App\Models\Reservation;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use Laravel\Cashier\Cashier;
 use Stripe\Checkout\Session;
+use Stripe\Exception\ApiErrorException;
 use Stripe\Refund;
 
 /**
@@ -17,6 +19,26 @@ class StripeGateway
     public function retrieveCheckoutSession(string $sessionId): Session
     {
         return Cashier::stripe()->checkout->sessions->retrieve($sessionId);
+    }
+
+    /**
+     * For the pages a rider lands on after Checkout, where the session id
+     * comes from the query string: Stripe answering 404 for an id it never
+     * issued, or being unreachable, is "can't tell", not a crash. Nothing is
+     * lost by that, the webhook fulfils the payment independently.
+     */
+    public function findCheckoutSession(string $sessionId): ?Session
+    {
+        try {
+            return $this->retrieveCheckoutSession($sessionId);
+        } catch (ApiErrorException $e) {
+            Log::warning('Could not look up a Checkout session for a success page.', [
+                'session' => $sessionId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     /**
