@@ -5,6 +5,7 @@ namespace Tests\Support;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Support\Payments\StripeGateway;
+use App\Support\Payments\StripePayment;
 use Stripe\Checkout\Session;
 use Stripe\Exception\ApiConnectionException;
 use Stripe\Exception\InvalidRequestException;
@@ -136,6 +137,24 @@ class FakeStripeGateway extends StripeGateway
     public function cancelSubscriptionNow(string $stripeSubscriptionId): void
     {
         $this->cancelledSubscriptions[] = $stripeSubscriptionId;
+    }
+
+    /** @var array<string, int> cents already refunded at Stripe, by session id */
+    public array $refundedAtStripe = [];
+
+    public function paymentSnapshot(string $sessionId): ?StripePayment
+    {
+        $session = $this->sessions[$sessionId] ?? null;
+
+        if ($session === null) {
+            return null;
+        }
+
+        return new StripePayment(
+            $session,
+            $session->payment_status === 'paid',
+            $this->refundedAtStripe[$sessionId] ?? 0,
+        );
     }
 
     public function retrieveCheckoutSession(string $sessionId): Session

@@ -6,6 +6,7 @@ use App\Models\Reservation;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Laravel\Cashier\Cashier;
+use Stripe\Charge;
 use Stripe\Checkout\Session;
 use Stripe\Exception\ApiErrorException;
 use Stripe\Refund;
@@ -39,6 +40,36 @@ class StripeGateway
 
             return null;
         }
+    }
+
+    /**
+     * The session together with what became of its money, for reconciling
+     * rows that predate payment tracking. Null when Stripe has never heard of
+     * the session id.
+     *
+     * @throws ApiErrorException when Stripe can't be asked (outage, bad key)
+     */
+    public function paymentSnapshot(string $sessionId): ?StripePayment
+    {
+        try {
+            $session = Cashier::stripe()->checkout->sessions->retrieve($sessionId, [
+                'expand' => ['payment_intent.latest_charge'],
+            ]);
+        } catch (ApiErrorException $e) {
+            if ($e->getStripeCode() === 'resource_missing') {
+                return null;
+            }
+
+            throw $e;
+        }
+
+        $charge = $session->payment_intent->latest_charge ?? null;
+
+        return new StripePayment(
+            $session,
+            $session->payment_status === 'paid',
+            $charge instanceof Charge ? (int) $charge->amount_refunded : 0,
+        );
     }
 
     /**
