@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Reservation;
 use App\Models\SubscriptionType;
 use App\Models\User;
+use App\Support\CheckIn\QrToken;
 use Carbon\CarbonInterface;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -25,7 +27,21 @@ class DashboardController extends Controller
             'status' => $request->session()->get('status'),
             'pass' => $this->currentPass($user),
             'nextReservation' => $this->nextReservation($user),
+            // The first entry QR code, so the page isn't blank while it asks
+            // for one; qrToken() keeps it fresh from then on.
+            'qrToken' => $user->hasVerifiedEmail() ? QrToken::issue($user) : null,
         ]);
+    }
+
+    /**
+     * A fresh entry QR code. The dashboard polls this: each one lives for
+     * about a minute and works for a single scan, so none is ever cached.
+     */
+    public function qrToken(Request $request): JsonResponse
+    {
+        return response()
+            ->json(QrToken::issue($request->user()))
+            ->header('Cache-Control', 'no-store');
     }
 
     /**

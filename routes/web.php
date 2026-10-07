@@ -30,6 +30,12 @@ Route::middleware(['auth', 'customer-only'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 });
 
+// Polled by the dashboard about every 40 seconds per open tab, hence the
+// ceiling: a few tabs fit comfortably, a script hammering it doesn't.
+Route::middleware(['auth', 'customer-only', 'verified', 'throttle:20,1'])->group(function () {
+    Route::get('dashboard/qr-token', [DashboardController::class, 'qrToken'])->name('dashboard.qr-token');
+});
+
 Route::middleware('auth')->group(function () {
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');

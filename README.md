@@ -131,7 +131,7 @@ What the database enforces, whatever the application does:
 
 "Delete" on a user in the admin panel _closes_ the account (`App\Support\Accounts\AccountClosure`):
 their Stripe subscription is cancelled first (if Stripe refuses, nothing is
-changed), then the row is soft-deleted and its name, email, password, QR code and
+changed), then the row is soft-deleted and its name, email, password, QR code secret and
 card details are replaced with placeholders, so they can't sign in, can't be
 found, and their email can be registered again. Purchases, reservations,
 check-ins and payments are kept and show as "Deleted user N". Their chat
@@ -196,6 +196,32 @@ in a real browser, not a headless/sandboxed one. Log in as the employee
 account, and note the **Entry/Exit toggle** above the camera view — pick the
 matching mode before scanning, or the scan is rejected (this exists to stop
 one account's QR code being used to check in two people at once).
+
+The code on a customer's dashboard is not a fixed ID: it's a signed token
+(`App\Support\CheckIn\QrToken`) that expires after 60 seconds
+(`CHECKIN_TOKEN_TTL_SECONDS`) and is spent by one successful scan, so a
+screenshot is useless. The dashboard fetches a new one from
+`/dashboard/qr-token` before the old one runs out. A scan that is refused (wrong
+mode, no pass) doesn't spend it. The per-user `qr_code` column is only the secret
+the tokens are signed with and is never sent to a page; closing an account rotates
+it, which invalidates that account's tokens. To test on one screen, the dashboard
+on a phone and `/staff/scan` on a laptop webcam is the easiest setup.
+
+### Check-outs nobody scanned
+
+Someone who leaves without scanning out would count as inside forever. Two
+things stop that:
+
+- `php artisan checkins:close-stale` (scheduled every five minutes, see
+  `routes/console.php`) writes the missing check-out for anyone still inside
+  after the park's closing time (Reservation settings) or after
+  `CHECKIN_MAX_VISIT_MINUTES` (default 720), whichever came first. It dates
+  the check-out to that moment, not to when the job ran, so the occupancy chart
+  is the same as if it had run exactly at closing, and it catches up if the
+  scheduler was down. Run it once by hand after deploying to clear old
+  check-ins that never got a check-out.
+- The live headcount and a rider's own "checked in" status ignore a check-in
+  older than the maximum visit length, even before the job has run.
 
 ### Testing time-dependent features without waiting
 

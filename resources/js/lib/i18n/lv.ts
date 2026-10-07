@@ -349,6 +349,7 @@ const lv: Record<TranslationKey, string> = {
 
     // Dashboard cards (pages/dashboard.tsx)
     'dashboard.entryPass': 'Ieejas karte',
+    'dashboard.qrRefreshing': 'Atjauno jūsu kodu…',
     'dashboard.showAtDesk': 'Parādiet šo pie ieejas',
     'dashboard.brightnessHint':
         'Palieliniet ekrāna spilgtumu, lai kods nolasās ar pirmo reizi.',

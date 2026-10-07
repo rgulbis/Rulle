@@ -5,6 +5,7 @@ import { CheckIcon } from '@/components/icons';
 import QrCode from '@/components/qr-code';
 import AppLayout, { PageContainer } from '@/layouts/app-layout';
 import { useTranslation } from '@/lib/i18n/context';
+import { useQrToken, type QrTokenData } from '@/lib/use-qr-token';
 import type { Auth } from '@/types/auth';
 
 type Pass =
@@ -36,9 +37,15 @@ type Props = {
     status?: string;
     pass: Pass | null;
     nextReservation: NextReservation | null;
+    qrToken: QrTokenData | null;
 };
 
-export default function Dashboard({ status, pass, nextReservation }: Props) {
+export default function Dashboard({
+    status,
+    pass,
+    nextReservation,
+    qrToken,
+}: Props) {
     const { auth } = usePage<{ auth: Auth }>().props;
     const { t } = useTranslation();
     const { post, processing } = useForm({});
@@ -99,7 +106,7 @@ export default function Dashboard({ status, pass, nextReservation }: Props) {
                 <div className="grid gap-6 lg:grid-cols-12">
                     <EntryPass
                         verified={!!auth.user.email_verified_at}
-                        qrCode={auth.user.qr_code}
+                        qrToken={qrToken}
                         checkedIn={checkedIn}
                     />
 
@@ -115,11 +122,11 @@ export default function Dashboard({ status, pass, nextReservation }: Props) {
 
 function EntryPass({
     verified,
-    qrCode,
+    qrToken,
     checkedIn,
 }: {
     verified: boolean;
-    qrCode: string;
+    qrToken: QrTokenData | null;
     checkedIn: boolean;
 }) {
     const { t } = useTranslation();
@@ -145,11 +152,7 @@ function EntryPass({
             </div>
             {verified ? (
                 <>
-                    <div className="flex justify-center px-5 pb-6 sm:px-7">
-                        <div className="max-w-full bg-white p-3">
-                            <QrCode value={qrCode} size={280} />
-                        </div>
-                    </div>
+                    <RotatingQrCode initial={qrToken} />
                     <div className="mt-auto flex flex-col gap-1 border-t border-[#3a3a3f] px-7 py-5">
                         <p className="text-lg font-semibold">
                             {t('dashboard.showAtDesk')}
@@ -165,6 +168,33 @@ function EntryPass({
                 </p>
             )}
         </section>
+    );
+}
+
+// Only mounted for a verified account, so the first token is already there
+// and the hook never has to fetch one cold on a page that has none.
+function RotatingQrCode({ initial }: { initial: QrTokenData | null }) {
+    const { t } = useTranslation();
+    const { token, fresh } = useQrToken(initial);
+
+    return (
+        <div className="flex justify-center px-5 pb-6 sm:px-7">
+            <div className="relative max-w-full bg-white p-3">
+                {token && (
+                    <div className={fresh ? undefined : 'opacity-10'}>
+                        <QrCode value={token} size={280} />
+                    </div>
+                )}
+                {!fresh && (
+                    <p
+                        role="status"
+                        className="absolute inset-0 flex items-center justify-center p-6 text-center font-semibold text-[#16161a]"
+                    >
+                        {t('dashboard.qrRefreshing')}
+                    </p>
+                )}
+            </div>
+        </div>
     );
 }
 

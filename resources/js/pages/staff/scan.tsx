@@ -16,6 +16,10 @@ type Mode = 'entry' | 'exit';
 export default function Scan() {
     const { t } = useTranslation();
     const busyRef = useRef(false);
+    // Codes that already got somebody in or out. Each is single-use, and the
+    // camera keeps seeing the same screen for a moment after a scan; asking
+    // again would only replace the success card with an "already scanned".
+    const spentRef = useRef(new Set<string>());
     const [mode, setMode] = useState<Mode>('entry');
     const modeRef = useRef<Mode>(mode);
     const [result, setResult] = useState<ScanResult | null>(null);
@@ -45,7 +49,13 @@ export default function Scan() {
                     body: JSON.stringify({ code, mode: modeRef.current }),
                 });
 
-                setResult(await response.json());
+                const next: ScanResult = await response.json();
+
+                if (next.found && next.allowed) {
+                    spentRef.current.add(code);
+                }
+
+                setResult(next);
             } catch {
                 setError(t('scan.unreachable'));
             }
@@ -56,7 +66,7 @@ export default function Scan() {
                 { facingMode: 'environment' },
                 { fps: 10, qrbox: 250 },
                 (decodedText) => {
-                    if (busyRef.current) {
+                    if (busyRef.current || spentRef.current.has(decodedText)) {
                         return;
                     }
 

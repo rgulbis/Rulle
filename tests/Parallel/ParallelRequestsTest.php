@@ -179,12 +179,14 @@ test('simultaneous scans of one code let it in once and spend one visit', functi
         'visits_remaining' => 3,
     ]);
 
-    $results = race(array_fill(0, 4, [
+    // Four different tokens for the same rider: four scanners, four
+    // refreshes of the same dashboard.
+    $results = race(array_map(fn () => [
         'user_id' => $staff->id,
         'method' => 'POST',
         'uri' => '/staff/scan',
-        'params' => ['code' => $client->qr_code, 'mode' => 'entry'],
-    ]));
+        'params' => ['code' => qrTokenFor($client), 'mode' => 'entry'],
+    ], range(1, 4)));
 
     expectNoServerErrors($results);
     $counts = array_count_values(statuses($results));
@@ -206,12 +208,12 @@ test('simultaneous scans on the last visit let in one person and use the pass up
         'visits_remaining' => 1,
     ]);
 
-    $results = race(array_fill(0, 3, [
+    $results = race(array_map(fn () => [
         'user_id' => $staff->id,
         'method' => 'POST',
         'uri' => '/staff/scan',
-        'params' => ['code' => $client->qr_code, 'mode' => 'entry'],
-    ]));
+        'params' => ['code' => qrTokenFor($client), 'mode' => 'entry'],
+    ], range(1, 3)));
 
     expectNoServerErrors($results);
     expect(CheckInEvent::where('user_id', $client->id)->count())->toBe(1);

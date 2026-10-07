@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\CheckInOccupancy;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -40,7 +41,9 @@ use Laravel\Cashier\Billable;
 // meant to change) sets it via forceFill/forceCreate instead — see
 // App\Filament\Resources\Users\Pages\CreateUser and EditUser.
 #[Fillable(['name', 'pending_name', 'email', 'password', 'email_verified_at', 'chat_muted_until'])]
-#[Hidden(['password', 'remember_token'])]
+// qr_code is the secret the entry tokens are signed with (see
+// App\Support\CheckIn\QrToken) — it must never be serialized to a page.
+#[Hidden(['password', 'remember_token', 'qr_code'])]
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
@@ -238,12 +241,17 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
      * Whether this user is currently inside the park, derived from their
      * most recent check_in_events row rather than a cached column — see
      * App\Support\CheckInOccupancy for the equivalent count across everyone.
+     * A check-in older than the longest plausible visit no longer counts.
      */
     public function isCurrentlyCheckedIn(): bool
     {
         // Ordered by id, not created_at: two events landing in the same
         // timestamp (SQLite's precision is only to the second) would
         // otherwise tie, and id is always a reliable insertion order.
-        return (bool) CheckInEvent::where('user_id', $this->id)->orderByDesc('id')->value('checked_in');
+        $latest = CheckInEvent::where('user_id', $this->id)->orderByDesc('id')->first(['checked_in', 'created_at']);
+
+        return $latest !== null
+            && $latest->checked_in
+            && $latest->created_at->gte(CheckInOccupancy::staleBefore());
     }
 }

@@ -4,6 +4,7 @@ use App\Models\Reservation;
 use App\Models\ReservationSetting;
 use App\Models\SubscriptionType;
 use App\Models\User;
+use App\Support\CheckIn\QrToken;
 use App\Support\Payments\StripeGateway;
 use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -110,4 +111,11 @@ function makeSubscriptionType(array $attributes = []): SubscriptionType
         'billing_interval' => 'one_time',
         'visit_limit' => 1,
     ], $attributes));
+}
+
+// What a rider's dashboard would be showing right now: a fresh, unspent entry
+// token. Each call is a different token, as each poll of the dashboard is.
+function qrTokenFor(User $user): string
+{
+    return QrToken::issue($user)['token'];
 }

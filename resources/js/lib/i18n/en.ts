@@ -346,6 +346,7 @@ const en = {
 
     // Dashboard cards (pages/dashboard.tsx)
     'dashboard.entryPass': 'Entry pass',
+    'dashboard.qrRefreshing': 'Refreshing your code…',
     'dashboard.showAtDesk': 'Show this at the front desk',
     'dashboard.brightnessHint':
         'Turn your screen brightness up so it scans first try.',

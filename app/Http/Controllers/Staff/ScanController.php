@@ -9,6 +9,9 @@ use App\Models\CheckInEvent;
 use App\Models\Purchase;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Support\CheckIn\QrToken;
+use App\Support\CheckIn\QrTokenProblem;
+use App\Support\CheckIn\VerifiedQrToken;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,15 +32,19 @@ class ScanController extends Controller
             'mode' => ['required', 'in:entry,exit'],
         ]);
 
-        $user = User::where('qr_code', $validated['code'])->first();
+        $token = QrToken::verify($validated['code']);
 
-        if (! $user) {
+        if ($token instanceof QrTokenProblem) {
             return response()->json([
                 'found' => false,
-                'message' => __('No user matches this QR code.'),
-            ], 404);
+                'message' => match ($token) {
+                    QrTokenProblem::Invalid => __('No user matches this QR code.'),
+                    QrTokenProblem::Expired => __('This QR code has expired. Ask the rider to wait for it to refresh.'),
+                },
+            ], $token === QrTokenProblem::Invalid ? 404 : 422);
         }
 
+        $user = $token->user;
         $entering = $validated['mode'] === 'entry';
 
         // Reading the check-in state, validating, spending a visit and
@@ -46,7 +53,7 @@ class ScanController extends Controller
         // let it in (two entries, two visits spent), or both spend the last
         // visit. The write lock is taken at BEGIN, so the second scan waits
         // and then sees the first one's event.
-        [$status, $payload] = DB::transaction(fn () => $this->decide($user, $entering));
+        [$status, $payload] = DB::transaction(fn () => $this->decide($user, $entering, $token));
 
         if ($status === 200) {
             // After the commit: a listener must never see an event that a
@@ -63,7 +70,7 @@ class ScanController extends Controller
      *
      * @return array{0: int, 1: array<string, mixed>}
      */
-    private function decide(User $user, bool $entering): array
+    private function decide(User $user, bool $entering, VerifiedQrToken $token): array
     {
         $deny = fn (int $status, string $message): array => [$status, [
             'found' => true,
@@ -79,6 +86,8 @@ class ScanController extends Controller
         if ($entering === $user->isCurrentlyCheckedIn()) {
             return $deny(409, $entering ? __('Already checked in.') : __('Not currently checked in.'));
         }
+
+        $purchaseToSpend = null;
 
         if ($entering) {
             if (! $user->hasVerifiedEmail()) {
@@ -103,11 +112,24 @@ class ScanController extends Controller
                 }
 
                 if (! $user->subscribed('default') && ($purchase = $user->activeOneTimePurchase()) && ! $purchase->subscriptionType->unlimited_entries) {
-                    if (! $this->spendVisit($purchase)) {
-                        return $deny(403, __('No active subscription.'));
-                    }
+                    $purchaseToSpend = $purchase;
                 }
             }
+        }
+
+        // Everything above only reads, so a refused scan leaves the token
+        // unspent and the rider can be scanned again once staff pick the
+        // right mode. From here on it's a real entry or exit: the token is
+        // spent first, so a copy of it (a screenshot) can't be used again.
+        if (! QrToken::consume($token)) {
+            return $deny(422, __('This QR code was already scanned. Ask the rider to wait for it to refresh.'));
+        }
+
+        // Can only fail if something other than a scan spent the last visit
+        // since the check above (they're serialised by this transaction); the
+        // rider then waits for a fresh code.
+        if ($purchaseToSpend && ! $this->spendVisit($purchaseToSpend)) {
+            return $deny(403, __('No active subscription.'));
         }
 
         CheckInEvent::create([

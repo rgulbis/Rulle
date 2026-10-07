@@ -71,6 +71,9 @@ test('never goes negative even with an unmatched check-out', function () {
 
 test('currentlyCheckedInCount reflects only each user\'s latest event', function () {
     $start = Carbon::parse('2026-01-01 00:00:00');
+    // "Now" is two hours on: the check-in is recent enough to still count as
+    // a visit in progress (see config/checkin.php).
+    $this->travelTo($start->copy()->addHours(2));
     $inside = User::factory()->create();
     $left = User::factory()->create();
 

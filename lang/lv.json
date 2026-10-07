@@ -1,5 +1,7 @@
 {
     "No user matches this QR code.": "Šim QR kodam neatbilst neviens lietotājs.",
+    "This QR code has expired. Ask the rider to wait for it to refresh.": "Šī QR koda derīguma termiņš ir beidzies. Palūdziet braucējam pagaidīt, līdz tas atjaunojas.",
+    "This QR code was already scanned. Ask the rider to wait for it to refresh.": "Šis QR kods jau ir noskenēts. Palūdziet braucējam pagaidīt, līdz tas atjaunojas.",
     "Already checked in.": "Jau ir parkā.",
     "Not currently checked in.": "Pašlaik nav parkā.",
     "Email not verified.": "E-pasts nav apstiprināts.",

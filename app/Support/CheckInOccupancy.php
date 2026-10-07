@@ -2,8 +2,10 @@
 
 namespace App\Support;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -79,7 +81,31 @@ class CheckInOccupancy
      */
     public static function currentlyCheckedInCount(): int
     {
-        return self::latestEventPerUser()->where('checked_in', true)->count();
+        return self::latestEventPerUser()
+            ->where('checked_in', true)
+            ->where('created_at', '>=', self::staleBefore()->toDateTimeString())
+            ->count();
+    }
+
+    /**
+     * A check-in older than this is treated as a visit that ended without
+     * anyone scanning out (see config/checkin.php), so it stops counting as
+     * inside even before checkins:close-stale writes the missing check-out.
+     */
+    public static function staleBefore(): CarbonInterface
+    {
+        return now()->subMinutes((int) config('checkin.max_visit_minutes'));
+    }
+
+    /**
+     * Everyone whose latest event is a check-in, however long ago — the
+     * candidates checkins:close-stale looks through.
+     *
+     * @return Collection<int, \stdClass> rows with id, user_id and created_at
+     */
+    public static function openCheckIns(): Collection
+    {
+        return self::latestEventPerUser()->where('checked_in', true)->get(['id', 'user_id', 'created_at']);
     }
 
     /**
@@ -101,7 +127,7 @@ class CheckInOccupancy
             ->fromSub(function ($query) use ($before) {
                 $query->from('check_in_events')
                     ->when($before, fn ($q) => $q->where('created_at', '<', $before->toDateTimeString()))
-                    ->selectRaw('user_id, checked_in, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id DESC) as rn');
+                    ->selectRaw('id, user_id, checked_in, created_at, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id DESC) as rn');
             }, 'latest_per_user')
             ->where('rn', 1);
     }
