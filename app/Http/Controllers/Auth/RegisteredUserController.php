@@ -23,6 +23,15 @@ class RegisteredUserController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        // Normalised before validation, so the uniqueness check and the stored
+        // value are both the ASCII (punycode) form of a Unicode domain, the
+        // same form login looks it up by. Name is trimmed for the same
+        // reason the profile form does it: "Jane " mustn't dodge uniqueness.
+        $request->merge([
+            'name' => trim((string) $request->input('name')),
+            'email' => User::normalizeEmailForLookup(trim((string) $request->input('email'))),
+        ]);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:users,name', 'unique:users,pending_name', new NoInappropriateContent],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],

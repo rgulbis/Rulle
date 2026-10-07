@@ -178,6 +178,29 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $ascii ? "{$local}@{$ascii}" : $email;
     }
 
+    /**
+     * Why this user's role can't be changed to `$newRole` by `$actor`, or
+     * null if it can. An admin can't demote themselves (it is how an admin
+     * locks themselves out of the panel), and the last admin can't be
+     * demoted by anyone, or nobody could manage the park again.
+     */
+    public function roleChangeBlocker(string $newRole, ?User $actor = null): ?string
+    {
+        if (! $this->isAdmin() || $newRole === 'admin') {
+            return null;
+        }
+
+        if ($actor !== null && $actor->is($this)) {
+            return 'You can\'t remove your own admin role. Ask another admin to do it.';
+        }
+
+        if (! static::where('role', 'admin')->where('id', '!=', $this->id)->exists()) {
+            return 'This is the last admin account, and the admin panel would be locked.';
+        }
+
+        return null;
+    }
+
     public function homeUrl(): string
     {
         return match (true) {
