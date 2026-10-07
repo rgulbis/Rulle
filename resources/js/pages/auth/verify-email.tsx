@@ -45,7 +45,11 @@ export default function VerifyEmail({ status }: { status?: string }) {
             )}
 
             <form onSubmit={submit} className="flex flex-col gap-4">
-                <PrimaryButton type="submit" disabled={processing}>
+                <PrimaryButton
+                    type="submit"
+                    disabled={processing}
+                    className="max-w-full text-center whitespace-normal"
+                >
                     {t('auth.verifyEmail.resend')}
                 </PrimaryButton>
             </form>

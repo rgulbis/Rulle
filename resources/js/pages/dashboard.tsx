@@ -88,7 +88,7 @@ export default function Dashboard({ status, pass, nextReservation }: Props) {
                             <Button
                                 type="submit"
                                 disabled={processing}
-                                className="border-[#16161a] bg-[#16161a] text-[#f7f6f2] shadow-none"
+                                className="max-w-full border-[#16161a] bg-[#16161a] text-center whitespace-normal text-[#f7f6f2] shadow-none"
                             >
                                 {t('dashboard.resendVerification')}
                             </Button>

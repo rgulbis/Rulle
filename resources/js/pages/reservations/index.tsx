@@ -629,24 +629,29 @@ export default function ReservationsIndex({
                                         })}
                                     </p>
 
-                                    {reservation.is_owner && (
-                                        <AddParticipant
-                                            reservationId={reservation.id}
-                                            remainingCapacity={
-                                                reservation.group_size -
-                                                1 -
-                                                acceptedCount(reservation)
-                                            }
-                                        />
-                                    )}
+                                    {/* Invitations and the group chat only exist once the
+                                        reservation is paid; the server refuses both before. */}
+                                    {reservation.is_owner &&
+                                        reservation.status === 'active' && (
+                                            <AddParticipant
+                                                reservationId={reservation.id}
+                                                remainingCapacity={
+                                                    reservation.group_size -
+                                                    1 -
+                                                    acceptedCount(reservation)
+                                                }
+                                            />
+                                        )}
 
                                     <div className="border-ink mt-5 flex flex-wrap items-center gap-4 border-t-[3px] border-dashed pt-5">
-                                        <Link
-                                            href={`/reservations/${reservation.id}/chat`}
-                                            className="hover:decoration-accent font-semibold underline decoration-2 underline-offset-4"
-                                        >
-                                            {t('reservations.groupChat')}
-                                        </Link>
+                                        {reservation.status === 'active' && (
+                                            <Link
+                                                href={`/reservations/${reservation.id}/chat`}
+                                                className="hover:decoration-accent font-semibold underline decoration-2 underline-offset-4"
+                                            >
+                                                {t('reservations.groupChat')}
+                                            </Link>
+                                        )}
 
                                         {reservation.is_owner &&
                                             reservation.status ===
