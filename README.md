@@ -423,3 +423,70 @@ credentials.
    now", check `docker logs skatepark-mediamtx-1` on the server — almost
    always either the RTSP URL/credentials are wrong, or the camera and
    server aren't actually on the same network.
+
+#### The stream is public by design
+
+Anyone who knows `https://<site>/live-cam/index.m3u8` can watch the feed
+without an account — it's the same video the public `/livestream` page shows
+guests, and the spec requires guest access. That is deliberate, not an
+oversight, so don't "fix" it by adding auth in front of it:
+
+- `/live-cam/*` never touches Laravel. Cloudflare Tunnel routes it straight to
+  MediaMTX (see the ingress rules in `docker/cloudflared-setup.sh`), so no
+  middleware, session or security header from the app applies to it.
+- What _is_ secret is the camera's RTSP URL (it embeds the camera's login).
+  MediaMTX only exposes the converted HLS output; the RTSP URL and the
+  camera's own address never reach the browser.
+- The park doesn't record or store the feed (the page says so), so there is no
+  archive behind that URL — only the last few seconds of segments.
+
+### Security headers
+
+`App\Http\Middleware\SetSecurityHeaders` runs on every web response (and on the
+Filament panel, which has its own middleware stack) and sends:
+
+| Header                      | Value                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| `Content-Security-Policy`   | see below                                                                                   |
+| `X-Content-Type-Options`    | `nosniff`                                                                                   |
+| `Referrer-Policy`           | `strict-origin-when-cross-origin`                                                           |
+| `Permissions-Policy`        | camera for this site only (the staff QR scanner); microphone, geolocation, payment, usb off |
+| `X-Frame-Options`           | `SAMEORIGIN` (the CSP's `frame-ancestors 'self'` says the same; this covers older browsers) |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains`, **production over HTTPS only**                       |
+
+**The app's CSP** (everything outside `/admin`) is `default-src 'self'` with
+scripts allowed only from this origin or carrying a per-request nonce (Vite's
+tags get it automatically), no `unsafe-inline`/`unsafe-eval` for scripts, and
+`object-src 'none'`. The exceptions exist for two features, and changing
+either one means revisiting the policy:
+
+- **Reverb (chat, live headcount)** — `connect-src` allows the WebSocket to
+  this same host, built from `VITE_REVERB_PORT` / `VITE_REVERB_SCHEME`
+  (`config/security.php`). In production that is plain `wss://<host>` on 443;
+  locally it is `ws://localhost:8080`. If `resources/js/echo.ts` ever points at
+  another host, add it to `reverbSources()`.
+- **Livestream (HLS)** — playlists and segments are fetched same-origin from
+  `/live-cam/` (`connect-src 'self'`). hls.js plays them through a
+  `MediaSource`, which the `<video>` reads from a `blob:` URL (`media-src
+blob:`), and parses them in a Web Worker created from a `blob:` URL
+  (`worker-src blob:`). Safari plays HLS natively from the same-origin URL.
+  Hosting the stream on another domain would need that origin in
+  `connect-src` and `media-src`, plus CORS on MediaMTX.
+
+`style-src` keeps `'unsafe-inline'` because the `@fonts` directive writes an
+inline `<style>` block with no nonce support.
+
+**The admin panel's CSP** (`/admin`) is looser: it adds `unsafe-inline` and
+`unsafe-eval` for scripts, because Filament's Alpine build evaluates
+expressions at runtime and Livewire writes inline scripts into every page. It
+also allows images from `ui-avatars.com` (Filament's default avatar). It is
+still locked to this origin for everything else, so a script from elsewhere
+can't be loaded, and it is only reachable by logged-in staff.
+
+With `npm run dev` running, the policy also allows the Vite dev server (and
+its HMR WebSocket) so local development isn't blocked. That is derived from
+`public/hot` and is never added in production.
+
+When something is blocked, the browser console says which directive and URL:
+`Refused to ... because it violates the following Content Security Policy
+directive`. That message is the starting point for any change to the policy.
