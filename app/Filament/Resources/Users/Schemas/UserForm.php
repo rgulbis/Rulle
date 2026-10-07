@@ -40,7 +40,12 @@ class UserForm
                     ]),
                 TextInput::make('email')
                     ->label('Email address')
-                    ->email()
+                    // Not ->email(): that also renders type="email", whose
+                    // built-in browser check rejects a Unicode domain before
+                    // the form can submit (see the login page). The same
+                    // validation rule is applied server-side instead.
+                    ->inputMode('email')
+                    ->rule('email')
                     ->required()
                     ->trim()
                     ->maxLength(255)

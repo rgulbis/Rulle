@@ -93,7 +93,11 @@ export default function Register() {
                     <Label htmlFor="email">{t('auth.email')}</Label>
                     <TextInput
                         id="email"
-                        type="email"
+                        // See login.tsx: not type="email" so a Unicode
+                        // domain isn't rejected by the browser before the
+                        // server can normalise it.
+                        type="text"
+                        inputMode="email"
                         autoComplete="username"
                         placeholder={t('form.emailPlaceholder')}
                         value={data.email}
