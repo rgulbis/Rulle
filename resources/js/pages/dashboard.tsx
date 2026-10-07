@@ -1,4 +1,4 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useEffect, useState } from 'react';
 import { Button, Eyebrow, LinkButton } from '@/components/form-controls';
 import { CheckIcon } from '@/components/icons';
@@ -60,6 +60,11 @@ export default function Dashboard({
 
         channel.listen('.check-in.updated', (e: { checked_in: boolean }) => {
             setCheckedIn(e.checked_in);
+
+            // A scan can also spend a visit (or the last one), so the pass
+            // card is re-read from the server. Only those two props: the
+            // QR token isn't re-issued by this.
+            router.reload({ only: ['pass', 'nextReservation'] });
         });
 
         return () => {
