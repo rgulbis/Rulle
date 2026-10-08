@@ -84,7 +84,7 @@ class AccountClosure
             $this->settleOpenCheckouts($user);
             $this->checkOut($user);
 
-            DB::table('reservation_user')->where('user_id', $user->id)->delete();
+            DB::table('reservation_users')->where('user_id', $user->id)->delete();
             DB::table('sessions')->where('user_id', $user->id)->delete();
             DB::table('password_reset_tokens')->where('email', $user->email)->delete();
 

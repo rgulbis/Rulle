@@ -56,7 +56,7 @@ return new class extends Migration
         ],
         'check_in_events' => ['user_id' => ['users', 'restrict', 'cascade']],
         'reservations' => ['user_id' => ['users', 'restrict', 'cascade']],
-        'reservation_user' => [
+        'reservation_users' => [
             'reservation_id' => ['reservations', 'restrict', 'cascade'],
             'user_id' => ['users', 'restrict', 'cascade'],
         ],

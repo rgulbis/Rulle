@@ -143,7 +143,7 @@ test('a user with a subscription cannot be deleted for real, and neither can a s
 });
 
 test('no foreign key in the schema still cascades', function () {
-    $cascading = collect(['purchases', 'check_in_events', 'reservations', 'reservation_user', 'chat_messages', 'subscriptions', 'subscription_items'])
+    $cascading = collect(['purchases', 'check_in_events', 'reservations', 'reservation_users', 'chat_messages', 'subscriptions', 'subscription_items'])
         ->flatMap(fn (string $table) => collect(Schema::getForeignKeys($table))
             ->filter(fn (array $key) => $key['on_delete'] === 'cascade')
             ->map(fn (array $key) => $table.'.'.implode(',', $key['columns'])))

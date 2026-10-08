@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Carbon;
 
 /**
- * The reservation_user pivot row: one person's invitation to a reservation
+ * The reservation_users pivot row: one person's invitation to a reservation
  * and what became of it (invited, accepted, declined). Given its own class
  * so chat_muted_until and responded_at cast to Carbon — plain ->withPivot()
  * leaves pivot attributes as raw strings, and there's no fluent way to cast a
@@ -25,7 +25,7 @@ class ReservationParticipant extends Pivot
 
     public const DECLINED = 'declined';
 
-    protected $table = 'reservation_user';
+    protected $table = 'reservation_users';
 
     /**
      * @return BelongsTo<User, $this>

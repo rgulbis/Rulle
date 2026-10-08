@@ -88,7 +88,7 @@ test('once a chat is over nobody can get back in by its address, whoever they ar
     $before = [
         'messages' => ChatMessage::count(),
         'pinned' => ChatMessage::whereNotNull('pinned_at')->count(),
-        'mutes' => DB::table('reservation_user')->whereNotNull('chat_muted_until')->count(),
+        'mutes' => DB::table('reservation_users')->whereNotNull('chat_muted_until')->count(),
     ];
 
     foreach ($people as $role => $person) {
@@ -122,7 +122,7 @@ test('once a chat is over nobody can get back in by its address, whoever they ar
     expect([
         'messages' => ChatMessage::count(),
         'pinned' => ChatMessage::whereNotNull('pinned_at')->count(),
-        'mutes' => DB::table('reservation_user')->whereNotNull('chat_muted_until')->count(),
+        'mutes' => DB::table('reservation_users')->whereNotNull('chat_muted_until')->count(),
     ])->toBe($before);
     foreach (['owner', 'participant'] as $role) {
         expect(Reservation::chatGroupsFor($people[$role]))->toHaveCount(0);

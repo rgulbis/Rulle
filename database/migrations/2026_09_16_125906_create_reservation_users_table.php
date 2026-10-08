@@ -10,7 +10,7 @@ return new class extends Migration
     {
         // Participants added to a reservation, in addition to its owner
         // (users.id via reservations.user_id).
-        Schema::create('reservation_user', function (Blueprint $table) {
+        Schema::create('reservation_users', function (Blueprint $table) {
             $table->id();
             $table->foreignId('reservation_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
@@ -22,6 +22,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('reservation_user');
+        Schema::dropIfExists('reservation_users');
     }
 };

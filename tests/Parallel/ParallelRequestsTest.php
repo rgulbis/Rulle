@@ -292,7 +292,7 @@ test('two people accepting the one remaining seat at once get a seat between the
     expectNoServerErrors($results);
     expect($reservation->participants()->count())->toBe(2);
     // The one who lost is still just invited, not turned into a half-member.
-    expect(DB::table('reservation_user')->where('reservation_id', $reservation->id)->where('status', 'invited')->count())->toBe(1);
+    expect(DB::table('reservation_users')->where('reservation_id', $reservation->id)->where('status', 'invited')->count())->toBe(1);
 });
 
 test('submitting the same invitation several times at once invites the person once', function () {
@@ -308,7 +308,7 @@ test('submitting the same invitation several times at once invites the person on
     ]));
 
     expectNoServerErrors($results);
-    expect(DB::table('reservation_user')->where('reservation_id', $reservation->id)->count())->toBe(1);
+    expect(DB::table('reservation_users')->where('reservation_id', $reservation->id)->count())->toBe(1);
 });
 
 test('subscriptions created for one customer at the same moment leave one, and every other is cancelled at Stripe', function () {

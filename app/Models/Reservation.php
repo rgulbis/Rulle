@@ -73,7 +73,7 @@ class Reservation extends Model
      */
     public function invitations(): BelongsToMany
     {
-        return $this->belongsToMany(User::class)
+        return $this->belongsToMany(User::class, 'reservation_users')
             ->using(ReservationParticipant::class)
             ->withTimestamps()
             ->withPivot('status', 'responded_at', 'chat_muted_until');

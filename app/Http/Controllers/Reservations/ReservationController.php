@@ -95,7 +95,7 @@ class ReservationController extends Controller
                 ->where('ends_at', '>', now())
                 ->whereHas('invitations', fn ($query) => $query
                     ->whereKey($user->id)
-                    ->where('reservation_user.status', ReservationParticipant::INVITED))
+                    ->where('reservation_users.status', ReservationParticipant::INVITED))
                 ->with('user:id,name')
                 ->orderBy('starts_at')
                 ->get(['id', 'user_id', 'starts_at', 'ends_at', 'group_size'])

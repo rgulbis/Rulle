@@ -16,7 +16,7 @@ return new class extends Migration
         // the global room. Living on the pivot means muting someone never
         // reaches into their other reservations, and it's cleared for free
         // if they're ever removed and re-added as a participant.
-        Schema::table('reservation_user', function (Blueprint $table) {
+        Schema::table('reservation_users', function (Blueprint $table) {
             $table->timestamp('chat_muted_until')->nullable();
         });
     }
@@ -26,7 +26,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('reservation_user', function (Blueprint $table) {
+        Schema::table('reservation_users', function (Blueprint $table) {
             $table->dropColumn('chat_muted_until');
         });
     }
