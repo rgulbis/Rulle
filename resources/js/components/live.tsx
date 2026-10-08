@@ -22,6 +22,24 @@ export function LiveVideo({ className = '' }: { className?: string }) {
     // without needing to re-run the effect below (which would needlessly
     // restart the stream) just because the locale changed.
     const [error, setError] = useState<'offline' | 'unsupported' | null>(null);
+    // Bumped to restart the stream from scratch after it has gone offline.
+    const [attempt, setAttempt] = useState(0);
+
+    // A deploy or a camera hiccup takes the stream down for a short while;
+    // without this, anyone with the page open would be stuck on the
+    // "offline" message until they refreshed.
+    useEffect(() => {
+        if (error !== 'offline') {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setError(null);
+            setAttempt((n) => n + 1);
+        }, 15_000);
+
+        return () => clearTimeout(timer);
+    }, [error]);
 
     useEffect(() => {
         const video = videoRef.current;
@@ -140,7 +158,12 @@ export function LiveVideo({ className = '' }: { className?: string }) {
                     }
 
                     if (data.type === HlsPlayer.ErrorTypes.NETWORK_ERROR) {
-                        hls?.startLoad();
+                        // MediaMTX only serves requests carrying the session
+                        // cookie it set on the first playlist request, and
+                        // forgets it when it restarts (every deploy). Retrying
+                        // the same URLs would 401 forever; asking for the
+                        // playlist again is what issues a fresh cookie.
+                        hls?.loadSource(STREAM_URL);
 
                         return;
                     }
@@ -158,7 +181,7 @@ export function LiveVideo({ className = '' }: { className?: string }) {
             removeListeners();
             hls?.destroy();
         };
-    }, []);
+    }, [attempt]);
 
     return (
         <div className={`relative bg-[#2a2a2e] ${className}`}>
