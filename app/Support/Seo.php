@@ -31,8 +31,8 @@ class Seo
     public static function description(?string $locale = null): string
     {
         return ($locale ?? app()->getLocale()) === 'lv'
-            ? 'Rullē — iekštelpu skeitparks Cēsīs: caurlaides un abonementi, grupu rezervācijas, tiešraide no parka un ieeja ar QR kodu. Atvērts katru dienu.'
-            : 'Rullē — an indoor skatepark in Cēsis, Latvia: day passes and memberships, group bookings, a live camera and QR code entry. Open every day.';
+            ? 'Rullē (Rulle) — iekštelpu skeitparks Cēsīs (Cesis): caurlaides un abonementi, grupu rezervācijas, tiešraide no parka un ieeja ar QR kodu. Atvērts katru dienu.'
+            : 'Rullē (Rulle) — an indoor skatepark in Cēsis (Cesis), Latvia: day passes and memberships, group bookings, a live camera and QR code entry. Open every day.';
     }
 
     public static function absoluteUrl(string $path = '/'): string
@@ -53,6 +53,9 @@ class Seo
             '@context' => 'https://schema.org',
             '@type' => 'SportsActivityLocation',
             'name' => config('app.name'),
+            // People type the name without diacritics (and in either
+            // language's word for the place), so say those spellings out loud.
+            'alternateName' => ['Rulle', 'Rulle skeitparks', 'Rulle skatepark', 'Rullē skeitparks'],
             'url' => self::absoluteUrl('/'),
             'image' => self::absoluteUrl('/og-image.png'),
             'description' => self::description('en'),

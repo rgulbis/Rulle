@@ -35,8 +35,10 @@
             <script type="application/ld+json">{!! json_encode(\App\Support\Seo::structuredData(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) !!}</script>
         @endif
 
-        <link rel="icon" href="/favicon.ico" sizes="any">
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+        {{-- Google's favicon crawler wants a raster icon whose size is a multiple of 48px, at a stable URL. --}}
+        <link rel="icon" href="/favicon.ico" sizes="48x48">
+        <link rel="icon" href="/favicon-192.png" type="image/png" sizes="192x192">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
         @fonts

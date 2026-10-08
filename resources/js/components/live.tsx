@@ -81,34 +81,34 @@ export function LiveVideo({ className = '' }: { className?: string }) {
             video.removeEventListener('pause', handlePause);
         };
 
-        // Safari (and WebKit generally) plays HLS natively; every other
-        // browser needs hls.js to remux it into something <video>
-        // understands. The native path only reports failures through the
-        // element's own `error` event, not through hls.js, so it needs its
-        // own listener to show the same message instead of a silently
-        // stalled player.
-        if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            const handleNativeError = () => setError('offline');
+        // Native HLS is only a fallback. Chrome 142+ also answers "maybe" to
+        // canPlayType for HLS, but its built-in player stalls on this
+        // stream after a few seconds, so hls.js (MediaSource) goes first
+        // wherever it can run. That leaves native playback for browsers
+        // with no MediaSource at all (older iPhones). Native playback only
+        // reports failures through the element's own `error` event, so it
+        // needs its own listener to show the same message instead of a
+        // silently stalled player.
+        const playNatively = () => {
+            if (!video.canPlayType('application/vnd.apple.mpegurl')) {
+                setError('unsupported');
 
-            video.addEventListener('error', handleNativeError);
+                return;
+            }
+
+            video.addEventListener('error', () => setError('offline'));
             video.src = STREAM_URL;
+        };
 
-            return () => {
-                removeListeners();
-                video.removeEventListener('error', handleNativeError);
-            };
-        }
-
-        // hls.js is ~500 kB, so it's only fetched here, when a browser
-        // actually needs it — not bundled into every page that shows the
-        // player (the home page included).
+        // hls.js is ~500 kB, so it's only fetched here, not bundled into
+        // every page that shows the player (the home page included).
         void import('hls.js').then(({ default: HlsPlayer }) => {
             if (cancelled) {
                 return;
             }
 
             if (!HlsPlayer.isSupported()) {
-                setError('unsupported');
+                playNatively();
 
                 return;
             }

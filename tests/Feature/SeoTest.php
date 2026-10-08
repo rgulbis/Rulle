@@ -11,7 +11,8 @@ test('the home page can be indexed and describes the park', function () {
         ->toContain('name="description"')
         ->toContain('<script type="application/ld+json">')
         ->toContain('"@type":"SportsActivityLocation"')
-        ->toContain('"opens":"08:00"');
+        ->toContain('"opens":"08:00"')
+        ->toContain('"alternateName":["Rulle","Rulle skeitparks"');
 });
 
 test('the livestream page can be indexed but has no structured data block', function () {
