@@ -82,6 +82,34 @@ class ReservationSetting extends Model
         return now()->addHours($this->cancellation_cutoff_hours)->lte($startsAt);
     }
 
+    /**
+     * How many paid reservations still to come (or under way) would end up
+     * outside the park's hours if it opened at $opening and closed at
+     * $closing. A reservation is only checked against the hours when it is
+     * booked, so changing them later would otherwise leave paid time the park
+     * is shut for. Pass null for a bound that is not being changed.
+     */
+    public static function reservationsOutsideHours(?string $opening, ?string $closing): int
+    {
+        $isTime = fn (?string $time) => is_string($time) && preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $time) === 1;
+        $minutesOfDay = fn (CarbonInterface $moment) => $moment->hour * 60 + $moment->minute;
+
+        $opens = $isTime($opening) ? self::timeToMinutes($opening) : null;
+        $closes = $isTime($closing) ? self::timeToMinutes($closing) : null;
+
+        if ($opens === null && $closes === null) {
+            return 0;
+        }
+
+        return Reservation::query()
+            ->where('status', 'active')
+            ->where('ends_at', '>', now())
+            ->get(['id', 'starts_at', 'ends_at'])
+            ->filter(fn (Reservation $reservation) => ($opens !== null && $minutesOfDay($reservation->starts_at) < $opens)
+                || ($closes !== null && $minutesOfDay($reservation->ends_at) > $closes))
+            ->count();
+    }
+
     public function openingMinutes(): int
     {
         return self::timeToMinutes($this->opening_time);

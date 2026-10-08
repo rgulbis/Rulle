@@ -328,6 +328,49 @@ test('reservation pricing refuses a closing time that is not after the opening t
     expect($settings->fresh()->closing_time)->toBe('22:30');
 });
 
+test('reservation pricing refuses hours that would cut into a paid reservation still to come', function () {
+    adminPage();
+    $settings = makeReservationSettings();
+    $owner = User::factory()->create();
+
+    // Tomorrow 10:00-12:00 and 21:00-23:00, both paid for under 08:00-23:00.
+    makeReservation($owner, now()->addDay()->setTime(10, 0), now()->addDay()->setTime(12, 0));
+    makeReservation($owner, now()->addDay()->setTime(21, 0), now()->addDay()->setTime(23, 0));
+
+    Livewire::test(ManageReservationSettings::class)
+        ->callTableAction('edit', $settings, ['closing_time' => '22:00'])
+        ->assertHasTableActionErrors(['closing_time']);
+    Livewire::test(ManageReservationSettings::class)
+        ->callTableAction('edit', $settings, ['opening_time' => '11:00'])
+        ->assertHasTableActionErrors(['opening_time']);
+
+    expect($settings->fresh()->opening_time)->toBe('08:00')
+        ->and($settings->fresh()->closing_time)->toBe('23:00');
+
+    // Hours that still hold both of them go through.
+    Livewire::test(ManageReservationSettings::class)
+        ->callTableAction('edit', $settings, ['opening_time' => '10:00', 'closing_time' => '23:00'])
+        ->assertHasNoTableActionErrors();
+
+    expect($settings->fresh()->opening_time)->toBe('10:00');
+});
+
+test('reservation hours ignore reservations that are cancelled, unpaid or already over', function () {
+    adminPage();
+    $settings = makeReservationSettings();
+    $owner = User::factory()->create();
+
+    makeReservation($owner, now()->addDay()->setTime(21, 0), now()->addDay()->setTime(23, 0), ['status' => 'cancelled']);
+    makeReservation($owner, now()->addDays(2)->setTime(21, 0), now()->addDays(2)->setTime(23, 0), ['status' => 'pending']);
+    makeReservation($owner, now()->subDay()->setTime(21, 0), now()->subDay()->setTime(23, 0));
+
+    Livewire::test(ManageReservationSettings::class)
+        ->callTableAction('edit', $settings, ['closing_time' => '20:00'])
+        ->assertHasNoTableActionErrors();
+
+    expect($settings->fresh()->closing_time)->toBe('20:00');
+});
+
 test('reservation pricing caps values that could only be typos', function () {
     adminPage();
     $settings = makeReservationSettings();

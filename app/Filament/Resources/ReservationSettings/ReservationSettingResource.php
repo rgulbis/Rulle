@@ -95,6 +95,18 @@ class ReservationSettingResource extends Resource
                     ->required()
                     ->placeholder('08:00')
                     ->regex('/^([01]\d|2[0-3]):[0-5]\d$/')
+                    // A booking is only checked against the hours when it is
+                    // made, so hours that would cut into one already paid for
+                    // are refused instead of silently shortening it.
+                    ->rules([
+                        fn (): Closure => function (string $attribute, mixed $value, Closure $fail) {
+                            $affected = ReservationSetting::reservationsOutsideHours($value, null);
+
+                            if ($affected > 0) {
+                                $fail("{$affected} paid ".str('reservation')->plural($affected)." still to come start before {$value}. Cancel or move them first.");
+                            }
+                        },
+                    ])
                     ->helperText('24-hour, e.g. 08:00'),
 
                 TextInput::make('closing_time')
@@ -109,6 +121,13 @@ class ReservationSettingResource extends Resource
                         fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get) {
                             if (is_string($value) && is_string($get('opening_time')) && $value <= $get('opening_time')) {
                                 $fail('The park has to close after it opens (the same day).');
+                            }
+                        },
+                        fn (): Closure => function (string $attribute, mixed $value, Closure $fail) {
+                            $affected = ReservationSetting::reservationsOutsideHours(null, $value);
+
+                            if ($affected > 0) {
+                                $fail("{$affected} paid ".str('reservation')->plural($affected)." still to come end after {$value}. Cancel or move them first.");
                             }
                         },
                     ])
