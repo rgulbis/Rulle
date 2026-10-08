@@ -52,6 +52,10 @@ jobs:
           sed -i "s|^APP_DEBUG=.*|APP_DEBUG=false|" .env
           sed -i "s|^APP_KEY=.*|APP_KEY=${{ secrets.APP_KEY }}|" .env
           sed -i "s|^APP_URL=.*|APP_URL=https://www.xn--rull-eva.lv|" .env
+          # The site opens in Latvian (the frontend's default), so the
+          # server's own language, <html lang> and the search-result
+          # description must match until a visitor picks English.
+          sed -i "s|^APP_LOCALE=.*|APP_LOCALE=lv|" .env
           sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" .env
           sed -i "s|^BROADCAST_CONNECTION=.*|BROADCAST_CONNECTION=reverb|" .env
           sed -i "s|^REVERB_APP_ID=.*|REVERB_APP_ID=${{ secrets.REVERB_APP_ID }}|" .env

@@ -22,7 +22,7 @@ class ApproveNameAction extends Action
     {
         parent::setUp();
 
-        $this->label('Approve name');
+        $this->label(__('Approve name'));
         $this->color('success');
         $this->requiresConfirmation();
 
@@ -30,15 +30,15 @@ class ApproveNameAction extends Action
             $name = $record->pending_name;
 
             if ($record->approvePendingName()) {
-                Notification::make()->success()->title('Name approved')->body("\"{$name}\" is now showing everywhere.")->send();
+                Notification::make()->success()->title(__('Name approved'))->body(__('":name" is now showing everywhere.', ['name' => $name]))->send();
 
                 return;
             }
 
             Notification::make()
                 ->warning()
-                ->title('Name not approved')
-                ->body("\"{$name}\" has been taken by someone else since it was requested, so the request was dropped. They can ask for another name.")
+                ->title(__('Name not approved'))
+                ->body(__('":name" has been taken by someone else since it was requested, so the request was dropped. They can ask for another name.', ['name' => $name]))
                 ->persistent()
                 ->send();
         });

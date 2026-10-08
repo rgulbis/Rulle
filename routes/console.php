@@ -25,6 +25,14 @@ Schedule::command('payments:retry-refunds')
     ->withoutOverlapping()
     ->onFailure(fn () => Log::error('Some refunds are still failing; see payments:retry-refunds.'));
 
+// Checkouts nobody finished are closed once Stripe's own session has expired.
+// The `checkout.session.expired` webhook does the same; this covers a missed
+// delivery or an endpoint without that event.
+Schedule::command('payments:expire-abandoned')
+    ->hourly()
+    ->withoutOverlapping()
+    ->onFailure(fn () => Log::error('Abandoned checkouts could not be closed; see payments:expire-abandoned.'));
+
 // Saving a plan never waits for Stripe, so a plan whose sync failed (Stripe
 // down, a typo'd price) is retried here. Safe to repeat: each step is
 // recorded as it completes and the Stripe calls carry idempotency keys.

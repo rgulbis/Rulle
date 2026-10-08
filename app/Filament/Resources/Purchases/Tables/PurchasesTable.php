@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Purchases\Tables;
 
+use App\Filament\Support\Labels;
 use App\Models\Purchase;
 use App\Support\Payments\RefundOutcome;
 use App\Support\Payments\Refunds;
@@ -18,17 +19,19 @@ class PurchasesTable
         return $table
             ->columns([
                 TextColumn::make('user.name')
-                    ->label('Customer')
+                    ->label(__('Customer'))
                     ->searchable(),
                 TextColumn::make('subscriptionType.name')
-                    ->label('Plan')
+                    ->label(__('Plan'))
                     ->searchable(),
                 TextColumn::make('price_cents')
-                    ->label('Paid')
+                    ->label(__('Paid'))
                     ->formatStateUsing(fn (?int $state) => $state === null ? '—' : number_format($state / 100, 2).' €')
                     ->sortable(),
                 TextColumn::make('status')
+                    ->label(__('Status'))
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => Labels::humanise($state))
                     ->color(fn (string $state): string => match ($state) {
                         'active' => 'success',
                         'pending' => 'warning',
@@ -36,9 +39,9 @@ class PurchasesTable
                         default => 'gray',
                     }),
                 TextColumn::make('payment_status')
-                    ->label('Payment')
+                    ->label(__('Payment'))
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => str($state)->replace('_', ' ')->ucfirst()->toString())
+                    ->formatStateUsing(fn (string $state): string => Labels::humanise($state))
                     ->color(fn (string $state): string => match ($state) {
                         'paid' => 'success',
                         'refunded', 'partially_refunded' => 'info',
@@ -46,46 +49,42 @@ class PurchasesTable
                         default => 'gray',
                     }),
                 TextColumn::make('refunded_cents')
-                    ->label('Refunded')
+                    ->label(__('Refunded'))
                     ->formatStateUsing(fn (int $state): string => $state === 0 ? '—' : number_format($state / 100, 2).' €')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('visits_remaining')
-                    ->label('Visits left')
+                    ->label(__('Visits left'))
                     ->placeholder('—'),
                 TextColumn::make('valid_date')
-                    ->label('Valid on')
+                    ->label(__('Valid on'))
                     ->date()
                     ->placeholder('—'),
                 TextColumn::make('created_at')
-                    ->label('Purchased')
+                    ->label(__('Purchased'))
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
                 SelectFilter::make('status')
+                    ->label(__('Status'))
                     ->options([
-                        'pending' => 'Pending',
-                        'active' => 'Active',
-                        'used_up' => 'Used up',
-                        'cancelled' => 'Cancelled',
-                        'abandoned' => 'Abandoned',
+                        'pending' => __('Pending'),
+                        'active' => __('Active'),
+                        'used_up' => __('Used up'),
+                        'cancelled' => __('Cancelled'),
+                        'abandoned' => __('Abandoned'),
                     ]),
                 SelectFilter::make('payment_status')
-                    ->label('Payment')
-                    ->options([
-                        'unpaid' => 'Unpaid',
-                        'paid' => 'Paid',
-                        'refunded' => 'Refunded',
-                        'partially_refunded' => 'Partially refunded',
-                        'refund_failed' => 'Refund failed',
-                    ]),
+                    ->label(__('Payment'))
+                    ->options(Labels::paymentStatuses()),
             ])
             ->recordActions([
                 Action::make('refund')
+                    ->label(__('Refund'))
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->modalDescription('This issues a real Stripe refund for what the customer paid and revokes their entry from this pass.')
+                    ->modalDescription(__('This issues a real Stripe refund for what the customer paid and revokes their entry from this pass.'))
                     ->visible(fn (Purchase $record) => $record->status === 'active')
                     ->action(function (Purchase $record) {
                         // The pass is revoked straight away; the refund is
@@ -96,15 +95,15 @@ class PurchasesTable
                         $outcome = app(Refunds::class)->refundInFull($record->refresh());
 
                         match ($outcome) {
-                            RefundOutcome::Refunded => Notification::make()->title('Refunded')->success()->send(),
+                            RefundOutcome::Refunded => Notification::make()->title(__('Refunded'))->success()->send(),
                             RefundOutcome::Pending => Notification::make()
-                                ->title('Pass revoked, refund not confirmed yet')
-                                ->body('Stripe did not confirm the refund. It is recorded and will be retried automatically.')
+                                ->title(__('Pass revoked, refund not confirmed yet'))
+                                ->body(__('Stripe did not confirm the refund. It is recorded and will be retried automatically.'))
                                 ->warning()
                                 ->send(),
                             RefundOutcome::NothingToRefund => Notification::make()
-                                ->title('Pass revoked, nothing to refund')
-                                ->body('No Stripe payment is on record for this pass.')
+                                ->title(__('Pass revoked, nothing to refund'))
+                                ->body(__('No Stripe payment is on record for this pass.'))
                                 ->warning()
                                 ->send(),
                         };

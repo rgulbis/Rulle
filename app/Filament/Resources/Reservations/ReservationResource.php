@@ -16,6 +16,21 @@ class ReservationResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
+    public static function getNavigationLabel(): string
+    {
+        return __('Reservations');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('reservation');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('reservations');
+    }
+
     // Customers create their own reservations through checkout — this
     // resource is oversight only, not a way to manually create one (which
     // wouldn't have gone through payment).

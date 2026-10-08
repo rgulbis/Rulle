@@ -10,7 +10,7 @@ class CheckInsByHourChart extends ChartWidget
 {
     protected static ?int $sort = 2;
 
-    protected ?string $heading = 'Occupancy by Hour';
+    protected ?string $heading = null;
 
     protected ?string $pollingInterval = '30s';
 
@@ -24,9 +24,9 @@ class CheckInsByHourChart extends ChartWidget
     protected function getFilters(): ?array
     {
         return [
-            '24h' => 'Last 24 hours',
-            '7d' => 'Last 7 days',
-            '30d' => 'Last 30 days',
+            '24h' => __('Last 24 hours'),
+            '7d' => __('Last 7 days'),
+            '30d' => __('Last 30 days'),
         ];
     }
 
@@ -41,7 +41,12 @@ class CheckInsByHourChart extends ChartWidget
         $peak = max($series['values']);
         $peakIndex = array_search($peak, $series['values'], true);
 
-        return "Busiest: {$series['labels'][$peakIndex]} ({$peak} riders)";
+        return __('Busiest: :hour (:count riders)', ['hour' => $series['labels'][$peakIndex], 'count' => $peak]);
+    }
+
+    public function getHeading(): ?string
+    {
+        return __('Occupancy by Hour');
     }
 
     protected function getData(): array
@@ -51,7 +56,7 @@ class CheckInsByHourChart extends ChartWidget
         return [
             'datasets' => [
                 [
-                    'label' => 'Riders inside',
+                    'label' => __('Riders inside'),
                     'data' => $series['values'],
                     'borderColor' => '#f59e0b',
                     'backgroundColor' => 'rgba(245, 158, 11, 0.15)',

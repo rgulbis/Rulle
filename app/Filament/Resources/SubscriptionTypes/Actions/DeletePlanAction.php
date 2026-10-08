@@ -16,7 +16,7 @@ class DeletePlanAction extends DeleteAction
     {
         parent::setUp();
 
-        $this->modalDescription('Only possible for a plan that was never bought. A plan with sales can be deactivated instead.');
+        $this->modalDescription(__('Only possible for a plan that was never bought. A plan with sales can be deactivated instead.'));
 
         $this->before(function (DeletePlanAction $action, SubscriptionType $record) {
             $reason = $record->deletionBlocker();
@@ -27,7 +27,7 @@ class DeletePlanAction extends DeleteAction
 
             Notification::make()
                 ->danger()
-                ->title("{$record->name} can't be deleted")
+                ->title(__(':name can\'t be deleted', ['name' => $record->name]))
                 ->body($reason)
                 ->persistent()
                 ->send();

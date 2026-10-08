@@ -15,7 +15,10 @@ class PaymentResource extends Resource
 {
     protected static ?string $model = Payment::class;
 
-    protected static ?string $navigationLabel = 'Payments';
+    public static function getNavigationLabel(): string
+    {
+        return __('Payments');
+    }
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 

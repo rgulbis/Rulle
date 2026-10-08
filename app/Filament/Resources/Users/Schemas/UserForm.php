@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Filament\Support\Labels;
 use App\Models\User;
 use App\Rules\AvailableDisplayName;
 use App\Rules\NoInappropriateContent;
@@ -23,6 +24,7 @@ class UserForm
                 // Same content rules as the public profile form, so an admin
                 // can't set a name a customer would be refused.
                 TextInput::make('name')
+                    ->label(__('Name'))
                     ->required()
                     ->trim()
                     ->maxLength(255)
@@ -34,7 +36,7 @@ class UserForm
                         fn (?User $record): AvailableDisplayName => new AvailableDisplayName($record?->id),
                     ]),
                 TextInput::make('email')
-                    ->label('Email address')
+                    ->label(__('Email address'))
                     // Not ->email(): that also renders type="email", whose
                     // built-in browser check rejects a Unicode domain before
                     // the form can submit (see the login page). The same
@@ -57,16 +59,13 @@ class UserForm
                                 ->exists();
 
                             if ($taken) {
-                                $fail(trans('validation.unique', ['attribute' => 'email address']));
+                                $fail(trans('validation.unique', ['attribute' => __('Email address')]));
                             }
                         },
                     ]),
                 Select::make('role')
-                    ->options([
-                        'admin' => 'Admin',
-                        'employee' => 'Employee',
-                        'user' => 'User',
-                    ])
+                    ->label(__('Role'))
+                    ->options(Labels::roles())
                     ->required()
                     ->default('user')
                     ->rules([
@@ -79,13 +78,14 @@ class UserForm
                         },
                     ]),
                 DateTimePicker::make('email_verified_at')
-                    ->label('Email verified at'),
+                    ->label(__('Email verified at')),
                 TextInput::make('password')
+                    ->label(__('Password'))
                     ->password()
                     ->rule(Password::default())
                     ->dehydrated(fn (?string $state): bool => filled($state))
                     ->required(fn (string $operation): bool => $operation === 'create')
-                    ->helperText('Leave blank to keep the current password.'),
+                    ->helperText(__('Leave blank to keep the current password.')),
             ]);
     }
 }

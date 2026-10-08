@@ -52,27 +52,27 @@ class RevenueStats extends StatsOverviewWidget
         $monthTotal = $passesThisMonth + $reservationsThisMonth + $subscriptionsThisMonth;
 
         return [
-            Stat::make('Total revenue', number_format($total / 100, 2).' €')
-                ->description('All time, across passes, subscriptions, and reservations')
+            Stat::make(__('Total revenue'), number_format($total / 100, 2).' €')
+                ->description(__('All time, across passes, subscriptions, and reservations'))
                 ->color('primary')
                 ->icon(Heroicon::OutlinedBanknotes),
-            Stat::make('This month', number_format($monthTotal / 100, 2).' €')
+            Stat::make(__('This month'), number_format($monthTotal / 100, 2).' €')
                 ->color('success')
                 ->icon(Heroicon::OutlinedChartBar),
-            Stat::make('One-time passes', number_format($passesTotal / 100, 2).' €')
-                ->description('All time, excluding refunds')
+            Stat::make(__('One-time passes'), number_format($passesTotal / 100, 2).' €')
+                ->description(__('All time, excluding refunds'))
                 ->color('info')
                 ->icon(Heroicon::OutlinedTicket),
-            Stat::make('Subscriptions', number_format($subscriptionsTotal / 100, 2).' €')
-                ->description('All time, this app\'s customers, from Stripe')
+            Stat::make(__('Subscriptions'), number_format($subscriptionsTotal / 100, 2).' €')
+                ->description(__('All time, this app\'s customers, from Stripe'))
                 ->color('warning')
                 ->icon(Heroicon::OutlinedCreditCard),
-            Stat::make('Reservations', number_format($reservationsTotal / 100, 2).' €')
-                ->description('All time, excluding refunds')
+            Stat::make(__('Reservations'), number_format($reservationsTotal / 100, 2).' €')
+                ->description(__('All time, excluding refunds'))
                 ->color('info')
                 ->icon(Heroicon::OutlinedCalendarDays),
-            Stat::make('Refunded', number_format($refunded / 100, 2).' €')
-                ->description('Passes and reservations')
+            Stat::make(__('Refunded'), number_format($refunded / 100, 2).' €')
+                ->description(__('Passes and reservations'))
                 ->color('danger')
                 ->icon(Heroicon::OutlinedArrowUturnLeft),
         ];

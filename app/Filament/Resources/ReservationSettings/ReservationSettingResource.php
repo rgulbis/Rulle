@@ -22,11 +22,20 @@ class ReservationSettingResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static ?string $navigationLabel = 'Reservation Pricing';
+    public static function getNavigationLabel(): string
+    {
+        return __('Reservation Pricing');
+    }
 
-    protected static ?string $modelLabel = 'reservation pricing';
+    public static function getModelLabel(): string
+    {
+        return __('reservation pricing');
+    }
 
-    protected static ?string $pluralModelLabel = 'reservation pricing';
+    public static function getPluralModelLabel(): string
+    {
+        return __('reservation pricing');
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -36,7 +45,7 @@ class ReservationSettingResource extends Resource
                 // payment under €0.50 — so the rate has to make even the
                 // smallest booking (shortest slot, smallest group) reach it.
                 TextInput::make('price_cents_per_person_per_hour')
-                    ->label('Price per person, per hour (EUR)')
+                    ->label(__('Price per person, per hour (EUR)'))
                     ->required()
                     ->numeric()
                     ->minValue(SubscriptionType::MIN_PRICE_CENTS / 100)
@@ -54,36 +63,41 @@ class ReservationSettingResource extends Resource
                             ]))->priceFor((int) $get('min_duration_minutes'), (int) $get('min_group_size'));
 
                             if ($smallest < SubscriptionType::MIN_PRICE_CENTS) {
-                                $fail('At this price the smallest booking ('.(int) $get('min_group_size').' people for '.(int) $get('min_duration_minutes').' minutes) would cost €'.number_format($smallest / 100, 2).', under the €'.number_format(SubscriptionType::MIN_PRICE_CENTS / 100, 2).' Stripe accepts.');
+                                $fail(__('At this price the smallest booking (:people people for :minutes minutes) would cost €:cost, under the €:min Stripe accepts.', [
+                                    'people' => (int) $get('min_group_size'),
+                                    'minutes' => (int) $get('min_duration_minutes'),
+                                    'cost' => number_format($smallest / 100, 2),
+                                    'min' => number_format(SubscriptionType::MIN_PRICE_CENTS / 100, 2),
+                                ]));
                             }
                         },
                     ]),
 
                 TextInput::make('min_group_size')
-                    ->label('Minimum group size')
+                    ->label(__('Minimum group size'))
                     ->required()
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(ReservationSetting::MAX_GROUP_SIZE_LIMIT),
 
                 TextInput::make('max_group_size')
-                    ->label('Maximum group size')
+                    ->label(__('Maximum group size'))
                     ->required()
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(ReservationSetting::MAX_GROUP_SIZE_LIMIT)
                     ->gte('min_group_size')
-                    ->helperText('Caps how many people a single reservation can be made for.'),
+                    ->helperText(__('Caps how many people a single reservation can be made for.')),
 
                 TextInput::make('min_duration_minutes')
-                    ->label('Minimum reservation length (minutes)')
+                    ->label(__('Minimum reservation length (minutes)'))
                     ->required()
                     ->numeric()
                     ->minValue(15)
                     ->maxValue(ReservationSetting::MAX_DURATION_LIMIT_MINUTES),
 
                 TextInput::make('max_duration_minutes')
-                    ->label('Maximum reservation length (minutes)')
+                    ->label(__('Maximum reservation length (minutes)'))
                     ->required()
                     ->numeric()
                     ->minValue(15)
@@ -91,7 +105,7 @@ class ReservationSettingResource extends Resource
                     ->gte('min_duration_minutes'),
 
                 TextInput::make('opening_time')
-                    ->label('Opening time')
+                    ->label(__('Opening time'))
                     ->required()
                     ->placeholder('08:00')
                     ->regex('/^([01]\d|2[0-3]):[0-5]\d$/')
@@ -103,14 +117,14 @@ class ReservationSettingResource extends Resource
                             $affected = ReservationSetting::reservationsOutsideHours($value, null);
 
                             if ($affected > 0) {
-                                $fail("{$affected} paid ".str('reservation')->plural($affected)." still to come start before {$value}. Cancel or move them first.");
+                                $fail(trans_choice('{1} :count paid reservation still to come start before :time. Cancel or move them first.|[2,*] :count paid reservations still to come start before :time. Cancel or move them first.', $affected, ['time' => $value]));
                             }
                         },
                     ])
-                    ->helperText('24-hour, e.g. 08:00'),
+                    ->helperText(__('24-hour, e.g. 08:00')),
 
                 TextInput::make('closing_time')
-                    ->label('Closing time')
+                    ->label(__('Closing time'))
                     ->required()
                     ->placeholder('23:00')
                     ->regex('/^([01]\d|2[0-3]):[0-5]\d$/')
@@ -120,26 +134,26 @@ class ReservationSettingResource extends Resource
                     ->rules([
                         fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get) {
                             if (is_string($value) && is_string($get('opening_time')) && $value <= $get('opening_time')) {
-                                $fail('The park has to close after it opens (the same day).');
+                                $fail(__('The park has to close after it opens (the same day).'));
                             }
                         },
                         fn (): Closure => function (string $attribute, mixed $value, Closure $fail) {
                             $affected = ReservationSetting::reservationsOutsideHours(null, $value);
 
                             if ($affected > 0) {
-                                $fail("{$affected} paid ".str('reservation')->plural($affected)." still to come end after {$value}. Cancel or move them first.");
+                                $fail(trans_choice('{1} :count paid reservation still to come end after :time. Cancel or move them first.|[2,*] :count paid reservations still to come end after :time. Cancel or move them first.', $affected, ['time' => $value]));
                             }
                         },
                     ])
-                    ->helperText('24-hour, e.g. 23:00. Must be after the opening time.'),
+                    ->helperText(__('24-hour, e.g. 23:00. Must be after the opening time.')),
 
                 TextInput::make('cancellation_cutoff_hours')
-                    ->label('Cancellation refund cutoff (hours)')
+                    ->label(__('Cancellation refund cutoff (hours)'))
                     ->required()
                     ->numeric()
                     ->minValue(0)
                     ->maxValue(ReservationSetting::MAX_CANCELLATION_CUTOFF_HOURS)
-                    ->helperText('A paid reservation cancelled at least this many hours before its start gets refunded; cancelling closer to the start still frees the slot but forfeits the payment.'),
+                    ->helperText(__('A paid reservation cancelled at least this many hours before its start gets refunded; cancelling closer to the start still frees the slot but forfeits the payment.')),
             ]);
     }
 
@@ -148,15 +162,15 @@ class ReservationSettingResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('price_cents_per_person_per_hour')
-                    ->label('Price per person/hour')
+                    ->label(__('Price per person/hour'))
                     ->formatStateUsing(fn (int $state) => number_format($state / 100, 2).' €'),
-                TextColumn::make('min_group_size')->label('Min group size'),
-                TextColumn::make('max_group_size')->label('Max group size'),
-                TextColumn::make('min_duration_minutes')->label('Min length (min)'),
-                TextColumn::make('max_duration_minutes')->label('Max length (min)'),
-                TextColumn::make('opening_time')->label('Opens'),
-                TextColumn::make('closing_time')->label('Closes'),
-                TextColumn::make('cancellation_cutoff_hours')->label('Refund cutoff (hrs)'),
+                TextColumn::make('min_group_size')->label(__('Min group size')),
+                TextColumn::make('max_group_size')->label(__('Max group size')),
+                TextColumn::make('min_duration_minutes')->label(__('Min length (min)')),
+                TextColumn::make('max_duration_minutes')->label(__('Max length (min)')),
+                TextColumn::make('opening_time')->label(__('Opens')),
+                TextColumn::make('closing_time')->label(__('Closes')),
+                TextColumn::make('cancellation_cutoff_hours')->label(__('Refund cutoff (hrs)')),
             ])
             ->recordActions([
                 EditAction::make(),

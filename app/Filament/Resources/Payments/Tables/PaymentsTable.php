@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Payments\Tables;
 
+use App\Filament\Support\Labels;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -30,24 +31,27 @@ class PaymentsTable
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'purchase' => 'One-time pass',
-                        'reservation' => 'Reservation',
-                        'subscription' => 'Subscription',
+                        'purchase' => __('One-time pass'),
+                        'reservation' => __('Reservation'),
+                        'subscription' => __('Subscription'),
                         default => $state,
-                    }),
+                    })
+                    ->label(__('Type')),
                 TextColumn::make('user.name')
-                    ->label('Customer')
+                    ->label(__('Customer'))
                     ->searchable(),
                 TextColumn::make('description')
-                    ->label('What')
+                    ->label(__('What'))
                     ->color('gray'),
                 TextColumn::make('amount_cents')
-                    ->label('Amount')
+                    ->label(__('Amount'))
                     ->formatStateUsing(fn (int $state): string => number_format($state / 100, 2).' €')
                     ->weight('bold')
                     ->sortable(),
                 TextColumn::make('status')
+                    ->label(__('Status'))
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => Labels::humanise($state))
                     // Each source has its own status vocabulary (Stripe's
                     // subscription statuses, this app's purchase/reservation
                     // ones) — grouped by what they mean, not where they're
@@ -65,9 +69,9 @@ class PaymentsTable
                         default => 'gray',
                     }),
                 TextColumn::make('payment_status')
-                    ->label('Payment')
+                    ->label(__('Payment'))
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => str($state)->replace('_', ' ')->ucfirst()->toString())
+                    ->formatStateUsing(fn (string $state): string => Labels::humanise($state))
                     ->color(fn (string $state): string => match ($state) {
                         'paid' => 'success',
                         'refunded', 'partially_refunded' => 'info',
@@ -75,11 +79,11 @@ class PaymentsTable
                         default => 'gray',
                     }),
                 TextColumn::make('refunded_cents')
-                    ->label('Refunded')
+                    ->label(__('Refunded'))
                     ->formatStateUsing(fn (int $state): string => $state === 0 ? '—' : number_format($state / 100, 2).' €')
                     ->color('gray'),
                 TextColumn::make('created_at')
-                    ->label('Date')
+                    ->label(__('Date'))
                     ->dateTime('Y-m-d H:i')
                     ->color('gray')
                     ->sortable(),
@@ -90,25 +94,20 @@ class PaymentsTable
                 // payment, and (with a reservation hold counted each time)
                 // would drown the real ones. Switch it off to see them.
                 Filter::make('hide_unpaid')
-                    ->label('Hide unpaid')
+                    ->label(__('Hide unpaid'))
                     ->toggle()
                     ->default()
                     ->query(fn ($query) => $query->where('payment_status', '!=', 'unpaid')),
                 SelectFilter::make('type')
+                    ->label(__('Type'))
                     ->options([
-                        'purchase' => 'One-time passes',
-                        'reservation' => 'Reservations',
-                        'subscription' => 'Subscriptions',
+                        'purchase' => __('One-time passes'),
+                        'reservation' => __('Reservations'),
+                        'subscription' => __('Subscriptions'),
                     ]),
                 SelectFilter::make('payment_status')
-                    ->label('Payment')
-                    ->options([
-                        'unpaid' => 'Unpaid',
-                        'paid' => 'Paid',
-                        'refunded' => 'Refunded',
-                        'partially_refunded' => 'Partially refunded',
-                        'refund_failed' => 'Refund failed',
-                    ]),
+                    ->label(__('Payment'))
+                    ->options(Labels::paymentStatuses()),
             ]);
     }
 }

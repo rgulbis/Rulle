@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -127,11 +126,13 @@ class SubscriptionType extends Model
         }
 
         $parts = array_filter([
-            $purchases > 0 ? $purchases.' '.Str::plural('purchase', $purchases) : null,
-            $subscribers > 0 ? $subscribers.' '.Str::plural('subscriber', $subscribers) : null,
+            $purchases > 0 ? trans_choice('{1} :count purchase|[2,*] :count purchases', $purchases) : null,
+            $subscribers > 0 ? trans_choice('{1} :count subscriber|[2,*] :count subscribers', $subscribers) : null,
         ]);
 
-        return 'This plan has '.implode(' and ', $parts).' and can\'t be deleted. Deactivate it instead to stop selling it.';
+        return __('This plan has :parts and can\'t be deleted. Deactivate it instead to stop selling it.', [
+            'parts' => implode(' '.__('and').' ', $parts),
+        ]);
     }
 
     /**

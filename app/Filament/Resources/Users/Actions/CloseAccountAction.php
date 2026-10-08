@@ -21,17 +21,17 @@ class CloseAccountAction extends DeleteAction
     {
         parent::setUp();
 
-        $this->label('Close account');
+        $this->label(__('Close account'));
 
-        $this->modalHeading(fn (User $record): string => "Close {$record->name}'s account?");
+        $this->modalHeading(fn (User $record): string => __('Close :name\'s account?', ['name' => $record->name]));
 
-        $this->modalDescription('Their subscription is cancelled at Stripe, and their name, email and password are replaced so they can no longer sign in or be identified. Their purchases, reservations, check-ins and payments are kept. This can\'t be undone.');
+        $this->modalDescription(__('Their subscription is cancelled at Stripe, and their name, email and password are replaced so they can no longer sign in or be identified. Their purchases, reservations, check-ins and payments are kept. This can\'t be undone.'));
 
-        $this->modalSubmitActionLabel('Close account');
+        $this->modalSubmitActionLabel(__('Close account'));
 
-        $this->successNotificationTitle('Account closed');
+        $this->successNotificationTitle(__('Account closed'));
 
-        $this->failureNotificationTitle('The account was not closed');
+        $this->failureNotificationTitle(__('The account was not closed'));
 
         $this->before(function (CloseAccountAction $action, User $record) {
             $reasons = app(AccountClosure::class)->blockers($record, auth()->user());
@@ -42,7 +42,7 @@ class CloseAccountAction extends DeleteAction
 
             Notification::make()
                 ->danger()
-                ->title("{$record->name}'s account can't be closed")
+                ->title(__(':name\'s account can\'t be closed', ['name' => $record->name]))
                 ->body(implode(' ', $reasons))
                 ->persistent()
                 ->send();
@@ -60,7 +60,7 @@ class CloseAccountAction extends DeleteAction
                 return false;
             } catch (ApiErrorException $e) {
                 report($e);
-                $action->failureNotificationTitle('Stripe could not cancel their subscription, so nothing was changed. Try again in a moment.');
+                $action->failureNotificationTitle(__('Stripe could not cancel their subscription, so nothing was changed. Try again in a moment.'));
 
                 return false;
             }

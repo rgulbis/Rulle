@@ -20,6 +20,21 @@ class SubscriptionTypeResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    public static function getNavigationLabel(): string
+    {
+        return __('Subscription Types');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('subscription type');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('subscription types');
+    }
+
     public static function form(Schema $schema): Schema
     {
         return SubscriptionTypeForm::configure($schema);

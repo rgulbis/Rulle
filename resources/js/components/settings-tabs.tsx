@@ -1,7 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useTranslation } from '@/lib/i18n/context';
 
-/** Profile | Password switcher shared by the account settings pages. */
+/** Profile | Password | Account switcher shared by the account settings pages. */
 export default function SettingsTabs() {
     const { t } = useTranslation();
     const { url } = usePage();
@@ -9,6 +9,7 @@ export default function SettingsTabs() {
     const tabs = [
         { href: '/settings/profile', label: t('settings.tabs.profile') },
         { href: '/settings/password', label: t('settings.tabs.password') },
+        { href: '/settings/account', label: t('settings.tabs.account') },
     ];
 
     return (

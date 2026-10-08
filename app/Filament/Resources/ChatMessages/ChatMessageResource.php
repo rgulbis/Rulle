@@ -18,11 +18,20 @@ class ChatMessageResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChatBubbleLeftRight;
 
-    protected static ?string $navigationLabel = 'Chat';
+    public static function getNavigationLabel(): string
+    {
+        return __('Chat');
+    }
 
-    protected static ?string $modelLabel = 'message';
+    public static function getModelLabel(): string
+    {
+        return __('message');
+    }
 
-    protected static ?string $pluralModelLabel = 'Chat';
+    public static function getPluralModelLabel(): string
+    {
+        return __('Chat');
+    }
 
     // Messages only ever come from the chat page itself — this is
     // moderation (delete, mute), not a way to author messages as an admin.

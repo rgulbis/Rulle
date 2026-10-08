@@ -441,6 +441,25 @@ const en = {
     'nav.account': 'Account',
     'settings.tabs.profile': 'Profile',
     'settings.tabs.password': 'Password',
+    'settings.tabs.account': 'Data & account',
+    'settings.account.title': 'Data & account',
+    'settings.account.subtitle':
+        'Download a copy of your data or delete your account.',
+    'settings.account.exportHeading': 'Download my data',
+    'settings.account.exportBody':
+        'A JSON file with your profile, passes, reservations, check-ins and chat messages.',
+    'settings.account.exportButton': 'Download',
+    'settings.account.deleteHeading': 'Delete my account',
+    'settings.account.deleteBody':
+        'Your name, email and chat messages are erased and you are signed out for good. Any running subscription is cancelled. Payment and visit records are kept without your identity, as the park is required to keep them.',
+    'settings.account.deleteBlocked':
+        'You have an upcoming paid reservation. Cancel it first (it is refunded under the cancellation rules), then come back here.',
+    'settings.account.deleteStaff':
+        'Staff and admin accounts are closed by an admin from the admin panel.',
+    'settings.account.passwordLabel': 'Enter your password to confirm',
+    'settings.account.deleteButton': 'Delete my account',
+    'settings.account.deleteConfirm':
+        'Delete your account permanently? This cannot be undone.',
     'settings.profile.title': 'Profile',
     'settings.profile.subtitle': 'Change the name other riders and staff see.',
     'settings.profile.preview': 'How you appear in chat',

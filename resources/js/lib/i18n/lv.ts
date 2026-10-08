@@ -444,6 +444,25 @@ const lv: Record<TranslationKey, string> = {
     'nav.account': 'Konts',
     'settings.tabs.profile': 'Profils',
     'settings.tabs.password': 'Parole',
+    'settings.tabs.account': 'Dati un konts',
+    'settings.account.title': 'Dati un konts',
+    'settings.account.subtitle':
+        'Lejupielādējiet savu datu kopiju vai dzēsiet kontu.',
+    'settings.account.exportHeading': 'Lejupielādēt manus datus',
+    'settings.account.exportBody':
+        'JSON fails ar jūsu profilu, caurlaidēm, rezervācijām, ienākšanas reizēm un čata ziņām.',
+    'settings.account.exportButton': 'Lejupielādēt',
+    'settings.account.deleteHeading': 'Dzēst manu kontu',
+    'settings.account.deleteBody':
+        'Jūsu vārds, e-pasts un čata ziņas tiks dzēstas, un jūs tiksiet izrakstīts uz visiem laikiem. Aktīvs abonements tiks atcelts. Maksājumu un apmeklējumu ieraksti tiek saglabāti bez jūsu identitātes, jo parkam tie ir jāglabā.',
+    'settings.account.deleteBlocked':
+        'Jums ir gaidāma apmaksāta rezervācija. Vispirms to atceliet (tā tiek atmaksāta pēc atcelšanas noteikumiem), tad atgriezieties šeit.',
+    'settings.account.deleteStaff':
+        'Darbinieku un administratoru kontus slēdz administrators no administrēšanas paneļa.',
+    'settings.account.passwordLabel': 'Apstiprinājumam ievadiet savu paroli',
+    'settings.account.deleteButton': 'Dzēst manu kontu',
+    'settings.account.deleteConfirm':
+        'Vai neatgriezeniski dzēst kontu? Šo darbību nevar atsaukt.',
     'settings.profile.title': 'Profils',
     'settings.profile.subtitle':
         'Mainiet vārdu, ko redz citi braucēji un darbinieki.',

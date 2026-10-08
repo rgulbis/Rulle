@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Auth\Login;
+use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetSecurityHeaders;
 use Filament\Actions\Action;
 use Filament\Http\Middleware\Authenticate;
@@ -37,10 +38,24 @@ class AdminPanelProvider extends PanelProvider
             // the rider-facing site.
             ->userMenuItems([
                 Action::make('back-to-site')
-                    ->label('Back to site')
+                    ->label(fn (): string => __('Back to site'))
                     ->icon(Heroicon::OutlinedArrowUturnLeft)
                     ->url('/')
                     ->sort(-1),
+                // The same cookie the public site's language toggle writes,
+                // so the admin follows whichever language was picked there.
+                Action::make('language-lv')
+                    ->label('Latviešu')
+                    ->icon(Heroicon::OutlinedLanguage)
+                    ->url('/locale/lv')
+                    ->visible(fn (): bool => app()->getLocale() !== 'lv')
+                    ->sort(-2),
+                Action::make('language-en')
+                    ->label('English')
+                    ->icon(Heroicon::OutlinedLanguage)
+                    ->url('/locale/en')
+                    ->visible(fn (): bool => app()->getLocale() !== 'en')
+                    ->sort(-2),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
@@ -50,6 +65,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->middleware([
                 EncryptCookies::class,
+                SetLocale::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
                 AuthenticateSession::class,

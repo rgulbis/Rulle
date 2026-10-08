@@ -44,11 +44,11 @@ class AccountClosure
         $reasons = [];
 
         if ($actor !== null && $actor->is($user)) {
-            $reasons[] = 'You can\'t close your own account.';
+            $reasons[] = __('You can\'t close your own account.');
         }
 
         if ($user->isAdmin() && ! User::where('role', 'admin')->where('id', '!=', $user->id)->exists()) {
-            $reasons[] = 'This is the last admin account, and the admin panel would be locked.';
+            $reasons[] = __('This is the last admin account, and the admin panel would be locked.');
         }
 
         $upcoming = Reservation::where('user_id', $user->id)
@@ -57,7 +57,7 @@ class AccountClosure
             ->count();
 
         if ($upcoming > 0) {
-            $reasons[] = "They have {$upcoming} upcoming paid ".Str::plural('reservation', $upcoming).'; cancel (and refund) '.($upcoming === 1 ? 'it' : 'them').' first.';
+            $reasons[] = trans_choice('{1} They have :count upcoming paid reservation; cancel (and refund) it first.|[2,*] They have :count upcoming paid reservations; cancel (and refund) them first.', $upcoming);
         }
 
         return $reasons;

@@ -40,8 +40,8 @@ class SyncToStripeAction extends Action
 
             Notification::make()
                 ->warning()
-                ->title('Saved, but not synced to Stripe yet')
-                ->body('Stripe couldn\'t be reached or refused the plan. It stays off sale until it is synced; use "Sync to Stripe" to retry, or it is retried automatically.')
+                ->title(__('Saved, but not synced to Stripe yet'))
+                ->body(__('Stripe couldn\'t be reached or refused the plan. It stays off sale until it is synced; use "Sync to Stripe" to retry, or it is retried automatically.'))
                 ->persistent()
                 ->send();
 
@@ -55,13 +55,13 @@ class SyncToStripeAction extends Action
     {
         parent::setUp();
 
-        $this->label('Sync to Stripe');
+        $this->label(__('Sync to Stripe'));
         $this->icon('heroicon-o-arrow-path');
         $this->visible(fn (SubscriptionType $record): bool => $record->needsStripeSync());
 
         $this->action(function (SubscriptionType $record) {
             if (static::attempt($record)) {
-                Notification::make()->success()->title('Synced to Stripe')->send();
+                Notification::make()->success()->title(__('Synced to Stripe'))->send();
             }
         });
     }

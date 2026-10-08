@@ -7,18 +7,62 @@ use App\Http\Controllers\LivestreamController;
 use App\Http\Controllers\Reservations\ReservationChatController;
 use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\Reservations\ReservationInvitationController;
+use App\Http\Controllers\Settings\AccountController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Staff\ScanController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\Subscriptions\SubscriptionController;
+use App\Http\Middleware\SetLocale;
 use App\Models\ChatMessage;
+use App\Support\Seo;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // `{globalMessage}` only ever resolves a message from the global room. A
 // reservation's private group chat message id 404s on every global-chat route
 // by construction, so no controller method has to remember to check.
 Route::bind('globalMessage', fn (string $value) => ChatMessage::whereNull('reservation_id')->findOrFail($value));
+
+// Language switch for pages that aren't React (the Filament admin): sets the
+// cookie the public site's toggle also writes, then returns to where the
+// visitor came from.
+Route::get('locale/{locale}', function (Request $request, string $locale) {
+    abort_unless(in_array($locale, SetLocale::SUPPORTED, true), 404);
+
+    return redirect()->back(fallback: '/')->withCookie(cookie('locale', $locale, 60 * 24 * 365, '/', null, null, false, false, 'lax'));
+})->name('locale.set');
+
+// Served from here (not a static file) so the sitemap line carries the real
+// site address, and so anything that isn't production tells crawlers to stay
+// away.
+Route::get('robots.txt', function () {
+    $lines = app()->isProduction()
+        ? [
+            'User-agent: *',
+            'Disallow: /admin',
+            'Disallow: /dashboard',
+            'Disallow: /settings',
+            'Disallow: /staff',
+            'Disallow: /chat',
+            'Disallow: /subscriptions',
+            'Disallow: /reservations',
+            'Disallow: /locale',
+            '',
+            'Sitemap: '.Seo::absoluteUrl('/sitemap.xml'),
+        ]
+        : ['User-agent: *', 'Disallow: /'];
+
+    return response(implode("\n", $lines)."\n", 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+})->name('robots');
+
+Route::get('sitemap.xml', function () {
+    $urls = collect(Seo::SITEMAP_PATHS)
+        ->map(fn (string $path) => '<url><loc>'.e(Seo::absoluteUrl($path)).'</loc></url>')
+        ->implode('');
+
+    return response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'.$urls.'</urlset>', 200, ['Content-Type' => 'application/xml; charset=UTF-8']);
+})->name('sitemap');
 
 Route::post('stripe/webhook', [StripeWebhookController::class, 'handleWebhook'])->name('cashier.webhook');
 
@@ -41,6 +85,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('settings/password', [PasswordController::class, 'edit'])->name('password.edit');
     Route::put('settings/password', [PasswordController::class, 'update'])->name('password.update');
+    Route::get('settings/account', [AccountController::class, 'edit'])->name('account.edit');
+    Route::get('settings/account/export', [AccountController::class, 'export'])->middleware('throttle:5,1')->name('account.export');
+    Route::delete('settings/account', [AccountController::class, 'destroy'])->middleware('throttle:5,1')->name('account.destroy');
 });
 
 // Open to every logged-in role (customer, employee, admin) — chat isn't

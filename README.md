@@ -413,6 +413,7 @@ to get the same jobs. Every job is safe to repeat.
 | `db:backup --keep=28`           | every 6 hours    | Snapshots the SQLite database.                                                                          |
 | `payments:retry-refunds`        | every 15 minutes | Retries refunds Stripe didn't confirm.                                                                  |
 | `plans:sync-stripe`             | every 15 minutes | Syncs plans whose Stripe Product/Price is out of date.                                                  |
+| `payments:expire-abandoned`     | hourly           | Closes pass/reservation checkouts left unpaid for 25 h (a backstop for `checkout.session.expired`).     |
 | `checkins:close-stale`          | every 5 minutes  | Writes the missing check-out for anyone still inside after closing time or `CHECKIN_MAX_VISIT_MINUTES`. |
 | `model:prune` (spent QR tokens) | daily            | Deletes expired single-use token records.                                                               |
 
@@ -514,6 +515,34 @@ reservations, check-ins and payments are kept and show as "Deleted user N"; chat
 messages and participant links are removed. An account with an upcoming paid
 reservation can't be closed, an admin can't close themselves or the last admin,
 and there is no bulk delete.
+
+Customers can also do this themselves on **Settings > Data & account**
+(`Settings\AccountController`): the same closure after re-entering their password, blocked
+by the same upcoming-reservation rule. The page also offers a JSON download of their own
+data (profile, passes, subscriptions, reservations, check-ins, chat messages; no secrets and
+nothing about other people). Staff and admin accounts are closed from the admin panel.
+
+### Languages
+
+The public site and the admin panel are Latvian and English. The visitor's choice is one
+`locale` cookie, written by the site's language toggle and read by `SetLocale`, on the
+Filament panel too (its user menu has a language switch that hits `GET /locale/{lv|en}`).
+Without a cookie the app uses `APP_LOCALE`; the deploy sets it to `lv`, matching the
+frontend's default. Admin text is wrapped in `__()` with the English text as the key and
+the Latvian in `lang/lv.json`.
+
+### Search engines
+
+`resources/views/app.blade.php` and `App\Support\Seo` put a description, canonical URL,
+Open Graph/Twitter tags (image: `public/og-image.png`, 1200x630) and, on the home page,
+schema.org `SportsActivityLocation` JSON-LD (opening hours come from the reservation
+settings) in the page head. Only the home and livestream pages are `index`; everything else
+is `noindex`. `/robots.txt` and `/sitemap.xml` are routes: outside production robots.txt
+disallows everything, so staging never gets indexed.
+
+To appear in Google: add the property in Google Search Console, verify it (a DNS TXT record
+in Cloudflare is easiest), then submit `https://www.xn--rull-eva.lv/sitemap.xml`. Make sure
+Cloudflare's bot protection doesn't challenge Googlebot.
 
 ### Reservations, participants and group chat
 

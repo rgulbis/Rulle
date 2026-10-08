@@ -15,7 +15,20 @@ class PurchaseResource extends Resource
 {
     protected static ?string $model = Purchase::class;
 
-    protected static ?string $navigationLabel = 'One-Time Passes';
+    public static function getNavigationLabel(): string
+    {
+        return __('One-Time Passes');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('purchase');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('purchases');
+    }
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 

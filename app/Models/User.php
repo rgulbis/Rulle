@@ -177,11 +177,11 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         }
 
         if ($actor !== null && $actor->is($this)) {
-            return 'You can\'t remove your own admin role. Ask another admin to do it.';
+            return __('You can\'t remove your own admin role. Ask another admin to do it.');
         }
 
         if (! static::where('role', 'admin')->where('id', '!=', $this->id)->exists()) {
-            return 'This is the last admin account, and the admin panel would be locked.';
+            return __('This is the last admin account, and the admin panel would be locked.');
         }
 
         return null;

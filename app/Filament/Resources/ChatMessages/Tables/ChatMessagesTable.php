@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ChatMessages\Tables;
 
+use App\Filament\Support\Labels;
 use App\Models\ChatMessage;
 use App\Support\ChatModeration;
 use Filament\Actions\Action;
@@ -18,52 +19,57 @@ class ChatMessagesTable
         return $table
             ->columns([
                 TextColumn::make('user.name')
-                    ->label('From')
+                    ->label(__('From'))
                     ->searchable(),
                 TextColumn::make('user.role')
+                    ->label(__('Role'))
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => Labels::roles()[$state] ?? $state)
                     ->color(fn (string $state): string => match ($state) {
                         'admin', 'employee' => 'warning',
                         default => 'gray',
                     }),
                 TextColumn::make('body')
-                    ->label('Message')
+                    ->label(__('Message'))
                     ->limit(80)
                     ->wrap(),
                 IconColumn::make('pinned_at')
-                    ->label('Pinned')
+                    ->label(__('Pinned'))
                     ->boolean()
                     ->getStateUsing(fn (ChatMessage $record) => $record->pinned_at !== null),
                 IconColumn::make('user.chat_muted_until')
-                    ->label('Muted')
+                    ->label(__('Muted'))
                     ->boolean()
                     ->getStateUsing(fn (ChatMessage $record) => $record->user->isChatMuted()),
                 TextColumn::make('created_at')
-                    ->label('Sent')
+                    ->label(__('Sent'))
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
             ->recordActions([
                 Action::make('pin')
+                    ->label(__('Pin'))
                     ->color('info')
                     ->visible(fn (ChatMessage $record) => $record->pinned_at === null)
                     ->action(fn (ChatMessage $record) => $record->pin()),
                 Action::make('unpin')
+                    ->label(__('Unpin'))
                     ->color('gray')
                     ->visible(fn (ChatMessage $record) => $record->pinned_at !== null)
                     ->action(fn (ChatMessage $record) => $record->unpin()),
                 Action::make('mute')
+                    ->label(__('Mute'))
                     ->color('warning')
                     ->visible(fn (ChatMessage $record) => ChatModeration::canMute(auth()->user(), $record->user))
                     ->schema([
                         Select::make('hours')
-                            ->label('Mute for')
+                            ->label(__('Mute for'))
                             ->options([
-                                1 => '1 hour',
-                                24 => '1 day',
-                                168 => '1 week',
-                                720 => '30 days',
+                                1 => __('1 hour'),
+                                24 => __('1 day'),
+                                168 => __('1 week'),
+                                720 => __('30 days'),
                             ])
                             ->default(24)
                             ->required(),
@@ -77,6 +83,7 @@ class ChatMessagesTable
                         ]);
                     }),
                 Action::make('unmute')
+                    ->label(__('Unmute'))
                     ->color('gray')
                     ->visible(fn (ChatMessage $record) => $record->user->isChatMuted()
                         && ChatModeration::canMute(auth()->user(), $record->user))

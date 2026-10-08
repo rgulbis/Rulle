@@ -21,8 +21,8 @@ class ActiveRidersStats extends StatsOverviewWidget
     protected function getStats(): array
     {
         return [
-            Stat::make('Active riders', CheckInOccupancy::currentlyCheckedInCount())
-                ->description('Currently checked in')
+            Stat::make(__('Active riders'), CheckInOccupancy::currentlyCheckedInCount())
+                ->description(__('Currently checked in'))
                 ->color('success')
                 ->icon(Heroicon::OutlinedUserGroup),
         ];

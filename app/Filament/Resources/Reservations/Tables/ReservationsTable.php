@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Reservations\Tables;
 
+use App\Filament\Support\Labels;
 use App\Models\Reservation;
 use App\Support\Payments\RefundOutcome;
 use App\Support\Payments\Refunds;
@@ -18,35 +19,37 @@ class ReservationsTable
         return $table
             ->columns([
                 TextColumn::make('user.name')
-                    ->label('Reserved by')
+                    ->label(__('Reserved by'))
                     ->searchable(),
                 TextColumn::make('starts_at')
-                    ->label('Starts')
+                    ->label(__('Starts'))
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
                 TextColumn::make('ends_at')
-                    ->label('Ends')
+                    ->label(__('Ends'))
                     ->dateTime('H:i')
                     ->sortable(),
                 TextColumn::make('group_size')
-                    ->label('Group size'),
+                    ->label(__('Group size')),
                 TextColumn::make('participants_count')
-                    ->label('Accepted')
+                    ->label(__('Accepted'))
                     ->counts('participants'),
                 TextColumn::make('price_cents')
-                    ->label('Price')
+                    ->label(__('Price'))
                     ->formatStateUsing(fn (int $state) => number_format($state / 100, 2).' €'),
                 TextColumn::make('status')
+                    ->label(__('Status'))
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => Labels::humanise($state))
                     ->color(fn (string $state): string => match ($state) {
                         'active' => 'success',
                         'pending' => 'warning',
                         default => 'gray',
                     }),
                 TextColumn::make('payment_status')
-                    ->label('Payment')
+                    ->label(__('Payment'))
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => str($state)->replace('_', ' ')->ucfirst()->toString())
+                    ->formatStateUsing(fn (string $state): string => Labels::humanise($state))
                     ->color(fn (string $state): string => match ($state) {
                         'paid' => 'success',
                         'refunded', 'partially_refunded' => 'info',
@@ -54,37 +57,33 @@ class ReservationsTable
                         default => 'gray',
                     }),
                 TextColumn::make('refunded_cents')
-                    ->label('Refunded')
+                    ->label(__('Refunded'))
                     ->formatStateUsing(fn (int $state): string => $state === 0 ? '—' : number_format($state / 100, 2).' €')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('starts_at', 'desc')
             ->filters([
                 SelectFilter::make('status')
+                    ->label(__('Status'))
                     ->options([
-                        'active' => 'Active',
-                        'pending' => 'Pending',
-                        'cancelled' => 'Cancelled',
+                        'active' => __('Active'),
+                        'pending' => __('Pending'),
+                        'cancelled' => __('Cancelled'),
                     ]),
                 SelectFilter::make('payment_status')
-                    ->label('Payment')
-                    ->options([
-                        'unpaid' => 'Unpaid',
-                        'paid' => 'Paid',
-                        'refunded' => 'Refunded',
-                        'partially_refunded' => 'Partially refunded',
-                        'refund_failed' => 'Refund failed',
-                    ]),
+                    ->label(__('Payment'))
+                    ->options(Labels::paymentStatuses()),
             ])
             ->recordActions([
                 Action::make('cancel')
+                    ->label(__('Cancel'))
                     ->requiresConfirmation()
                     // Say what clicking this actually does to the money:
                     // it is not obvious from "Are you sure?".
                     ->modalDescription(fn (Reservation $record): string => match (true) {
-                        $record->status === 'pending' => 'This reservation has not been paid for, so cancelling it only frees the slot. Nothing is refunded.',
-                        $record->starts_at->isFuture() => 'The customer will be refunded €'.number_format($record->price_cents / 100, 2).' in full and the slot is freed. Admin cancellations are always refunded, whatever the cancellation cutoff says.',
-                        default => 'This reservation has already started, so it is cancelled without a refund.',
+                        $record->status === 'pending' => __('This reservation has not been paid for, so cancelling it only frees the slot. Nothing is refunded.'),
+                        $record->starts_at->isFuture() => __('The customer will be refunded €:amount in full and the slot is freed. Admin cancellations are always refunded, whatever the cancellation cutoff says.', ['amount' => number_format($record->price_cents / 100, 2)]),
+                        default => __('This reservation has already started, so it is cancelled without a refund.'),
                     })
                     ->color('danger')
                     ->visible(fn (Reservation $record) => $record->status !== 'cancelled')
@@ -116,15 +115,15 @@ class ReservationsTable
                         // Recorded before Stripe is called, and retried by
                         // `payments:retry-refunds` if Stripe doesn't confirm.
                         match (app(Refunds::class)->refundInFull($record)) {
-                            RefundOutcome::Refunded => Notification::make()->title('Cancelled and refunded')->success()->send(),
+                            RefundOutcome::Refunded => Notification::make()->title(__('Cancelled and refunded'))->success()->send(),
                             RefundOutcome::Pending => Notification::make()
-                                ->title('Cancelled, refund not confirmed yet')
-                                ->body('Stripe did not confirm the refund. It is recorded and will be retried automatically.')
+                                ->title(__('Cancelled, refund not confirmed yet'))
+                                ->body(__('Stripe did not confirm the refund. It is recorded and will be retried automatically.'))
                                 ->warning()
                                 ->send(),
                             RefundOutcome::NothingToRefund => Notification::make()
-                                ->title('Cancelled, nothing to refund')
-                                ->body('No Stripe payment is on record for this reservation.')
+                                ->title(__('Cancelled, nothing to refund'))
+                                ->body(__('No Stripe payment is on record for this reservation.'))
                                 ->warning()
                                 ->send(),
                         };
