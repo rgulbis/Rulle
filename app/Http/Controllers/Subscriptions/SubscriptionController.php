@@ -30,9 +30,22 @@ class SubscriptionController extends Controller
     {
         $user = $request->user();
         $subscription = $user->subscription('default');
+        $purchase = $user->activeOneTimePurchase();
 
         return Inertia::render('subscriptions/index', [
-            'plans' => SubscriptionType::where('active', true)->get(),
+            // Only what a price card needs — not the Stripe ids or sync
+            // bookkeeping (same shape as the home page).
+            'plans' => SubscriptionType::where('active', true)->get([
+                'id',
+                'name',
+                'name_lv',
+                'description',
+                'description_lv',
+                'price_cents',
+                'billing_interval',
+                'visit_limit',
+                'unlimited_entries',
+            ]),
             'mostPopularPlanId' => SubscriptionType::mostPopularId(),
             'activeSubscription' => $subscription ? [
                 'stripe_status' => $subscription->stripe_status,
@@ -40,7 +53,12 @@ class SubscriptionController extends Controller
                 'on_grace_period' => $subscription->onGracePeriod(),
                 'canceled' => $subscription->canceled(),
             ] : null,
-            'activePurchase' => $user->activeOneTimePurchase(),
+            // Just what the page shows about it, not the purchase row (which
+            // carries the Stripe checkout session id and payment state).
+            'activePurchase' => $purchase ? [
+                'visits_remaining' => $purchase->visits_remaining,
+                'subscription_type' => ['unlimited_entries' => $purchase->subscriptionType->unlimited_entries],
+            ] : null,
             'priceChange' => ($subscription && ! $subscription->canceled())
                 ? $this->detectPriceChange($subscription)
                 : null,
@@ -112,6 +130,11 @@ class SubscriptionController extends Controller
 
         abort_unless($type && $type->stripe_price_id, 404);
 
+        // Nothing to switch to: already on the plan's current price.
+        if ($currentPriceId === $type->stripe_price_id) {
+            return redirect()->route('subscriptions.index')->with('status', 'price-unchanged');
+        }
+
         $subscription->swap($type->stripe_price_id);
 
         // The webhook records this too; doing it here keeps the ledger right
@@ -132,6 +155,26 @@ class SubscriptionController extends Controller
         return redirect()->route('subscriptions.index')->with('status', 'subscription-cancelled');
     }
 
+    /**
+     * Undoes a cancellation while the paid period is still running: the
+     * subscription renews as if it had never been cancelled. Idempotent — a
+     * subscription that isn't cancelled is simply left as it is — and
+     * refused once the period has ended (that one is over, subscribe again).
+     */
+    public function resumeSubscription(Request $request): RedirectResponse
+    {
+        $subscription = $request->user()->subscription('default');
+
+        abort_unless($subscription && (! $subscription->canceled() || $subscription->onGracePeriod()), 404);
+
+        if ($subscription->canceled()) {
+            $this->stripe->resumeSubscription($subscription->stripe_id);
+            $subscription->forceFill(['ends_at' => null])->save();
+        }
+
+        return redirect()->route('subscriptions.index')->with('status', 'subscription-resumed');
+    }
+
     public function checkout(
         Request $request,
         SubscriptionType $subscriptionType,
@@ -150,7 +193,7 @@ class SubscriptionController extends Controller
             return Cache::lock("subscription-checkout:{$user->id}", 30)
                 ->block(5, fn () => $this->startCheckout($user, $subscriptionType));
         } catch (LockTimeoutException) {
-            abort(429, 'Another checkout is already in progress.');
+            abort(429, __('Another checkout is already in progress.'));
         }
     }
 
@@ -163,7 +206,7 @@ class SubscriptionController extends Controller
             $alreadySubscribed = $user->subscribed('default')
                 && ! $user->subscription('default')->canceled();
 
-            abort_if($alreadySubscribed, 409, 'You already have an active subscription.');
+            abort_if($alreadySubscribed, 409, __('You already have an active subscription.'));
 
             // A session the customer opened earlier and never finished is
             // still good for 24 hours: send them back to it rather than
@@ -183,6 +226,13 @@ class SubscriptionController extends Controller
             // would try to XHR-fetch Stripe's page); Inertia::location does
             // a full browser navigation instead.
             return Inertia::location($session->url);
+        }
+
+        // A pass that still has visits (or today's unlimited entry) left
+        // doesn't need a second one on top — and a second payment would
+        // mostly be somebody paying twice by accident.
+        if ($user->activeOneTimePurchase() !== null) {
+            return redirect()->route('subscriptions.index')->with('status', 'pass-already-active');
         }
 
         $pending = Purchase::where('user_id', $user->id)

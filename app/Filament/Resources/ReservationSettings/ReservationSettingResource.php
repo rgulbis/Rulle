@@ -40,6 +40,9 @@ class ReservationSettingResource extends Resource
                     ->required()
                     ->numeric()
                     ->minValue(SubscriptionType::MIN_PRICE_CENTS / 100)
+                    // A typo (an extra zero, a misplaced decimal) shouldn't
+                    // be able to put an absurd rate on every booking.
+                    ->maxValue(ReservationSetting::MAX_PRICE_CENTS_PER_PERSON_PER_HOUR / 100)
                     ->step(0.01)
                     ->prefix('€')
                     ->formatStateUsing(fn (?int $state) => $state !== null ? $state / 100 : null)
@@ -60,13 +63,15 @@ class ReservationSettingResource extends Resource
                     ->label('Minimum group size')
                     ->required()
                     ->numeric()
-                    ->minValue(1),
+                    ->minValue(1)
+                    ->maxValue(ReservationSetting::MAX_GROUP_SIZE_LIMIT),
 
                 TextInput::make('max_group_size')
                     ->label('Maximum group size')
                     ->required()
                     ->numeric()
                     ->minValue(1)
+                    ->maxValue(ReservationSetting::MAX_GROUP_SIZE_LIMIT)
                     ->gte('min_group_size')
                     ->helperText('Caps how many people a single reservation can be made for.'),
 
@@ -74,13 +79,15 @@ class ReservationSettingResource extends Resource
                     ->label('Minimum reservation length (minutes)')
                     ->required()
                     ->numeric()
-                    ->minValue(15),
+                    ->minValue(15)
+                    ->maxValue(ReservationSetting::MAX_DURATION_LIMIT_MINUTES),
 
                 TextInput::make('max_duration_minutes')
                     ->label('Maximum reservation length (minutes)')
                     ->required()
                     ->numeric()
                     ->minValue(15)
+                    ->maxValue(ReservationSetting::MAX_DURATION_LIMIT_MINUTES)
                     ->gte('min_duration_minutes'),
 
                 TextInput::make('opening_time')
@@ -95,13 +102,24 @@ class ReservationSettingResource extends Resource
                     ->required()
                     ->placeholder('23:00')
                     ->regex('/^([01]\d|2[0-3]):[0-5]\d$/')
-                    ->helperText('24-hour, e.g. 23:00'),
+                    // Both are zero-padded "HH:MM", so comparing them as
+                    // strings is comparing them as times. The booking and
+                    // entry checks assume the park closes later the same day.
+                    ->rules([
+                        fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get) {
+                            if (is_string($value) && is_string($get('opening_time')) && $value <= $get('opening_time')) {
+                                $fail('The park has to close after it opens (the same day).');
+                            }
+                        },
+                    ])
+                    ->helperText('24-hour, e.g. 23:00. Must be after the opening time.'),
 
                 TextInput::make('cancellation_cutoff_hours')
                     ->label('Cancellation refund cutoff (hours)')
                     ->required()
                     ->numeric()
                     ->minValue(0)
+                    ->maxValue(ReservationSetting::MAX_CANCELLATION_CUTOFF_HOURS)
                     ->helperText('A paid reservation cancelled at least this many hours before its start gets refunded; cancelling closer to the start still frees the slot but forfeits the payment.'),
             ]);
     }

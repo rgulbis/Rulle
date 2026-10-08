@@ -28,7 +28,9 @@ class ScanController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'code' => ['required', 'string'],
+            // A token is under 100 characters; anything much longer is not a
+            // code and isn't worth verifying.
+            'code' => ['required', 'string', 'max:512'],
             'mode' => ['required', 'in:entry,exit'],
         ]);
 
@@ -85,6 +87,16 @@ class ScanController extends Controller
         // while the real owner is still on-site) and vice versa.
         if ($entering === $user->isCurrentlyCheckedIn()) {
             return $deny(409, $entering ? __('Already checked in.') : __('Not currently checked in.'));
+        }
+
+        // Just scanned in: an exit right away is nearly always the same
+        // person scanned twice with the mode switched, so say so instead of
+        // checking them straight back out. A refusal here leaves the code
+        // unspent, like the others above the point of no return.
+        $minStay = (int) config('checkin.min_stay_seconds');
+
+        if (! $entering && $minStay > 0 && $user->checkedInWithin($minStay)) {
+            return $deny(409, __('Just checked in. Wait a few seconds before checking out.'));
         }
 
         $purchaseToSpend = null;

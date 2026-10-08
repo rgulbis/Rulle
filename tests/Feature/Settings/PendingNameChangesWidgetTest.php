@@ -30,7 +30,7 @@ test('approving from the widget applies the name change', function () {
     $user = User::factory()->create(['name' => 'Old Name', 'pending_name' => 'New Name']);
 
     $this->actingAs($admin);
-    Livewire::test(PendingNameChanges::class)->callTableAction('approveName', $user);
+    Livewire::test(PendingNameChanges::class)->callTableAction('approveName', $user)->assertNotified('Name approved');
 
     expect($user->fresh()->name)->toBe('New Name');
     expect($user->fresh()->pending_name)->toBeNull();
@@ -41,7 +41,7 @@ test('rejecting from the widget discards the request', function () {
     $user = User::factory()->create(['name' => 'Old Name', 'pending_name' => 'New Name']);
 
     $this->actingAs($admin);
-    Livewire::test(PendingNameChanges::class)->callTableAction('rejectName', $user);
+    Livewire::test(PendingNameChanges::class)->callTableAction('rejectName', $user)->assertNotified('Name request rejected');
 
     expect($user->fresh()->name)->toBe('Old Name');
     expect($user->fresh()->pending_name)->toBeNull();

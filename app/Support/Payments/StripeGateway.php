@@ -9,6 +9,7 @@ use Laravel\Cashier\Cashier;
 use Stripe\Charge;
 use Stripe\Checkout\Session;
 use Stripe\Exception\ApiErrorException;
+use Stripe\Invoice;
 use Stripe\Refund;
 
 /**
@@ -101,6 +102,38 @@ class StripeGateway
             'cancel_url' => $cancelUrl,
             'mode' => 'payment',
         ])->asStripeCheckoutSession();
+    }
+
+    /**
+     * Every paid invoice in the Stripe account, optionally within a creation
+     * window (Unix timestamps), newest first. The account may hold invoices
+     * that aren't this app's, so callers filter by customer.
+     *
+     * @return iterable<Invoice>
+     *
+     * @throws ApiErrorException when Stripe can't be asked
+     */
+    public function paidInvoices(?int $sinceTimestamp = null, ?int $untilTimestamp = null): iterable
+    {
+        $params = ['status' => 'paid', 'limit' => 100];
+
+        if ($sinceTimestamp !== null || $untilTimestamp !== null) {
+            $params['created'] = array_filter([
+                'gte' => $sinceTimestamp,
+                'lte' => $untilTimestamp,
+            ], fn ($value) => $value !== null);
+        }
+
+        return Cashier::stripe()->invoices->all($params)->autoPagingIterator();
+    }
+
+    /**
+     * Takes back a cancellation made with "cancel at period end": the
+     * subscription carries on and renews as normal.
+     */
+    public function resumeSubscription(string $stripeSubscriptionId): void
+    {
+        Cashier::stripe()->subscriptions->update($stripeSubscriptionId, ['cancel_at_period_end' => false]);
     }
 
     /**

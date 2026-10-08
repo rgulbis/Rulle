@@ -79,6 +79,13 @@ class ReservationsTable
             ->recordActions([
                 Action::make('cancel')
                     ->requiresConfirmation()
+                    // Say what clicking this actually does to the money:
+                    // it is not obvious from "Are you sure?".
+                    ->modalDescription(fn (Reservation $record): string => match (true) {
+                        $record->status === 'pending' => 'This reservation has not been paid for, so cancelling it only frees the slot. Nothing is refunded.',
+                        $record->starts_at->isFuture() => 'The customer will be refunded €'.number_format($record->price_cents / 100, 2).' in full and the slot is freed. Admin cancellations are always refunded, whatever the cancellation cutoff says.',
+                        default => 'This reservation has already started, so it is cancelled without a refund.',
+                    })
                     ->color('danger')
                     ->visible(fn (Reservation $record) => $record->status !== 'cancelled')
                     ->action(function (Reservation $record) {

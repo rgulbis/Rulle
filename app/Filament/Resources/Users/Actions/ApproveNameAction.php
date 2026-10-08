@@ -30,6 +30,8 @@ class ApproveNameAction extends Action
             $name = $record->pending_name;
 
             if ($record->approvePendingName()) {
+                Notification::make()->success()->title('Name approved')->body("\"{$name}\" is now showing everywhere.")->send();
+
                 return;
             }
 

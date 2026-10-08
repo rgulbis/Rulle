@@ -143,6 +143,13 @@ const lv: Record<TranslationKey, string> = {
     'subscriptions.periodEnd': 'perioda beigās',
     'subscriptions.active': 'Aktīvs abonements ({status})',
     'subscriptions.cancelSubscription': 'Atcelt abonementu',
+    'subscriptions.resumeSubscription': 'Atjaunot abonementu',
+    'subscriptions.statusSubscriptionResumed':
+        'Jūsu abonements atjaunosies kā ierasti.',
+    'subscriptions.statusPriceUnchanged': 'Jums jau ir spēkā pašreizējā cena.',
+    'subscriptions.statusPassActive':
+        'Jums jau ir aktīva biļete. Izmantojiet to, pirms pērkat citu.',
+    'subscriptions.alreadyHavePass': 'Jums jau ir biļete',
     'subscriptions.confirmCancel':
         'Atcelt abonementu? Piekļuve saglabāsies līdz pašreizējā norēķinu perioda beigām.',
     'subscriptions.priceChanged':

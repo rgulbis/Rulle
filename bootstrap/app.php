@@ -12,6 +12,7 @@ use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -61,6 +62,20 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // A JSON client asking for something that isn't there (or a route
+        // model binding that finds nothing) would otherwise be told which
+        // model class failed to load — "No query results for model
+        // [App\\Models\\ChatMessage] 99". Say only that it isn't found.
+        $exceptions->render(function (NotFoundHttpException $e, Request $request) {
+            if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+                SetLocale::apply($request);
+
+                return response()->json(['message' => __('Not found.')], 404);
+            }
+
+            return null;
+        });
 
         // Laravel's stock error pages are plain and unstyled. For the site's
         // own pages, show a proper on-brand one instead (and with the user's

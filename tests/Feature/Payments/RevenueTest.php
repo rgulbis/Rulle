@@ -149,3 +149,39 @@ test('swapping to a new price updates what is billed, and repricing the plan lat
 
     expect(Payment::where('type', 'subscription')->first()->amount_cents)->toBe(3000);
 });
+
+/*
+| Subscription revenue is read from Stripe, but only for this app's own
+| customers, net of credit notes.
+*/
+
+test('subscription revenue counts only this app\'s customers, net of credit notes', function () {
+    $stripe = fakeStripe();
+    User::factory()->create(['stripe_id' => 'cus_ours']);
+    $closed = User::factory()->create(['stripe_id' => 'cus_closed']);
+    $closed->delete();
+
+    $stripe->addPaidInvoice('cus_ours', 3500);
+    $stripe->addPaidInvoice('cus_ours', 3500, ['post_payment_credit_notes_amount' => 1000]);
+    $stripe->addPaidInvoice('cus_closed', 2000);
+    // Not ours: left over in the Stripe account from testing or another app.
+    $stripe->addPaidInvoice('cus_stranger', 99900);
+
+    expect(revenueStat('Subscriptions'))->toBe('80.00 €');
+});
+
+test('a fully credited invoice nets out to nothing, never below zero', function () {
+    $stripe = fakeStripe();
+    User::factory()->create(['stripe_id' => 'cus_ours']);
+
+    $stripe->addPaidInvoice('cus_ours', 3500, ['post_payment_credit_notes_amount' => 5000]);
+
+    expect(revenueStat('Subscriptions'))->toBe('0.00 €');
+});
+
+test('with no Stripe customers of its own, subscription revenue is zero', function () {
+    $stripe = fakeStripe();
+    $stripe->addPaidInvoice('cus_stranger', 99900);
+
+    expect(revenueStat('Subscriptions'))->toBe('0.00 €');
+});

@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import { useEffect, useRef, useState } from 'react';
 import { getCsrfToken } from '@/lib/csrf';
 import { CheckIcon, CrossIcon, EntryIcon, ExitIcon } from '@/components/icons';
@@ -82,7 +82,21 @@ export default function Scan() {
             .catch((err: unknown) => setError(String(err)));
 
         return () => {
-            scanner.stop().catch(() => {});
+            // stop() throws straight away (not a rejected promise) when the
+            // scanner never started — e.g. the camera was refused — so ask
+            // first instead of relying on a .catch().
+            try {
+                const state = scanner.getState();
+
+                if (
+                    state === Html5QrcodeScannerState.SCANNING ||
+                    state === Html5QrcodeScannerState.PAUSED
+                ) {
+                    scanner.stop().catch(() => {});
+                }
+            } catch {
+                // Nothing running, nothing to stop.
+            }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- runs the scanner setup once; `t` is intentionally not a dependency here.
     }, []);

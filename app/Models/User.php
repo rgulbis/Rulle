@@ -243,6 +243,19 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
      * App\Support\CheckInOccupancy for the equivalent count across everyone.
      * A check-in older than the longest plausible visit no longer counts.
      */
+    /**
+     * Whether their latest event is a check-in from the last $seconds
+     * seconds, i.e. they were only just scanned in.
+     */
+    public function checkedInWithin(int $seconds): bool
+    {
+        $latest = CheckInEvent::where('user_id', $this->id)->orderByDesc('id')->first(['checked_in', 'created_at']);
+
+        return $latest !== null
+            && $latest->checked_in
+            && $latest->created_at->gt(now()->subSeconds($seconds));
+    }
+
     public function isCurrentlyCheckedIn(): bool
     {
         // Ordered by id, not created_at: two events landing in the same

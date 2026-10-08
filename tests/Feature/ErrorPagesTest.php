@@ -34,3 +34,20 @@ it('leaves the admin panel to Filament', function () {
         ->assertNotFound()
         ->assertDontSee('"component":"error"', false);
 });
+
+test('a JSON request for something that does not exist gets a plain not-found, not the model class', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->getJson('/reservations/99999/chat');
+
+    $response->assertNotFound()->assertExactJson(['message' => 'Not found.']);
+    expect($response->getContent())->not->toContain('App\\Models');
+});
+
+test('the not-found message follows the visitor\'s language', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->withUnencryptedCookie('locale', 'lv')->withCredentials()
+        ->getJson('/reservations/99999/chat')
+        ->assertNotFound()->assertExactJson(['message' => 'Nav atrasts.']);
+});

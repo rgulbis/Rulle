@@ -52,6 +52,10 @@ export default function Subscriptions({
         }
     };
 
+    const resumeSubscription = () => {
+        router.post('/subscriptions/subscription/resume');
+    };
+
     const swapToNewPrice = () => {
         router.post('/subscriptions/subscription/swap');
     };
@@ -69,6 +73,9 @@ export default function Subscriptions({
         'subscription-cancelled': t(
             'subscriptions.statusSubscriptionCancelled',
         ),
+        'subscription-resumed': t('subscriptions.statusSubscriptionResumed'),
+        'price-unchanged': t('subscriptions.statusPriceUnchanged'),
+        'pass-already-active': t('subscriptions.statusPassActive'),
     };
 
     return (
@@ -102,17 +109,31 @@ export default function Subscriptions({
                         {activeSubscription && (
                             <div className="border-ink bg-paper flex flex-wrap items-center justify-between gap-4 border-2 p-5">
                                 {activeSubscription.canceled ? (
-                                    <p className="text-muted font-semibold">
-                                        {t('subscriptions.cancelledUntil', {
-                                            date: activeSubscription.ends_at
-                                                ? new Date(
-                                                      activeSubscription.ends_at,
-                                                  ).toLocaleDateString(
-                                                      intlLocale,
-                                                  )
-                                                : t('subscriptions.periodEnd'),
-                                        })}
-                                    </p>
+                                    <>
+                                        <p className="text-muted font-semibold">
+                                            {t('subscriptions.cancelledUntil', {
+                                                date: activeSubscription.ends_at
+                                                    ? new Date(
+                                                          activeSubscription.ends_at,
+                                                      ).toLocaleDateString(
+                                                          intlLocale,
+                                                      )
+                                                    : t(
+                                                          'subscriptions.periodEnd',
+                                                      ),
+                                            })}
+                                        </p>
+                                        {activeSubscription.on_grace_period && (
+                                            <Button
+                                                variant="secondary"
+                                                onClick={resumeSubscription}
+                                            >
+                                                {t(
+                                                    'subscriptions.resumeSubscription',
+                                                )}
+                                            </Button>
+                                        )}
+                                    </>
                                 ) : (
                                     <>
                                         <p className="text-ok font-semibold">
@@ -179,9 +200,13 @@ export default function Subscriptions({
                     <div className="grid gap-8 px-2 md:grid-cols-2 xl:grid-cols-3">
                         {plans.map((plan, i) => {
                             const featured = plan.id === featuredId;
+                            const hasPass =
+                                plan.billing_interval === 'one_time' &&
+                                !!activePurchase;
                             const blocked =
-                                plan.billing_interval !== 'one_time' &&
-                                hasActiveSubscription;
+                                (plan.billing_interval !== 'one_time' &&
+                                    hasActiveSubscription) ||
+                                hasPass;
 
                             return (
                                 <PassTicket
@@ -196,7 +221,9 @@ export default function Subscriptions({
                                                 variant="secondary"
                                             >
                                                 {t(
-                                                    'subscriptions.alreadySubscribed',
+                                                    hasPass
+                                                        ? 'subscriptions.alreadyHavePass'
+                                                        : 'subscriptions.alreadySubscribed',
                                                 )}
                                             </Button>
                                         ) : (

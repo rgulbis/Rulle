@@ -40,9 +40,10 @@ class SubscriptionTypeForm
                     ->required()
                     ->numeric()
                     ->minValue(SubscriptionType::MIN_PRICE_CENTS / 100)
+                    ->maxValue(SubscriptionType::MAX_PRICE_CENTS / 100)
                     ->step(0.01)
                     ->prefix('€')
-                    ->helperText('At least €'.number_format(SubscriptionType::MIN_PRICE_CENTS / 100, 2).' — Stripe doesn\'t accept smaller payments.')
+                    ->helperText('Between €'.number_format(SubscriptionType::MIN_PRICE_CENTS / 100, 2).' (Stripe doesn\'t accept smaller payments) and €'.number_format(SubscriptionType::MAX_PRICE_CENTS / 100, 2).'.')
                     ->formatStateUsing(fn (?int $state) => $state !== null ? $state / 100 : null)
                     ->dehydrateStateUsing(fn ($state) => (int) round(((float) $state) * 100)),
 

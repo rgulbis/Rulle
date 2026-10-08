@@ -14,5 +14,15 @@
     "This person already declined an invitation to this reservation.": "Šī persona jau ir noraidījusi ielūgumu uz šo rezervāciju.",
     "You are muted from chat.": "Jūs esat apklusināts tērzētavā.",
     "You are muted from this group chat.": "Jūs esat apklusināts šajā grupas tērzētavā.",
-    "That contains language that isn't allowed here.": "Tas satur valodu, kas šeit nav atļauta."
+    "That contains language that isn't allowed here.": "Tas satur valodu, kas šeit nav atļauta.",
+    "That name contains characters that aren't allowed.": "Šis vārds satur rakstzīmes, kas nav atļautas.",
+    "You already have a reservation waiting for payment. Pay for it or cancel it before booking another.": "Jums jau ir rezervācija, kas gaida apmaksu. Apmaksājiet vai atceliet to, pirms rezervējat citu.",
+    "Not found.": "Nav atrasts.",
+    "This reservation is no longer pending.": "Šī rezervācija vairs negaida apmaksu.",
+    "Only a paid reservation that has not ended can have participants.": "Dalībniekus var pievienot tikai apmaksātai rezervācijai, kas vēl nav beigusies.",
+    "Too many messages at once.": "Pārāk daudz ziņu vienlaikus.",
+    "You cannot mute yourself.": "Jūs nevarat apklusināt sevi.",
+    "Another checkout is already in progress.": "Cits apmaksas process jau norit.",
+    "You already have an active subscription.": "Jums jau ir aktīvs abonements.",
+    "Just checked in. Wait a few seconds before checking out.": "Tikko ienācis. Pagaidiet dažas sekundes, pirms atzīmējat izeju."
 }

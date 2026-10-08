@@ -141,6 +141,14 @@ const en = {
     'subscriptions.periodEnd': 'at period end',
     'subscriptions.active': 'Active subscription ({status})',
     'subscriptions.cancelSubscription': 'Cancel subscription',
+    'subscriptions.resumeSubscription': 'Resume subscription',
+    'subscriptions.statusSubscriptionResumed':
+        'Your subscription will renew as normal.',
+    'subscriptions.statusPriceUnchanged':
+        'You are already on the current price.',
+    'subscriptions.statusPassActive':
+        'You already have an active pass. Use it up before buying another.',
+    'subscriptions.alreadyHavePass': 'You already have a pass',
     'subscriptions.confirmCancel':
         "Cancel your subscription? You'll keep access until the current billing period ends.",
     'subscriptions.priceChanged':

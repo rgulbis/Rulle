@@ -371,3 +371,55 @@ test('reservation exclusivity does not block checking out', function () {
 
     $response->assertOk()->assertJson(['allowed' => true]);
 });
+
+test('a scan code that is far longer than any real token is refused outright', function () {
+    $staff = User::factory()->create(['role' => 'employee']);
+
+    $this->actingAs($staff)->postJson('/staff/scan', ['code' => str_repeat('A', 513), 'mode' => 'entry'])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('code');
+});
+
+test('the scan endpoint is rate limited per staff member', function () {
+    $staff = User::factory()->create(['role' => 'employee']);
+    $other = User::factory()->create(['role' => 'employee']);
+
+    foreach (range(1, 120) as $i) {
+        $this->actingAs($staff)->postJson('/staff/scan', ['code' => 'garbage', 'mode' => 'entry'])->assertNotFound();
+    }
+
+    $this->actingAs($staff)->postJson('/staff/scan', ['code' => 'garbage', 'mode' => 'entry'])->assertStatus(429);
+    // Someone else on the door is not affected.
+    $this->actingAs($other)->postJson('/staff/scan', ['code' => 'garbage', 'mode' => 'entry'])->assertNotFound();
+});
+
+test('an exit scan right after the entry is refused, leaves the code unspent, and works a few seconds later', function () {
+    config(['checkin.min_stay_seconds' => 10]);
+    $staff = User::factory()->create(['role' => 'employee']);
+    $client = User::factory()->create(['role' => 'user']);
+    checkUserIn($client);
+    $code = qrTokenFor($client);
+
+    $this->actingAs($staff)->postJson('/staff/scan', ['code' => $code, 'mode' => 'exit'])
+        ->assertStatus(409)
+        ->assertJson(['allowed' => false, 'message' => 'Just checked in. Wait a few seconds before checking out.']);
+
+    expect($client->isCurrentlyCheckedIn())->toBeTrue();
+
+    // The same code is still good once the stay is long enough.
+    $this->travel(11)->seconds();
+
+    $this->actingAs($staff)->postJson('/staff/scan', ['code' => $code, 'mode' => 'exit'])
+        ->assertOk()
+        ->assertJson(['allowed' => true, 'checked_in' => false]);
+});
+
+test('the shortest-stay check can be switched off', function () {
+    config(['checkin.min_stay_seconds' => 0]);
+    $staff = User::factory()->create(['role' => 'employee']);
+    $client = User::factory()->create(['role' => 'user']);
+    checkUserIn($client);
+
+    $this->actingAs($staff)->postJson('/staff/scan', ['code' => qrTokenFor($client), 'mode' => 'exit'])
+        ->assertOk();
+});

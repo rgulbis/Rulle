@@ -22,6 +22,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
+# Don't announce the PHP version in an `X-Powered-By` header (the app is
+# served by PHP's own server, which would otherwise send it on every response).
+RUN echo "expose_php=Off" > "$PHP_INI_DIR/conf.d/zz-hardening.ini"
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY composer.json composer.lock ./

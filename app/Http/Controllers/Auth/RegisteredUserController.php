@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Rules\AvailableDisplayName;
 use App\Rules\NoInappropriateContent;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -27,13 +28,18 @@ class RegisteredUserController extends Controller
         // value are both the ASCII (punycode) form of a Unicode domain, the
         // same form login looks it up by. Name is trimmed for the same
         // reason the profile form does it: "Jane " mustn't dodge uniqueness.
-        $request->merge([
-            'name' => trim((string) $request->input('name')),
-            'email' => User::normalizeEmailForLookup(trim((string) $request->input('email'))),
-        ]);
+        // Only strings are touched: anything else is left for the `string`
+        // rules to refuse, instead of blowing up on an array cast.
+        if (is_string($request->input('name'))) {
+            $request->merge(['name' => trim($request->input('name'))]);
+        }
+
+        if (is_string($request->input('email'))) {
+            $request->merge(['email' => User::normalizeEmailForLookup(trim($request->input('email')))]);
+        }
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:users,name', 'unique:users,pending_name', new NoInappropriateContent],
+            'name' => ['required', 'string', 'max:255', new NoInappropriateContent, new AvailableDisplayName],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);

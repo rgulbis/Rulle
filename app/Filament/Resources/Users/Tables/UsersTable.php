@@ -7,6 +7,7 @@ use App\Filament\Resources\Users\Actions\CloseAccountAction;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -66,7 +67,12 @@ class UsersTable
                     ->color('danger')
                     ->requiresConfirmation()
                     ->visible(fn (User $record) => $record->pending_name !== null)
-                    ->action(fn (User $record) => $record->rejectPendingName()),
+                    ->modalDescription(fn (User $record): string => "Turn down \"{$record->pending_name}\"? They keep their current name and can ask for another.")
+                    ->action(function (User $record) {
+                        $record->rejectPendingName();
+
+                        Notification::make()->success()->title('Name request rejected')->send();
+                    }),
                 EditAction::make(),
                 // No bulk close: every account needs its own Stripe call and
                 // its own guards (last admin, upcoming reservations), and a

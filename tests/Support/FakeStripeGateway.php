@@ -9,6 +9,7 @@ use App\Support\Payments\StripePayment;
 use Stripe\Checkout\Session;
 use Stripe\Exception\ApiConnectionException;
 use Stripe\Exception\InvalidRequestException;
+use Stripe\Invoice;
 use Stripe\Refund;
 
 /**
@@ -132,6 +133,38 @@ class FakeStripeGateway extends StripeGateway
             'amount' => $amountCents,
             'interval' => $interval,
         ])['id'];
+    }
+
+    /** @var list<Invoice> */
+    public array $paidInvoices = [];
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function addPaidInvoice(string $customer, int $amountPaid, array $attributes = []): Invoice
+    {
+        return $this->paidInvoices[] = Invoice::constructFrom(array_merge([
+            'id' => 'in_fake_'.(count($this->paidInvoices) + 1),
+            'customer' => $customer,
+            'amount_paid' => $amountPaid,
+            'post_payment_credit_notes_amount' => 0,
+            'status' => 'paid',
+            'created' => now()->getTimestamp(),
+        ], $attributes));
+    }
+
+    public function paidInvoices(?int $sinceTimestamp = null, ?int $untilTimestamp = null): iterable
+    {
+        return array_values(array_filter($this->paidInvoices, fn ($invoice) => ($sinceTimestamp === null || $invoice->created >= $sinceTimestamp)
+            && ($untilTimestamp === null || $invoice->created <= $untilTimestamp)));
+    }
+
+    /** @var list<string> */
+    public array $resumedSubscriptions = [];
+
+    public function resumeSubscription(string $stripeSubscriptionId): void
+    {
+        $this->resumedSubscriptions[] = $stripeSubscriptionId;
     }
 
     public function cancelSubscriptionNow(string $stripeSubscriptionId): void

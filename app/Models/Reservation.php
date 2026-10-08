@@ -37,6 +37,12 @@ class Reservation extends Model
      */
     public const CHAT_READABLE_DAYS_AFTER_END = 7;
 
+    /** How long an unpaid ("pending") reservation keeps holding its slot. */
+    public const PENDING_HOLD_MINUTES = 30;
+
+    /** How far ahead a reservation may be made. */
+    public const MAX_MONTHS_AHEAD = 12;
+
     protected function casts(): array
     {
         return [
@@ -252,10 +258,25 @@ class Reservation extends Model
                 $query->where('status', 'active')
                     ->orWhere(function ($query) {
                         $query->where('status', 'pending')
-                            ->where('created_at', '>=', now()->subMinutes(30));
+                            ->where('created_at', '>=', now()->subMinutes(self::PENDING_HOLD_MINUTES));
                     });
             })
             ->where('starts_at', '<', $end)
             ->where('ends_at', '>', $start);
+    }
+
+    /**
+     * The user's unpaid reservations that are still holding their slot,
+     * i.e. the ones still inside the pending grace window.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeHoldingSlotFor($query, User $user)
+    {
+        return $query
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->where('created_at', '>=', now()->subMinutes(self::PENDING_HOLD_MINUTES));
     }
 }

@@ -22,12 +22,22 @@ class SetLocale
      */
     public function handle(Request $request, Closure $next): Response
     {
+        self::apply($request);
+
+        return $next($request);
+    }
+
+    /**
+     * Also called by the exception handler: a route binding that finds
+     * nothing fails before this middleware has run, but its error message
+     * should still come back in the visitor's language.
+     */
+    public static function apply(Request $request): void
+    {
         $locale = $request->cookie('locale');
 
         if (is_string($locale) && in_array($locale, self::SUPPORTED, true)) {
             app()->setLocale($locale);
         }
-
-        return $next($request);
     }
 }

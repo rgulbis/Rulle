@@ -32,6 +32,14 @@ function priceFor(
  * The "reserve a time" form beside the calendar of already-booked slots. They
  * share the chosen date, so one component owns both.
  */
+/** Mirrors the server's 12-month booking horizon (Reservation::MAX_MONTHS_AHEAD). */
+function maxBookableDate(): string {
+    const limit = new Date();
+    limit.setMonth(limit.getMonth() + 12);
+
+    return limit.toISOString().split('T')[0];
+}
+
 export function BookingSection({ settings, peakHours, upcoming }: Props) {
     const { t } = useTranslation();
     const formatEuros = useFormatEuros();
@@ -116,6 +124,7 @@ export function BookingSection({ settings, peakHours, upcoming }: Props) {
                                 type="date"
                                 value={date}
                                 min={new Date().toISOString().split('T')[0]}
+                                max={maxBookableDate()}
                                 onChange={(e) => chooseDate(e.target.value)}
                                 className="appearance-none pr-11 [&::-webkit-calendar-picker-indicator]:hidden"
                             />

@@ -115,7 +115,14 @@ class ReservationController extends Controller
         $settings = ReservationSetting::current();
 
         $validated = $request->validate([
-            'starts_at' => ['required', 'date', 'after:now'],
+            'starts_at' => [
+                'required',
+                'date',
+                'after:now',
+                // Far-future dates would just sit in the calendar (and in
+                // Stripe) with nothing to ever pay for or use them.
+                'before:'.now()->addMonths(Reservation::MAX_MONTHS_AHEAD)->toDateTimeString(),
+            ],
             'duration_minutes' => [
                 'required',
                 'integer',
@@ -152,6 +159,14 @@ class ReservationController extends Controller
         // Stripe call stays outside — the lock must not be held over a
         // network round trip.
         $reservation = DB::transaction(function () use ($startsAt, $endsAt, $user, $validated, $priceCents) {
+            // One unpaid hold at a time: otherwise a single account could
+            // reserve slot after slot without paying and keep the whole
+            // calendar blocked. Checked inside the same transaction as the
+            // insert, so parallel requests can't both pass it.
+            if (Reservation::holdingSlotFor($user)->exists()) {
+                return 'has-pending';
+            }
+
             if (Reservation::overlapping($startsAt, $endsAt)->exists()) {
                 return null;
             }
@@ -165,6 +180,12 @@ class ReservationController extends Controller
                 'status' => 'pending',
             ]);
         });
+
+        if ($reservation === 'has-pending') {
+            return back()->withErrors([
+                'starts_at' => __('You already have a reservation waiting for payment. Pay for it or cancel it before booking another.'),
+            ]);
+        }
 
         if ($reservation === null) {
             return back()->withErrors([
@@ -184,7 +205,7 @@ class ReservationController extends Controller
     public function resume(Request $request, Reservation $reservation): BaseResponse
     {
         abort_unless($reservation->user_id === $request->user()->id, 403);
-        abort_unless($reservation->status === 'pending', 422, 'This reservation is no longer pending.');
+        abort_unless($reservation->status === 'pending', 422, __('This reservation is no longer pending.'));
 
         if ($reservation->stripe_checkout_session_id) {
             $existing = $this->stripe->retrieveCheckoutSession($reservation->stripe_checkout_session_id);
@@ -308,7 +329,7 @@ class ReservationController extends Controller
     public function addParticipant(Request $request, Reservation $reservation): RedirectResponse
     {
         abort_unless($reservation->user_id === $request->user()->id, 403);
-        abort_unless($reservation->isUpcomingOrOngoing(), 422, 'Only a paid reservation that has not ended can have participants.');
+        abort_unless($reservation->isUpcomingOrOngoing(), 422, __('Only a paid reservation that has not ended can have participants.'));
 
         $validated = $request->validate([
             'user_id' => [

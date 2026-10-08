@@ -45,6 +45,12 @@ class SubscriptionType extends Model
     public const MIN_PRICE_CENTS = 50;
 
     /**
+     * The most a plan may cost (€1,000), enforced by the admin form so a
+     * misplaced decimal or extra zero can't put an absurd price on sale.
+     */
+    public const MAX_PRICE_CENTS = 100000;
+
+    /**
      * Talking to Stripe is deliberately not done from a model event: a slow
      * or failing API call must not decide whether an admin's edit is saved.
      * Saving a plan only records what it should look like; syncing it is

@@ -80,6 +80,11 @@ class AppServiceProvider extends ServiceProvider
         // the only way to enumerate customers by name.
         RateLimiter::for('user-search', fn (Request $request) => Limit::perMinute(20)->by('user-search:'.($request->user()->id ?? $request->ip())));
 
+        // The staff scanner fires a request per decoded frame it hasn't
+        // already handled, so this is generous: it is there to stop a stuck
+        // loop or a script, not a busy door.
+        RateLimiter::for('scan', fn (Request $request) => Limit::perMinute(120)->by('scan:'.($request->user()->id ?? $request->ip())));
+
         // Everything else in the global room: loading it, moderating it.
         RateLimiter::for('chat', fn (Request $request) => Limit::perMinute(90)->by('chat:'.($request->user()->id ?? $request->ip())));
     }

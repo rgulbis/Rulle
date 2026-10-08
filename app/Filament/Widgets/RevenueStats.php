@@ -64,7 +64,7 @@ class RevenueStats extends StatsOverviewWidget
                 ->color('info')
                 ->icon(Heroicon::OutlinedTicket),
             Stat::make('Subscriptions', number_format($subscriptionsTotal / 100, 2).' €')
-                ->description('All time, from Stripe')
+                ->description('All time, this app\'s customers, from Stripe')
                 ->color('warning')
                 ->icon(Heroicon::OutlinedCreditCard),
             Stat::make('Reservations', number_format($reservationsTotal / 100, 2).' €')

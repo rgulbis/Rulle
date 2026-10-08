@@ -134,3 +134,50 @@ test('the approve/reject name actions are hidden for users with no pending reque
         ->assertTableActionHidden('approveName', $user)
         ->assertTableActionHidden('rejectName', $user);
 });
+
+test('a non-string name is a validation error, not a server error', function () {
+    $user = User::factory()->create(['name' => 'Keep Me']);
+
+    $this->actingAs($user)->patch('/settings/profile', ['name' => ['x']])
+        ->assertSessionHasErrors('name');
+    $this->actingAs($user)->patch('/settings/profile', ['name' => ['a' => 'b']])
+        ->assertSessionHasErrors('name');
+
+    expect($user->fresh()->pending_name)->toBeNull();
+});
+
+test('a name with invisible or markup characters is refused', function (string $name) {
+    $user = User::factory()->create(['name' => 'Keep Me']);
+
+    $this->actingAs($user)->patch('/settings/profile', ['name' => $name])
+        ->assertSessionHasErrors('name');
+
+    expect($user->fresh()->pending_name)->toBeNull();
+})->with([
+    'zero-width space' => "Ev\u{200B}e",
+    'right-to-left override' => "\u{202E}evil",
+    'control character' => "a\u{0007}b",
+    'html' => '<b>bold</b>',
+]);
+
+test('a case variant or lookalike of another rider is refused', function () {
+    User::factory()->create(['name' => 'Employee']);
+    $user = User::factory()->create(['name' => 'Keep Me']);
+
+    $this->actingAs($user)->patch('/settings/profile', ['name' => 'EMPLOYEE'])
+        ->assertSessionHasErrors('name');
+    $this->actingAs($user)->patch('/settings/profile', ['name' => "\u{0395}mployee"])
+        ->assertSessionHasErrors('name');
+
+    expect($user->fresh()->pending_name)->toBeNull();
+});
+
+test('changing only the case of your own name is allowed and goes to review', function () {
+    $user = User::factory()->create(['name' => 'roberts']);
+
+    $this->actingAs($user)->patch('/settings/profile', ['name' => 'Roberts'])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('status', 'profile-pending');
+
+    expect($user->fresh()->pending_name)->toBe('Roberts');
+});

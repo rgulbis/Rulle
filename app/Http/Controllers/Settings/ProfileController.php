@@ -3,13 +3,11 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Rules\AvailableDisplayName;
 use App\Rules\NoInappropriateContent;
-use Closure;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -39,27 +37,21 @@ class ProfileController extends Controller
         $user = $request->user();
 
         // Trimmed before validation (not after), so "Jane " can't dodge the
-        // uniqueness checks below by comparing as a different string from
+        // uniqueness check below by comparing as a different string from
         // "Jane" and then colliding with it anyway once trimmed for storage.
-        $request->merge(['name' => trim((string) $request->input('name'))]);
+        // Only a string is trimmed: anything else is left for the `string`
+        // rule to refuse, instead of blowing up on an array cast.
+        if (is_string($request->input('name'))) {
+            $request->merge(['name' => trim($request->input('name'))]);
+        }
 
         $validated = $request->validate([
             'name' => [
                 'required', 'string', 'max:255', new NoInappropriateContent,
-                Rule::unique('users', 'name')->ignore($user->id),
-                // The built-in unique rule above only covers the `name`
-                // column — this closes the matching gap on pending_name, or
-                // two people could both have the same name approved out
-                // from under them.
-                function (string $attribute, mixed $value, Closure $fail) use ($user) {
-                    $taken = User::where('id', '!=', $user->id)
-                        ->where('pending_name', $value)
-                        ->exists();
-
-                    if ($taken) {
-                        $fail(trans('validation.unique', ['attribute' => trans('validation.attributes.name')]));
-                    }
-                },
+                // Also covers other people's pending names, and refuses
+                // near-copies (case, lookalike letters) and invisible or
+                // direction-changing characters — see DisplayName.
+                new AvailableDisplayName($user->id),
             ],
         ]);
 

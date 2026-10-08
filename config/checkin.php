@@ -18,6 +18,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Shortest stay
+    |--------------------------------------------------------------------------
+    |
+    | An exit scan this many seconds after the entry scan is refused (without
+    | spending the code): it is almost always the same person scanned twice
+    | with the mode flipped in between, not someone walking straight back out.
+    | 0 turns the check off.
+    |
+    */
+
+    'min_stay_seconds' => (int) env('CHECKIN_MIN_STAY_SECONDS', 10),
+
+    /*
+    |--------------------------------------------------------------------------
     | Longest plausible visit
     |--------------------------------------------------------------------------
     |

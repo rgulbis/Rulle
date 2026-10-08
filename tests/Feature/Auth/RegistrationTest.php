@@ -58,3 +58,36 @@ test('registration requires matching password confirmation', function () {
     $response->assertSessionHasErrors('password');
     $this->assertGuest();
 });
+
+test('non-string name or email is a validation error, not a server error', function () {
+    $this->post('/register', [
+        'name' => ['x'],
+        'email' => ['a@b.c'],
+        'password' => 'C0rrect!Horse42',
+        'password_confirmation' => 'C0rrect!Horse42',
+    ])->assertSessionHasErrors(['name', 'email']);
+
+    $this->assertGuest();
+});
+
+test('registration rejects a case variant of an existing name', function () {
+    User::factory()->create(['name' => 'Employee']);
+
+    $this->post('/register', [
+        'name' => 'EMPLOYEE',
+        'email' => 'test@example.com',
+        'password' => 'C0rrect!Horse42',
+        'password_confirmation' => 'C0rrect!Horse42',
+    ])->assertSessionHasErrors('name');
+
+    expect(User::where('email', 'test@example.com')->exists())->toBeFalse();
+});
+
+test('registration rejects a name with invisible characters', function () {
+    $this->post('/register', [
+        'name' => "Ev\u{200B}e",
+        'email' => 'test@example.com',
+        'password' => 'C0rrect!Horse42',
+        'password_confirmation' => 'C0rrect!Horse42',
+    ])->assertSessionHasErrors('name');
+});

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\Schemas;
 
 use App\Models\User;
+use App\Rules\AvailableDisplayName;
 use App\Rules\NoInappropriateContent;
 use Closure;
 use Filament\Forms\Components\DateTimePicker;
@@ -25,18 +26,12 @@ class UserForm
                     ->required()
                     ->trim()
                     ->maxLength(255)
-                    ->unique(ignoreRecord: true)
                     ->rules([
                         new NoInappropriateContent,
-                        fn (?User $record): Closure => function (string $attribute, mixed $value, Closure $fail) use ($record) {
-                            $requestedBySomeoneElse = User::where('pending_name', $value)
-                                ->when($record, fn ($query) => $query->where('id', '!=', $record->id))
-                                ->exists();
-
-                            if ($requestedBySomeoneElse) {
-                                $fail('Another user has asked for this name.');
-                            }
-                        },
+                        // Unique across closed accounts and other people's
+                        // pending names, and refuses near-copies and
+                        // invisible characters, same as the public forms.
+                        fn (?User $record): AvailableDisplayName => new AvailableDisplayName($record?->id),
                     ]),
                 TextInput::make('email')
                     ->label('Email address')

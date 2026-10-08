@@ -44,6 +44,18 @@ test('the admin form applies the public profile content rules to the name', func
         ->assertHasFormErrors(['name']);
 });
 
+test('the admin form refuses near-copies of a name and invisible characters', function () {
+    adminForForm();
+    User::factory()->create(['name' => 'Employee']);
+
+    foreach (['EMPLOYEE', "\u{0395}mployee", "Emp\u{200B}loyee", '<b>x</b>'] as $name) {
+        Livewire::test(CreateUser::class)
+            ->fillForm(['name' => $name, 'email' => 'new@example.com', 'role' => 'user', 'password' => 'C0rrect!Horse42'])
+            ->call('create')
+            ->assertHasFormErrors(['name']);
+    }
+});
+
 test('the admin form stores a Unicode email domain in its ASCII form and checks uniqueness against it', function () {
     adminForForm();
     User::factory()->create(['email' => 'admin@xn--rull-eva.lv']);

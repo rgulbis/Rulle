@@ -305,3 +305,62 @@ test('reservation pricing keeps its other minimums', function () {
         ->callTableAction('edit', $settings, ['min_group_size' => 0, 'max_group_size' => 0, 'min_duration_minutes' => 5, 'max_duration_minutes' => 5])
         ->assertHasTableActionErrors(['min_group_size', 'max_group_size', 'min_duration_minutes', 'max_duration_minutes']);
 });
+
+test('reservation pricing refuses a closing time that is not after the opening time', function () {
+    adminPage();
+    $settings = makeReservationSettings();
+
+    // Inverted (the park "opens" at 23:00 and "closes" at 08:00), equal, and a normal range.
+    Livewire::test(ManageReservationSettings::class)
+        ->callTableAction('edit', $settings, ['opening_time' => '23:00', 'closing_time' => '08:00'])
+        ->assertHasTableActionErrors(['closing_time']);
+    Livewire::test(ManageReservationSettings::class)
+        ->callTableAction('edit', $settings, ['opening_time' => '10:00', 'closing_time' => '10:00'])
+        ->assertHasTableActionErrors(['closing_time']);
+
+    expect($settings->fresh()->opening_time)->toBe('08:00')
+        ->and($settings->fresh()->closing_time)->toBe('23:00');
+
+    Livewire::test(ManageReservationSettings::class)
+        ->callTableAction('edit', $settings, ['opening_time' => '09:00', 'closing_time' => '22:30'])
+        ->assertHasNoTableActionErrors();
+
+    expect($settings->fresh()->closing_time)->toBe('22:30');
+});
+
+test('reservation pricing caps values that could only be typos', function () {
+    adminPage();
+    $settings = makeReservationSettings();
+
+    Livewire::test(ManageReservationSettings::class)
+        ->callTableAction('edit', $settings, [
+            'price_cents_per_person_per_hour' => 500,
+            'min_group_size' => 600,
+            'max_group_size' => 600,
+            'min_duration_minutes' => 2000,
+            'max_duration_minutes' => 2000,
+            'cancellation_cutoff_hours' => 9999,
+        ])
+        ->assertHasTableActionErrors(['price_cents_per_person_per_hour', 'min_group_size', 'max_group_size', 'min_duration_minutes', 'max_duration_minutes', 'cancellation_cutoff_hours']);
+
+    expect($settings->fresh()->price_cents_per_person_per_hour)->toBe(500)
+        ->and($settings->fresh()->max_group_size)->toBe(50);
+});
+
+test('a plan cannot be priced above the maximum', function () {
+    Livewire::actingAs(User::factory()->create(['role' => 'admin']));
+    fakeStripe();
+
+    Livewire::test(CreateSubscriptionType::class)
+        ->fillForm(['name' => 'Too dear', 'price_cents' => 1000000000, 'billing_interval' => 'month'])
+        ->call('create')
+        ->assertHasFormErrors(['price_cents']);
+
+    Livewire::test(CreateSubscriptionType::class)
+        ->fillForm(['name' => 'Just right', 'price_cents' => 1000, 'billing_interval' => 'month'])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(SubscriptionType::where('name', 'Too dear')->exists())->toBeFalse()
+        ->and(SubscriptionType::where('name', 'Just right')->value('price_cents'))->toBe(100000);
+});

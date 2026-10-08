@@ -89,7 +89,7 @@ class ChatController extends Controller
             return Cache::lock("chat-post:{$request->user()->id}", 10)
                 ->block(3, fn () => $this->post($request));
         } catch (LockTimeoutException) {
-            abort(429, 'Too many messages at once.');
+            abort(429, __('Too many messages at once.'));
         }
     }
 
@@ -156,7 +156,7 @@ class ChatController extends Controller
     public function mute(Request $request, User $user): RedirectResponse
     {
         abort_unless($request->user()->isEmployee(), 403);
-        abort_if($user->id === $request->user()->id, 422, 'You cannot mute yourself.');
+        abort_if($user->id === $request->user()->id, 422, __('You cannot mute yourself.'));
         abort_unless(ChatModeration::canMute($request->user(), $user), 403);
 
         $validated = $request->validate([

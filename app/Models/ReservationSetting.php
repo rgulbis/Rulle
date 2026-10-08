@@ -29,6 +29,16 @@ use Illuminate\Database\Eloquent\Model;
 ])]
 class ReservationSetting extends Model
 {
+    // Upper limits the admin form enforces, so a typo can't ship an absurd
+    // value to every booking.
+    public const MAX_PRICE_CENTS_PER_PERSON_PER_HOUR = 10000;
+
+    public const MAX_GROUP_SIZE_LIMIT = 500;
+
+    public const MAX_DURATION_LIMIT_MINUTES = 1440;
+
+    public const MAX_CANCELLATION_CUTOFF_HOURS = 720;
+
     protected function casts(): array
     {
         return [

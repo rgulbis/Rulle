@@ -26,6 +26,10 @@ export function useQrToken(initial: QrTokenData | null) {
     const [fresh, setFresh] = useState(initial !== null);
     const refreshTimer = useRef<number>(undefined);
     const expiryTimer = useRef<number>(undefined);
+    // While set, a code that arrives is held back until this moment (ms
+    // since epoch): see rotate().
+    const holdUntil = useRef(0);
+    const refreshRef = useRef<() => Promise<void>>(undefined);
 
     const accept = useCallback((next: QrTokenData) => {
         setCurrent(next);
@@ -66,6 +70,21 @@ export function useQrToken(initial: QrTokenData | null) {
                     return;
                 }
 
+                // Right after a scan the code stays hidden for a moment,
+                // so a camera that is still pointed at the screen can't
+                // read the new one straight away. A code that arrives
+                // early is simply asked for again once the hold is over.
+                const held = holdUntil.current - Date.now();
+
+                if (held > 0) {
+                    refreshTimer.current = window.setTimeout(
+                        () => void refresh(),
+                        held,
+                    );
+
+                    return;
+                }
+
                 accept(next);
                 refreshTimer.current = window.setTimeout(
                     () => void refresh(),
@@ -80,6 +99,8 @@ export function useQrToken(initial: QrTokenData | null) {
                 }
             }
         };
+
+        refreshRef.current = refresh;
 
         const onVisible = () => {
             if (!document.hidden) {
@@ -109,5 +130,22 @@ export function useQrToken(initial: QrTokenData | null) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [accept]);
 
-    return { token: current?.token ?? null, fresh };
+    /**
+     * Retires the code on screen at once and shows a new one after
+     * `delayMs`. For right after a successful scan: that code is spent
+     * anyway, and a short pause before the next appears makes a second,
+     * accidental scan of the same screen unlikely.
+     */
+    const rotate = useCallback((delayMs: number) => {
+        window.clearTimeout(refreshTimer.current);
+        window.clearTimeout(expiryTimer.current);
+        holdUntil.current = Date.now() + delayMs;
+        setFresh(false);
+        refreshTimer.current = window.setTimeout(
+            () => void refreshRef.current?.(),
+            delayMs,
+        );
+    }, []);
+
+    return { token: current?.token ?? null, fresh, rotate };
 }

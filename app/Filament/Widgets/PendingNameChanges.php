@@ -5,6 +5,7 @@ namespace App\Filament\Widgets;
 use App\Filament\Resources\Users\Actions\ApproveNameAction;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -47,7 +48,12 @@ class PendingNameChanges extends TableWidget
                     ->icon(Heroicon::OutlinedXMark)
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->action(fn (User $record) => $record->rejectPendingName()),
+                    ->modalDescription(fn (User $record): string => "Turn down \"{$record->pending_name}\"? They keep their current name and can ask for another.")
+                    ->action(function (User $record) {
+                        $record->rejectPendingName();
+
+                        Notification::make()->success()->title('Name request rejected')->send();
+                    }),
             ]);
     }
 }

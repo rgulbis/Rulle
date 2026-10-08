@@ -63,6 +63,7 @@ test('the payments ledger combines one-time passes, reservations, and subscripti
         'stripe_checkout_session_id' => 'cs_test_'.str()->random(10),
         'price_cents' => 500,
         'status' => 'active',
+        'payment_status' => 'paid',
     ]);
     $reservation = makeReservation($customer, now()->addDay(), now()->addDay()->addHour(), ['price_cents' => 1500]);
 
@@ -148,4 +149,19 @@ test('the ledger carries each row\'s payment state and refunded amount', functio
 
     expect($row->payment_status)->toBe('partially_refunded');
     expect($row->refunded_cents)->toBe(1000);
+});
+
+test('unpaid rows are hidden from the ledger by default and can be shown', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $customer = User::factory()->create();
+    $paid = makeReservation($customer, now()->addDay(), now()->addDay()->addHour());
+    $unpaid = makeReservation($customer, now()->addDays(2), now()->addDays(2)->addHour(), ['status' => 'cancelled']);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ListPayments::class)
+        ->assertCanSeeTableRecords([Payment::find('reservation-'.$paid->id)])
+        ->assertCanNotSeeTableRecords([Payment::find('reservation-'.$unpaid->id)])
+        ->removeTableFilter('hide_unpaid')
+        ->assertCanSeeTableRecords([Payment::find('reservation-'.$paid->id), Payment::find('reservation-'.$unpaid->id)]);
 });

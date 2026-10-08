@@ -479,3 +479,97 @@ test('someone who is not a participant cannot leave', function () {
     $this->actingAs($stranger)->post("/reservations/{$reservation->id}/leave")->assertForbidden();
     expect($reservation->participants()->count())->toBe(1);
 });
+
+test('rejects a reservation more than twelve months ahead', function () {
+    makeReservationSettings();
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post('/reservations', [
+        'starts_at' => now()->addMonths(12)->addDays(2)->setTime(12, 0)->toDateTimeString(),
+        'duration_minutes' => 60,
+        'group_size' => 3,
+    ])->assertSessionHasErrors('starts_at');
+
+    $this->actingAs($user)->post('/reservations', [
+        'starts_at' => '9999-12-31 10:00:00',
+        'duration_minutes' => 60,
+        'group_size' => 3,
+    ])->assertSessionHasErrors('starts_at');
+
+    expect(Reservation::count())->toBe(0);
+});
+
+test('accepts a reservation just inside the twelve-month horizon', function () {
+    makeReservationSettings();
+    fakeStripe();
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post('/reservations', [
+        'starts_at' => now()->addMonths(11)->setTime(12, 0)->toDateTimeString(),
+        'duration_minutes' => 60,
+        'group_size' => 3,
+    ])->assertSessionHasNoErrors();
+
+    expect(Reservation::where('user_id', $user->id)->count())->toBe(1);
+});
+
+test('a second reservation is refused while one is still waiting for payment', function () {
+    makeReservationSettings();
+    fakeStripe();
+    $user = User::factory()->create();
+
+    $first = now()->addDays(3)->setTime(12, 0);
+    $this->actingAs($user)->post('/reservations', [
+        'starts_at' => $first->toDateTimeString(),
+        'duration_minutes' => 60,
+        'group_size' => 3,
+    ])->assertSessionHasNoErrors();
+
+    $this->actingAs($user)->post('/reservations', [
+        'starts_at' => $first->copy()->addDay()->toDateTimeString(),
+        'duration_minutes' => 60,
+        'group_size' => 3,
+    ])->assertSessionHasErrors('starts_at');
+
+    expect(Reservation::where('user_id', $user->id)->count())->toBe(1);
+});
+
+test('the one-pending limit is lifted by cancelling, paying, or the hold expiring', function () {
+    makeReservationSettings();
+    fakeStripe();
+    $user = User::factory()->create();
+    $start = now()->addDays(3)->setTime(12, 0);
+    $next = fn (int $days) => [
+        'starts_at' => $start->copy()->addDays($days)->toDateTimeString(),
+        'duration_minutes' => 60,
+        'group_size' => 3,
+    ];
+
+    // Cancelled.
+    $pending = makeReservation($user, $start, $start->copy()->addHour(), ['status' => 'pending']);
+    $this->actingAs($user)->post('/reservations', $next(1))->assertSessionHasErrors('starts_at');
+    $pending->update(['status' => 'cancelled']);
+    $this->actingAs($user)->post('/reservations', $next(1))->assertSessionHasNoErrors();
+
+    // Paid (active) holds don't count either.
+    Reservation::where('user_id', $user->id)->where('status', 'pending')->update(['status' => 'active', 'payment_status' => 'paid']);
+    $this->actingAs($user)->post('/reservations', $next(2))->assertSessionHasNoErrors();
+
+    // Stale pending (past the grace window).
+    Reservation::where('user_id', $user->id)->where('status', 'pending')->update(['status' => 'pending', 'created_at' => now()->subHour()]);
+    $this->actingAs($user)->post('/reservations', $next(3))->assertSessionHasNoErrors();
+});
+
+test('another customer is not limited by someone else\'s pending reservation', function () {
+    makeReservationSettings();
+    fakeStripe();
+    [$a, $b] = User::factory()->count(2)->create();
+    $start = now()->addDays(3)->setTime(12, 0);
+    makeReservation($a, $start, $start->copy()->addHour(), ['status' => 'pending']);
+
+    $this->actingAs($b)->post('/reservations', [
+        'starts_at' => $start->copy()->addDay()->toDateTimeString(),
+        'duration_minutes' => 60,
+        'group_size' => 3,
+    ])->assertSessionHasNoErrors();
+});

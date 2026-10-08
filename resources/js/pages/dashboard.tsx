@@ -33,6 +33,10 @@ type NextReservation = {
     group_size: number;
 };
 
+// How long the code stays hidden after a successful scan before the next one
+// is shown (see useQrToken's rotate()).
+const SCAN_COOLDOWN_MS = 2500;
+
 type Props = {
     status?: string;
     pass: Pass | null;
@@ -50,6 +54,8 @@ export default function Dashboard({
     const { t } = useTranslation();
     const { post, processing } = useForm({});
     const [checkedIn, setCheckedIn] = useState(auth.user.checked_in);
+    // Bumped on every scan, so the QR code knows its code was just spent.
+    const [scans, setScans] = useState(0);
 
     useEffect(() => {
         setCheckedIn(auth.user.checked_in);
@@ -60,6 +66,7 @@ export default function Dashboard({
 
         channel.listen('.check-in.updated', (e: { checked_in: boolean }) => {
             setCheckedIn(e.checked_in);
+            setScans((n) => n + 1);
 
             // A scan can also spend a visit (or the last one), so the pass
             // card is re-read from the server. Only those two props: the
@@ -113,6 +120,7 @@ export default function Dashboard({
                         verified={!!auth.user.email_verified_at}
                         qrToken={qrToken}
                         checkedIn={checkedIn}
+                        scans={scans}
                     />
 
                     <div className="grid content-start gap-6 sm:grid-cols-2 lg:col-span-7">
@@ -129,10 +137,12 @@ function EntryPass({
     verified,
     qrToken,
     checkedIn,
+    scans,
 }: {
     verified: boolean;
     qrToken: QrTokenData | null;
     checkedIn: boolean;
+    scans: number;
 }) {
     const { t } = useTranslation();
 
@@ -157,7 +167,7 @@ function EntryPass({
             </div>
             {verified ? (
                 <>
-                    <RotatingQrCode initial={qrToken} />
+                    <RotatingQrCode initial={qrToken} scans={scans} />
                     <div className="mt-auto flex flex-col gap-1 border-t border-[#3a3a3f] px-7 py-5">
                         <p className="text-lg font-semibold">
                             {t('dashboard.showAtDesk')}
@@ -178,17 +188,35 @@ function EntryPass({
 
 // Only mounted for a verified account, so the first token is already there
 // and the hook never has to fetch one cold on a page that has none.
-function RotatingQrCode({ initial }: { initial: QrTokenData | null }) {
+function RotatingQrCode({
+    initial,
+    scans,
+}: {
+    initial: QrTokenData | null;
+    scans: number;
+}) {
     const { t } = useTranslation();
-    const { token, fresh } = useQrToken(initial);
+    const { token, fresh, rotate } = useQrToken(initial);
+
+    // A scan just spent this code: swap it for a new one, but only after a
+    // pause long enough for staff to take the phone away from the camera.
+    useEffect(() => {
+        if (scans > 0) {
+            rotate(SCAN_COOLDOWN_MS);
+        }
+    }, [scans, rotate]);
 
     return (
         <div className="flex justify-center px-5 pb-6 sm:px-7">
             <div className="relative max-w-full bg-white p-3">
-                {token && (
-                    <div className={fresh ? undefined : 'opacity-10'}>
-                        <QrCode value={token} size={280} />
-                    </div>
+                {/* Not drawn at all while it is retired or expired: a
+                    faded code could still be read by a camera. */}
+                {token && fresh && <QrCode value={token} size={280} />}
+                {token && !fresh && (
+                    <div
+                        aria-hidden="true"
+                        style={{ width: 280, height: 280 }}
+                    />
                 )}
                 {!fresh && (
                     <p

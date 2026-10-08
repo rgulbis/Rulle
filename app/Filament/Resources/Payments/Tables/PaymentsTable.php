@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Payments\Tables;
 
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
@@ -85,6 +86,14 @@ class PaymentsTable
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
+                // On by default: an abandoned or still-open checkout isn't a
+                // payment, and (with a reservation hold counted each time)
+                // would drown the real ones. Switch it off to see them.
+                Filter::make('hide_unpaid')
+                    ->label('Hide unpaid')
+                    ->toggle()
+                    ->default()
+                    ->query(fn ($query) => $query->where('payment_status', '!=', 'unpaid')),
                 SelectFilter::make('type')
                     ->options([
                         'purchase' => 'One-time passes',

@@ -57,7 +57,7 @@ For chat and the live headcount to update in real time locally, set
 ### Accounts
 
 ```bash
-php artisan migrate:fresh --seed     # wipes the local DB, creates the two staff accounts
+php artisan migrate:fresh --seed     # wipes the local DB, creates the two staff accounts and the starter plans
 ```
 
 | Role     | Email                      | Password                |
@@ -66,7 +66,11 @@ php artisan migrate:fresh --seed     # wipes the local DB, creates the two staff
 | Employee | `employee@xn--rull-eva.lv` | `password` (local only) |
 
 `rullē.lv` is `xn--rull-eva.lv` in punycode; email addresses are stored in the
-punycode form. There is no seeded customer: register at `/register`. Outside
+punycode form. The seeder also creates three starter plans (day pass €8, monthly
+€35, yearly €300) if they don't exist yet — it never overwrites a plan you have
+edited — and, when Stripe is configured, syncs them to Stripe so they can be
+bought (otherwise run `php artisan plans:sync-stripe` later). There is no seeded
+customer: register at `/register`. Outside
 production, new accounts are auto-verified, so there is no email step to work
 around.
 
@@ -123,6 +127,7 @@ deploy workflow writes `.env` from GitHub secrets — see
 | `MAIL_MAILER`, `MAIL_FROM_ADDRESS`, `RESEND_API_KEY`            | Outgoing mail. `log` locally, `resend` in production.                                                                                         |
 | `CAMERA_RTSP_URL`                                               | Camera RTSP URL including credentials. Blank locally; a secret in production.                                                                 |
 | `CHECKIN_TOKEN_TTL_SECONDS`                                     | Lifetime of the entry QR token (default `60`).                                                                                                |
+| `CHECKIN_MIN_STAY_SECONDS`                                      | An exit scan this soon after the entry scan is refused as a double scan (default `10`, `0` turns it off).                                     |
 | `CHECKIN_MAX_VISIT_MINUTES`                                     | Longest plausible visit before a rider counts as gone (default `720`).                                                                        |
 | `SEED_PASSWORD`                                                 | Password for the seeded admin/employee accounts. **Required** to seed in production.                                                          |
 | `PHP_CLI_SERVER_WORKERS`                                        | Worker processes for `php artisan serve` in the container (default `4`).                                                                      |

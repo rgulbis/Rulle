@@ -68,6 +68,7 @@ Route::middleware(['auth', 'customer-only', 'verified', 'throttle:30,1'])->group
     Route::get('subscriptions/success', [SubscriptionController::class, 'success'])->name('subscriptions.success');
     Route::get('subscriptions/checkout-cancelled', [SubscriptionController::class, 'checkoutCancelled'])->name('subscriptions.checkout-cancelled');
     Route::delete('subscriptions/subscription', [SubscriptionController::class, 'cancelSubscription'])->name('subscriptions.cancel-subscription');
+    Route::post('subscriptions/subscription/resume', [SubscriptionController::class, 'resumeSubscription'])->name('subscriptions.resume-subscription');
     Route::post('subscriptions/subscription/swap', [SubscriptionController::class, 'swapToCurrentPrice'])->name('subscriptions.swap-price');
 
     Route::get('reservations', [ReservationController::class, 'index'])->name('reservations.index');
@@ -94,7 +95,7 @@ Route::middleware(['auth', 'customer-only', 'verified', 'throttle:30,1'])->group
 
 Route::middleware(['auth', 'can-scan'])->group(function () {
     Route::get('staff/scan', [ScanController::class, 'index'])->name('staff.scan');
-    Route::post('staff/scan', [ScanController::class, 'store'])->name('staff.scan.store');
+    Route::post('staff/scan', [ScanController::class, 'store'])->middleware('throttle:scan')->name('staff.scan.store');
 });
 
 require __DIR__.'/auth.php';
