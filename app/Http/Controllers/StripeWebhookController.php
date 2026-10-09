@@ -58,7 +58,7 @@ class StripeWebhookController extends CashierWebhookController
     /**
      * A one-time-pass or reservation checkout a customer starts but never
      * finishes (closes the tab, card declines with no retry, etc.) would
-     * stay `pending` forever — nothing else ever revisits it. Stripe expires
+     * stay `pending` forever - nothing else ever revisits it. Stripe expires
      * an unfinished Checkout Session on its own (by default 24 hours after
      * it was created) and fires this event, the only reliable way to know a
      * checkout is truly dead rather than just slow.

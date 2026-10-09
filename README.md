@@ -1,4 +1,4 @@
-# rullē.lv — Skatepark Management System
+# rullē.lv - Skatepark Management System
 
 A web app for running a skatepark: customer accounts, passes and subscriptions
 (Stripe), paid group reservations, QR-code entry/exit with a live headcount, a
@@ -26,11 +26,11 @@ livestream) · Docker Compose behind a Cloudflare Tunnel.
 
 1. [Local development](#1-local-development)
 2. [Configuration reference](#2-configuration-reference)
-3. [Third-party services](#3-third-party-services) — Stripe, Reverb, Resend, camera, Cloudflare
+3. [Third-party services](#3-third-party-services) - Stripe, Reverb, Resend, camera, Cloudflare
 4. [Production deployment](#4-production-deployment)
 5. [Backups and rollback](#5-backups-and-rollback)
 6. [Scheduled jobs and artisan commands](#6-scheduled-jobs-and-artisan-commands)
-7. [How it works](#7-how-it-works) — payments, concurrency, accounts, check-in, security headers
+7. [How it works](#7-how-it-works) - payments, concurrency, accounts, check-in, security headers
 8. [Testing](#8-testing)
 9. [Frontend structure](#9-frontend-structure)
 
@@ -67,8 +67,8 @@ php artisan migrate:fresh --seed     # wipes the local DB, creates the two staff
 
 `rullē.lv` is `xn--rull-eva.lv` in punycode; email addresses are stored in the
 punycode form. The seeder also creates three starter plans (day pass €8, monthly
-€35, yearly €300) if they don't exist yet — it never overwrites a plan you have
-edited — and, when Stripe is configured, syncs them to Stripe so they can be
+€35, yearly €300) if they don't exist yet - it never overwrites a plan you have
+edited - and, when Stripe is configured, syncs them to Stripe so they can be
 bought (otherwise run `php artisan plans:sync-stripe` later). There is no seeded
 customer: register at `/register`. Outside
 production, new accounts are auto-verified, so there is no email step to work
@@ -110,12 +110,12 @@ See [Testing](#8-testing) for what the suites cover.
 ## 2. Configuration reference
 
 Everything is configured through `.env` (copy `.env.example`). In production the
-deploy workflow writes `.env` from GitHub secrets — see
+deploy workflow writes `.env` from GitHub secrets - see
 [Production deployment](#4-production-deployment).
 
 | Variable                                                        | Purpose                                                                                                                                       |
 | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `APP_KEY`                                                       | Laravel key (`php artisan key:generate`). Also the root of the QR-token signing key — rotating it invalidates tokens.                         |
+| `APP_KEY`                                                       | Laravel key (`php artisan key:generate`). Also the root of the QR-token signing key - rotating it invalidates tokens.                         |
 | `APP_URL`                                                       | Public URL; used in links and Stripe return URLs.                                                                                             |
 | `DB_DATABASE`                                                   | The one SQLite path, relative to the project root: `storage/app/database.sqlite`. Must match `docker-compose.yml` and `docker/entrypoint.sh`. |
 | `SESSION_DRIVER` / `CACHE_STORE`                                | `file` on purpose: keeps session and cache writes out of the SQLite write lock.                                                               |
@@ -234,7 +234,7 @@ One-time setup:
 2. **Store it** as the GitHub Actions secret `CAMERA_RTSP_URL`.
 3. **Deploy.** The workflow writes it into the server's `.env` and starts `mediamtx`.
 4. **Check** `https://www.xn--rull-eva.lv/livestream`. If it says "Camera feed isn't
-   available right now", read `docker logs skatepark-mediamtx-1` on the server —
+   available right now", read `docker logs skatepark-mediamtx-1` on the server -
    it is almost always a wrong URL/credentials, or the camera and server aren't on
    the same network.
 
@@ -282,7 +282,7 @@ config).
 
 1. Push to `main`. The `tests` workflow runs.
 2. **Only if `tests` succeeded**, `.github/workflows/deploy.yml` runs
-   (`workflow_run` trigger — the tests workflow must stay named `tests`). It
+   (`workflow_run` trigger - the tests workflow must stay named `tests`). It
    deploys the exact commit that was tested and skips itself if `main` has moved on.
 3. It writes `.env` from GitHub secrets, then runs `docker/deploy.sh`:
    tag the live image as `skatepark-app:rollback` → build → snapshot the database
@@ -298,7 +298,7 @@ config).
 **Secrets:** `APP_KEY`, `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`,
 `STRIPE_KEY`, `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`,
 `CAMERA_RTSP_URL`, `SEED_PASSWORD`.
-**Variable (optional):** `FRESH_DB_ON_DEPLOY` — see below.
+**Variable (optional):** `FRESH_DB_ON_DEPLOY` - see below.
 
 Everything else (`APP_URL`, `APP_ENV=production`, Reverb/Vite ports, mailer, …) is
 set by the workflow itself.
@@ -445,7 +445,7 @@ What it does, per row:
 | Pass `pending`/`abandoned`                 | paid                                        | Activated (the same code the webhook uses).                                            |
 | Reservation `pending`                      | paid                                        | Activated, or refunded if its slot has since been taken.                               |
 | Reservation `cancelled`, recorded `unpaid` | fully / partly refunded                     | `refunded` / `partially_refunded`, with the amount.                                    |
-| Reservation `cancelled`, recorded `unpaid` | paid, nothing refunded, cancelled **late**  | `paid` — the money was kept, so revenue now counts it.                                 |
+| Reservation `cancelled`, recorded `unpaid` | paid, nothing refunded, cancelled **late**  | `paid` - the money was kept, so revenue now counts it.                                 |
 | Reservation `cancelled`, recorded `unpaid` | paid, nothing refunded, cancelled **early** | Left alone and flagged: a refund was owed. `--apply --refund-owed` refunds it in full. |
 | Any of the above                           | never paid / unknown session                | Left as it is.                                                                         |
 
@@ -484,7 +484,7 @@ Notes:
 
 - SQLite runs with `transaction_mode = IMMEDIATE`, so a check followed by a write
   inside `DB::transaction` can't be interleaved with another request. **Never call
-  Stripe inside a transaction** — the write lock is held until it ends.
+  Stripe inside a transaction** - the write lock is held until it ends.
 - Two paid reservations can't overlap: checked in a transaction at booking and at
   payment, and enforced by `reservations_no_active_overlap_*` triggers.
 - A scan (state check, visit spent, event written) is one transaction.
@@ -593,16 +593,16 @@ Filament panel:
 | `Referrer-Policy`           | `strict-origin-when-cross-origin`                                                  |
 | `Permissions-Policy`        | camera for this site only (the scanner); microphone, geolocation, payment, USB off |
 | `X-Frame-Options`           | `SAMEORIGIN`                                                                       |
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` — production over HTTPS only                 |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` - production over HTTPS only                 |
 
 The public CSP is `default-src 'self'` with scripts only from this origin or carrying
 a per-request nonce, and `object-src 'none'`. Two features need exceptions, and
 changing either means revisiting the policy:
 
-- **Reverb** — `connect-src` allows the WebSocket to this host, built from
+- **Reverb** - `connect-src` allows the WebSocket to this host, built from
   `VITE_REVERB_PORT`/`VITE_REVERB_SCHEME` (`config/security.php`). If `echo.ts` ever
   points at another host, add it to `reverbSources()`.
-- **Livestream (HLS)** — playlists and segments load same-origin from `/live-cam/`;
+- **Livestream (HLS)** - playlists and segments load same-origin from `/live-cam/`;
   hls.js needs `blob:` for `media-src` and `worker-src`.
 
 `style-src` keeps `'unsafe-inline'` (the `@fonts` directive writes an inline style
@@ -610,7 +610,7 @@ without nonce support). The `/admin` CSP adds `unsafe-inline`/`unsafe-eval` for 
 because Filament's Alpine build and Livewire need them, and allows `ui-avatars.com`
 images. With `npm run dev` running, the Vite dev server is allowed too (derived from
 `public/hot`, never in production). When something is blocked, the browser console
-names the directive and URL — start there.
+names the directive and URL - start there.
 
 ---
 
@@ -622,11 +622,11 @@ names the directive and URL — start there.
 composer ci:check                       # the full CI run
 ```
 
-- `tests/Feature`, `tests/Unit` — behaviour tests, including payment lifecycles
+- `tests/Feature`, `tests/Unit` - behaviour tests, including payment lifecycles
   (webhook-only fulfilment, foreign session IDs, refunds), account closure, and
   chat access over a reservation's lifetime, and the legacy reconciliation command.
   Stripe is replaced by `tests/Support/FakeStripeGateway` (`fakeStripe()` in tests).
-- `tests/Parallel` — starts several PHP processes against one on-disk SQLite file and
+- `tests/Parallel` - starts several PHP processes against one on-disk SQLite file and
   releases them at the same instant to prove that double bookings, double scans,
   over-full groups, duplicate checkouts and chat-cooldown bypasses can't happen.
 - CI (`.github/workflows/tests.yml`) runs `composer setup` and `composer ci:check`.
@@ -640,7 +640,7 @@ Inertia pages live in `resources/js/pages/`; they stay thin and compose componen
 Anything big is split by responsibility, with the behaviour in hooks and the markup in
 small components:
 
-- **Chat** — `components/chat-thread.tsx` is the one chat room (global chat and each
+- **Chat** - `components/chat-thread.tsx` is the one chat room (global chat and each
   reservation's group chat) and only wires pieces together. Its parts are in
   `components/chat/`:
 
@@ -652,7 +652,7 @@ small components:
     | `composer.tsx`                                                                      | Message box, slow-mode banner, muted/read-only states                                                           |
     | `types.ts`, `avatar.tsx`, `icons.tsx`                                               | Shared types, avatar, icons                                                                                     |
 
-- **Reservations** — `pages/reservations/index.tsx` composes `components/reservations/`:
+- **Reservations** - `pages/reservations/index.tsx` composes `components/reservations/`:
   `booking-section.tsx` (form + calendar of taken slots), `invitations-section.tsx`,
   `my-reservations-section.tsx` (one card per reservation), `add-participant.tsx`.
   The day timeline (`components/reservation-timeline.tsx`) keeps the selection logic and

@@ -31,7 +31,7 @@ class ReservationResource extends Resource
         return __('reservations');
     }
 
-    // Customers create their own reservations through checkout — this
+    // Customers create their own reservations through checkout - this
     // resource is oversight only, not a way to manually create one (which
     // wouldn't have gone through payment).
     public static function canCreate(): bool

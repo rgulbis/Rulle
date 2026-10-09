@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\Log;
 use Stripe\Exception\ApiErrorException;
 
 /**
- * Recurring-subscription revenue lives entirely on Stripe's side — Cashier
+ * Recurring-subscription revenue lives entirely on Stripe's side - Cashier
  * only mirrors subscription *status*, not invoice amounts, into a local
- * table — so this is the only way to report it at all.
+ * table - so this is the only way to report it at all.
  *
  * Only invoices of this app's own Stripe customers are counted (the account
  * can hold others, e.g. leftovers from testing or another project), and
@@ -29,7 +29,7 @@ class StripeRevenue
      * restricted to a date range. Cached briefly: this calls Stripe's API
      * (with pagination for accounts with more than 100 paid invoices), and
      * production runs a single `php artisan serve` process with no queue
-     * workers — an uncached version here would mean every admin dashboard
+     * workers - an uncached version here would mean every admin dashboard
      * load makes a handful of synchronous, network-bound Stripe calls.
      */
     public static function paidSubscriptionRevenueCents(?int $sinceTimestamp = null, ?int $untilTimestamp = null): int
@@ -38,7 +38,7 @@ class StripeRevenue
 
         return Cache::remember($cacheKey, now()->addMinutes(self::CACHE_MINUTES), function () use ($sinceTimestamp, $untilTimestamp) {
             // A dashboard stat failing shouldn't take the rest of the admin
-            // panel down with it — Stripe being briefly unreachable (or, in
+            // panel down with it - Stripe being briefly unreachable (or, in
             // CI/local setups with no key configured at all) degrades to
             // "0 €" here rather than a 500.
             try {

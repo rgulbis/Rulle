@@ -10,7 +10,7 @@ use Throwable;
 /**
  * The pre-launch "every deploy starts from an empty database" switch. Run by
  * docker/deploy.sh once per deploy, and only when the FRESH_DB_ON_DEPLOY
- * GitHub variable is "true" — it refuses to do anything otherwise, so running
+ * GitHub variable is "true" - it refuses to do anything otherwise, so running
  * it by hand against real data by mistake does nothing.
  */
 class FreshDeploy extends Command

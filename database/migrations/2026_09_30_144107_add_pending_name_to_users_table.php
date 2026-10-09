@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // A requested name change sits here until an admin approves or
-        // rejects it — `name` (what actually shows in chat, reservations,
+        // rejects it - `name` (what actually shows in chat, reservations,
         // everywhere) only ever changes on approval. Only one pending
         // request at a time: submitting again just overwrites it.
         Schema::table('users', function (Blueprint $table) {

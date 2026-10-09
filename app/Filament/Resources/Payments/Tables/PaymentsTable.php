@@ -54,7 +54,7 @@ class PaymentsTable
                     ->formatStateUsing(fn (string $state): string => Labels::humanise($state))
                     // Each source has its own status vocabulary (Stripe's
                     // subscription statuses, this app's purchase/reservation
-                    // ones) — grouped by what they mean, not where they're
+                    // ones) - grouped by what they mean, not where they're
                     // from, so the colour is still meaningful across types.
                     ->icon(fn (string $state): Heroicon => match ($state) {
                         'active', 'trialing', 'used_up' => Heroicon::OutlinedCheckCircle,
@@ -80,7 +80,7 @@ class PaymentsTable
                     }),
                 TextColumn::make('refunded_cents')
                     ->label(__('Refunded'))
-                    ->formatStateUsing(fn (int $state): string => $state === 0 ? '—' : number_format($state / 100, 2).' €')
+                    ->formatStateUsing(fn (int $state): string => $state === 0 ? '-' : number_format($state / 100, 2).' €')
                     ->color('gray'),
                 TextColumn::make('created_at')
                     ->label(__('Date'))

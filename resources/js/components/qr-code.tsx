@@ -11,7 +11,7 @@ export default function QrCode({
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
-        // No code yet (e.g. a seeded account) — draw nothing rather than
+        // No code yet (e.g. a seeded account) - draw nothing rather than
         // letting the library throw on empty input.
         if (!canvasRef.current || !value) {
             return;

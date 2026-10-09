@@ -22,7 +22,7 @@ class PaymentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
-    // A combined read-only ledger over three other tables — there's nowhere
+    // A combined read-only ledger over three other tables - there's nowhere
     // to create, edit, or delete a row here. Manage the underlying purchase,
     // reservation, or subscription on its own resource/page instead.
     public static function canCreate(): bool

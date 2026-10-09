@@ -39,7 +39,7 @@ export default function Welcome({
     const formatRanges = useFormatRanges();
     const formatEuros = useFormatEuros();
 
-    // The best seller, worked out server-side from real sales — null until
+    // The best seller, worked out server-side from real sales - null until
     // something has sold, in which case no ticket gets the badge.
     const featuredId = mostPopularPlanId;
 
@@ -149,7 +149,7 @@ export default function Welcome({
                     </div>
                 </section>
 
-                {/* Ticker — decorative repeat of real info, so hidden from
+                {/* Ticker - decorative repeat of real info, so hidden from
                     screen readers after the first copy. */}
                 <div
                     data-nosnippet

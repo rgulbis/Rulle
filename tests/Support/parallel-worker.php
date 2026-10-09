@@ -120,7 +120,7 @@ while (! file_exists($spec['barrier'])) {
 //
 // Not for the cache tables: the rate limiter and locks read those inside their
 // own short transactions, and pausing there would hold the write lock and line
-// the workers up one behind the other — the opposite of a race.
+// the workers up one behind the other - the opposite of a race.
 DB::listen(function ($query) {
     $sql = ltrim(strtolower($query->sql));
 

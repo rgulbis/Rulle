@@ -63,7 +63,7 @@ export default function Subscriptions({
     const hasActiveSubscription =
         !!activeSubscription && !activeSubscription.canceled;
 
-    // The best seller, worked out server-side from real sales — null until
+    // The best seller, worked out server-side from real sales - null until
     // something has sold, in which case no ticket gets the badge.
     const featuredId = mostPopularPlanId;
 

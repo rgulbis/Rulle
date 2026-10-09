@@ -4,7 +4,7 @@ import type { TranslationKey } from '@/lib/i18n/en';
 
 // Mirrors Password::defaults() in AppServiceProvider (min 10, mixed case,
 // a number, a symbol) so people see what's required before submitting.
-// The server still validates — including the "not in a data leak" check,
+// The server still validates - including the "not in a data leak" check,
 // which can only happen there.
 const RULES: { key: TranslationKey; test: (password: string) => boolean }[] = [
     { key: 'form.rule.length', test: (p) => p.length >= 10 },

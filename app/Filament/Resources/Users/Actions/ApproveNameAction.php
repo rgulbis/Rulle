@@ -7,7 +7,7 @@ use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 
 /**
- * Approves a requested display name — or says why it couldn't be: the name
+ * Approves a requested display name - or says why it couldn't be: the name
  * is checked again at approval, because somebody else may have taken it in
  * the time the request sat in the queue.
  */

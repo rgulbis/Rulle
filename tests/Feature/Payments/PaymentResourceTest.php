@@ -11,8 +11,8 @@ use Livewire\Livewire;
 
 /*
 | The `payments` table is a read-only database view (see its migration)
-| unioning three independent sources — purchases, reservations, and Stripe
-| subscriptions — since nothing else in the admin panel shows all of them
+| unioning three independent sources - purchases, reservations, and Stripe
+| subscriptions - since nothing else in the admin panel shows all of them
 | as a single ledger.
 */
 
@@ -36,7 +36,7 @@ function makeSubscriptionRow(User $user, SubscriptionType $type, array $attribut
         'stripe_status' => 'active',
         'stripe_price' => $type->stripe_price_id ?? 'price_test',
         // What the subscriber is billed, recorded when the subscription was
-        // created — independent of the plan's price today.
+        // created - independent of the plan's price today.
         'price_cents' => $type->price_cents,
         'created_at' => now(),
         'updated_at' => now(),

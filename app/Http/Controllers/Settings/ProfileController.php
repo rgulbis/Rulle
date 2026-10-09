@@ -22,14 +22,14 @@ class ProfileController extends Controller
     }
 
     /**
-     * Only the display name for now — it's what other riders and staff see
+     * Only the display name for now - it's what other riders and staff see
      * in chat and reservation groups. Email stays as registered, since it's
      * also the login and the verified address.
      *
      * A name change doesn't take effect immediately: the word list in
      * NoInappropriateContent only refuses the most obvious abuse and is easy
      * to get around, so every change goes to pending_name for an admin to
-     * approve or reject first — see Filament\Resources\Users\Tables\UsersTable.
+     * approve or reject first - see Filament\Resources\Users\Tables\UsersTable.
      * `name` itself (what actually shows everywhere) never changes here.
      */
     public function update(Request $request): RedirectResponse
@@ -50,14 +50,14 @@ class ProfileController extends Controller
                 'required', 'string', 'max:255', new NoInappropriateContent,
                 // Also covers other people's pending names, and refuses
                 // near-copies (case, lookalike letters) and invisible or
-                // direction-changing characters — see DisplayName.
+                // direction-changing characters - see DisplayName.
                 new AvailableDisplayName($user->id),
             ],
         ]);
 
         $name = $validated['name'];
 
-        // Back to the name they already have — nothing to review, and
+        // Back to the name they already have - nothing to review, and
         // clears out any earlier request that's now moot.
         try {
             $user->update(['pending_name' => $name === $user->name ? null : $name]);

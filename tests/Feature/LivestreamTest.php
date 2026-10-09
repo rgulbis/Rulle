@@ -23,7 +23,7 @@ test('the livestream page shows how many people are currently checked in', funct
     User::factory()->count(2)->create()->each(
         fn (User $user) => CheckInEvent::create(['user_id' => $user->id, 'checked_in' => true]),
     );
-    // Never checked in at all — should not count towards the headcount.
+    // Never checked in at all - should not count towards the headcount.
     User::factory()->count(3)->create();
 
     $this->get('/livestream')->assertInertia(fn ($page) => $page

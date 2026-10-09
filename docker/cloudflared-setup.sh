@@ -1,5 +1,5 @@
 #!/bin/sh
-# Run on the server (no sudo needed — everything runs via Docker under the
+# Run on the server (no sudo needed - everything runs via Docker under the
 # user's existing docker group membership). Sets up a locally-managed
 # Cloudflare Tunnel (credentials-file based, not token-based) so all config
 # lives in a plain YAML file here instead of the Cloudflare dashboard.
@@ -10,7 +10,7 @@
 #                                                 recreate the container
 #
 # The cloudflared container joins the compose project's network and reaches
-# the app by service name — docker-compose.yml publishes no ports. That
+# the app by service name - docker-compose.yml publishes no ports. That
 # network exists once the stack has been deployed at least once.
 
 set -e
@@ -55,7 +55,7 @@ if [ "$RECONFIGURE" -eq 1 ]; then
   echo "Reusing tunnel $TUNNEL_ID"
 else
   echo "== Step 1: authenticate with Cloudflare =="
-  echo "This prints a URL — open it in a browser and authorize the domain."
+  echo "This prints a URL - open it in a browser and authorize the domain."
   docker run --rm -it --user 0:0 -v "$CF_DIR:/root/.cloudflared" "$CF_IMAGE" tunnel login
 
   echo "== Step 2: create the tunnel =="
@@ -77,7 +77,7 @@ echo "Tunnel ID: $TUNNEL_ID"
 
 echo "== Step 4: write config.yml =="
 # Ingress hostname matching is an exact string match, so every rule below
-# says "$SITE_HOST" — a rule for the bare domain would silently never match.
+# says "$SITE_HOST" - a rule for the bare domain would silently never match.
 # The services are the compose service names, reachable on the shared network.
 cat > "$CF_DIR/config.yml" <<EOF
 tunnel: $TUNNEL_ID
@@ -90,7 +90,7 @@ ingress:
     path: ^/app/.*
     service: http://reverb:8080
   # MediaMTX's HLS output for the livestream page (see docker-compose.yml)
-  # — same reasoning, must precede the catch-all.
+  # - same reasoning, must precede the catch-all.
   - hostname: $SITE_HOST
     path: ^/live-cam/.*
     service: http://mediamtx:8888

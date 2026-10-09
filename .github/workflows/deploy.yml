@@ -1,7 +1,7 @@
 name: Deploy
 
 # Runs only after the `tests` workflow has finished on a push to main, and
-# only when it passed — a red build never reaches the server. (The `tests`
+# only when it passed - a red build never reaches the server. (The `tests`
 # workflow's name must stay `tests` for this trigger to match.)
 on:
   workflow_run:

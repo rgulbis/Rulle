@@ -1,7 +1,7 @@
 #!/bin/sh
 # Clears the old stack off the production server so the next deploy starts
 # from a clean, known structure. Run it ON the server, as the user that is in
-# the docker group — not inside the GitHub runner (the backup is written to a
+# the docker group - not inside the GitHub runner (the backup is written to a
 # host path).
 #
 #   ./docker/server-cleanup.sh               keep the data volumes (default)
@@ -54,7 +54,7 @@ echo "Volumes:"
 for v in $VOLUMES; do
   if docker volume inspect "$v" >/dev/null 2>&1; then echo "  $v"; else echo "  $v (missing)"; fi
 done
-echo "Other (unattached) volumes — listed only, never removed here:"
+echo "Other (unattached) volumes - listed only, never removed here:"
 docker volume ls -q --filter dangling=true | sed 's/^/  /'
 
 if [ "$WIPE" -eq 1 ]; then

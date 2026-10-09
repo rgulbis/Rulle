@@ -15,7 +15,7 @@ use Stripe\Exception\ApiErrorException;
  *     recorded (`refunded_cents`, `refunded_at`, `payment_status`).
  *
  * If Stripe is down or the request dies half way, the row is left owing a
- * refund — flagged `refund_failed` when Stripe answered with an error — and
+ * refund - flagged `refund_failed` when Stripe answered with an error - and
  * `payments:retry-refunds` keeps trying. Money is never silently kept.
  */
 class Refunds

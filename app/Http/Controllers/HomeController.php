@@ -14,7 +14,7 @@ class HomeController extends Controller
     /**
      * The public landing page: the live camera and headcount up front (same
      * data as the livestream page), plus the passes and group booking info
-     * a first-time visitor needs — open to guests, no login wall.
+     * a first-time visitor needs - open to guests, no login wall.
      */
     public function index(): Response
     {
@@ -22,13 +22,13 @@ class HomeController extends Controller
 
         return Inertia::render('welcome', [
             'checkedInCount' => CheckInOccupancy::currentlyCheckedInCount(),
-            // Time ranges only — who booked a slot isn't anyone else's
+            // Time ranges only - who booked a slot isn't anyone else's
             // business, same as the livestream and reservations pages.
             'todaysReservations' => Reservation::where('status', 'active')
                 ->whereDate('starts_at', today())
                 ->orderBy('starts_at')
                 ->get(['starts_at', 'ends_at']),
-            // Only what a price card needs — not the Stripe ids.
+            // Only what a price card needs - not the Stripe ids.
             'plans' => SubscriptionType::where('active', true)
                 ->orderBy('price_cents')
                 ->get([

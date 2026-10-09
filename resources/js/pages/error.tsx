@@ -7,7 +7,7 @@ const KNOWN = [403, 404, 419, 429, 500, 503] as const;
 
 // Deliberately doesn't use AppLayout: a 404 for an unmatched URL never goes
 // through the web middleware, so the shared `auth` / `park` props that layout
-// reads aren't there — and an error page that itself crashes is worse than
+// reads aren't there - and an error page that itself crashes is worse than
 // a plain one.
 export default function ErrorPage({ status }: { status: number }) {
     const { t } = useTranslation();

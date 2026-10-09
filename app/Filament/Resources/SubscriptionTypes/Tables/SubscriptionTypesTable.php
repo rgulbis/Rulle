@@ -35,7 +35,7 @@ class SubscriptionTypesTable
                     ->getStateUsing(fn ($record) => match (true) {
                         $record->unlimited_entries => __('Unlimited (same day)'),
                         $record->visit_limit !== null => (string) $record->visit_limit,
-                        default => '—',
+                        default => '-',
                     }),
 
                 IconColumn::make('active')

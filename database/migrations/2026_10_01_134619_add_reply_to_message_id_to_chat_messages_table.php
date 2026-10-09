@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('chat_messages', function (Blueprint $table) {
             // Nullable and set-null-on-delete: a reply doesn't disappear or
-            // break if the message it quoted is later deleted — it just
+            // break if the message it quoted is later deleted - it just
             // stops showing a quote.
             $table->foreignId('reply_to_message_id')->nullable()->constrained('chat_messages')->nullOnDelete();
         });

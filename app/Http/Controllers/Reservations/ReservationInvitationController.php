@@ -61,7 +61,7 @@ class ReservationInvitationController extends Controller
         abort_if($invitation === null, 404);
 
         // Someone who already accepted leaves instead (see
-        // ReservationController::leave) — declining isn't a way out of that.
+        // ReservationController::leave) - declining isn't a way out of that.
         if ($invitation->status === ReservationParticipant::ACCEPTED) {
             return to_route('reservations.index')->with('status', 'invitation-unavailable');
         }

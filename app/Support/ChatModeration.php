@@ -7,7 +7,7 @@ use App\Models\User;
 
 /**
  * Who may moderate whom in the global chat room. This is the single place the
- * hierarchy is defined — the employee routes and the admin's Filament actions
+ * hierarchy is defined - the employee routes and the admin's Filament actions
  * both go through it, so the two can't drift apart.
  *
  *   customer  no moderation rights.

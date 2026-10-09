@@ -1,8 +1,8 @@
 <?php
 
 /*
- * Races, for real. A single test process can't show a race — its requests run
- * one after another — so each test here starts several PHP processes against
+ * Races, for real. A single test process can't show a race - its requests run
+ * one after another - so each test here starts several PHP processes against
  * one SQLite *file*, holds them at a barrier, releases them together and then
  * checks that exactly one contender won. These are what fail when
  * `transaction_mode` goes back to DEFERRED or a lock is taken out.

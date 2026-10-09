@@ -33,7 +33,7 @@ class ChatMessageResource extends Resource
         return __('Chat');
     }
 
-    // Messages only ever come from the chat page itself — this is
+    // Messages only ever come from the chat page itself - this is
     // moderation (delete, mute), not a way to author messages as an admin.
     public static function canCreate(): bool
     {
@@ -46,7 +46,7 @@ class ChatMessageResource extends Resource
     }
 
     // Only the global room. Reservation group chats are private to their
-    // group, so they're neither listed nor reachable by any action here —
+    // group, so they're neither listed nor reachable by any action here -
     // scoping the resource query (not just the table) covers record lookup
     // for every action too.
     public static function getEloquentQuery(): Builder

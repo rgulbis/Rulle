@@ -13,7 +13,7 @@ class LivestreamController extends Controller
     {
         return Inertia::render('livestream/index', [
             'checkedInCount' => CheckInOccupancy::currentlyCheckedInCount(),
-            // Time ranges only — same as the reservations page, who booked
+            // Time ranges only - same as the reservations page, who booked
             // a slot isn't anyone else's business.
             'todaysReservations' => Reservation::where('status', 'active')
                 ->whereDate('starts_at', today())

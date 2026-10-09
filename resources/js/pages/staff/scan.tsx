@@ -83,7 +83,7 @@ export default function Scan() {
 
         return () => {
             // stop() throws straight away (not a rejected promise) when the
-            // scanner never started — e.g. the camera was refused — so ask
+            // scanner never started - e.g. the camera was refused - so ask
             // first instead of relying on a .catch().
             try {
                 const state = scanner.getState();

@@ -116,7 +116,7 @@ class ScanController extends Controller
             }
 
             // Being part of the currently-running reservation is itself
-            // what grants entry then — they already paid for this exact
+            // what grants entry then - they already paid for this exact
             // slot, so it doesn't also require a separate subscription.
             if (! $isReservationParty) {
                 if (! $user->hasActiveAccess()) {

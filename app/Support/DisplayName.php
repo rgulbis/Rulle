@@ -13,8 +13,8 @@ use Spoofchecker;
  * Names show up next to chat messages and in reservation groups, so two
  * rules matter beyond "not already in the table": no invisible or direction-
  * changing characters (they let a name hide or reorder), and no near-copies
- * of someone else's name — `EMPLOYEE` for `Employee`, or a Greek capital
- * Epsilon in place of a Latin E — which would let a rider pass as staff.
+ * of someone else's name - `EMPLOYEE` for `Employee`, or a Greek capital
+ * Epsilon in place of a Latin E - which would let a rider pass as staff.
  */
 final class DisplayName
 {
@@ -75,8 +75,8 @@ final class DisplayName
     }
 
     /**
-     * Whether any other account — closed ones included, as the unique index
-     * is — already has, or has asked for, a name that conflicts with this
+     * Whether any other account - closed ones included, as the unique index
+     * is - already has, or has asked for, a name that conflicts with this
      * one. A user's own current and pending names never count against them.
      *
      * Reads every name rather than a precomputed key column: it only runs

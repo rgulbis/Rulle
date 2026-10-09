@@ -11,8 +11,8 @@ use Stripe\Checkout\Session;
 /**
  * Turns a paid Stripe Checkout session into a live pass or reservation.
  *
- * Stripe's webhook is the source of truth — the customer's browser may never
- * come back to the success URL — and the success URL runs the very same code
+ * Stripe's webhook is the source of truth - the customer's browser may never
+ * come back to the success URL - and the success URL runs the very same code
  * so the customer sees the result immediately. Both can fire, in either
  * order, even at the same moment, so every state change is one conditional
  * UPDATE (`WHERE status = 'pending'`): whoever wins does the work, the other
@@ -62,8 +62,8 @@ class CheckoutFulfillment
     {
         // The overlap check and the activation are one transaction (SQLite
         // takes the write lock at BEGIN), so two payments for overlapping
-        // slots landing at the same moment — webhook and success URL, or two
-        // webhooks — are decided one after the other and exactly one wins.
+        // slots landing at the same moment - webhook and success URL, or two
+        // webhooks - are decided one after the other and exactly one wins.
         // The refund is a Stripe call and so happens after the lock is
         // released. The `reservations_no_active_overlap_*` triggers back this
         // up at the database level.
@@ -111,7 +111,7 @@ class CheckoutFulfillment
 
         // Cancelled while the checkout was still open (the customer cancelled
         // from their list, then paid in another tab). The slot may be gone by
-        // now, so the booking is not revived — the money goes back instead.
+        // now, so the booking is not revived - the money goes back instead.
         $lateWin = Reservation::whereKey($reservation->id)
             ->where('status', 'cancelled')
             ->where('payment_status', Reservation::PAYMENT_UNPAID)

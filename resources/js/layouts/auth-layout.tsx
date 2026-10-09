@@ -51,7 +51,7 @@ export default function AuthLayout({
                 />
             </Head>
             <div className="bg-ground text-ink grid min-h-dvh lg:h-dvh lg:grid-cols-2">
-                {/* Always black regardless of theme — the literal colours are on purpose. */}
+                {/* Always black regardless of theme - the literal colours are on purpose. */}
                 <div className="short:lg:py-7 relative flex flex-col gap-5 overflow-hidden bg-[#16161a] px-5 pt-4 pb-5 text-[#f7f6f2] lg:justify-between lg:gap-8 lg:px-16 lg:py-10">
                     <div className="flex items-center justify-between gap-4">
                         <Link

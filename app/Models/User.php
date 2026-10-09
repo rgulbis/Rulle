@@ -35,14 +35,14 @@ use Laravel\Cashier\Billable;
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  */
-// 'role' is deliberately left out — it's a privilege boundary, not just
+// 'role' is deliberately left out - it's a privilege boundary, not just
 // another profile field, so it should never be settable via a mass-assigned
 // array built from request input. The admin panel (the only place a role is
-// meant to change) sets it via forceFill/forceCreate instead — see
+// meant to change) sets it via forceFill/forceCreate instead - see
 // App\Filament\Resources\Users\Pages\CreateUser and EditUser.
 #[Fillable(['name', 'pending_name', 'email', 'password', 'email_verified_at', 'chat_muted_until'])]
 // qr_code is the secret the entry tokens are signed with (see
-// App\Support\CheckIn\QrToken) — it must never be serialized to a page.
+// App\Support\CheckIn\QrToken) - it must never be serialized to a page.
 #[Hidden(['password', 'remember_token', 'qr_code'])]
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
@@ -93,7 +93,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     }
 
     /**
-     * Makes the requested name the real one — unless somebody else has
+     * Makes the requested name the real one - unless somebody else has
      * taken it since the request was made (it was unique when they asked,
      * which says nothing about now). Then the request is dropped instead and
      * false is returned, so the caller can tell the admin why nothing
@@ -239,7 +239,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 
     /**
      * Whether this user is currently inside the park, derived from their
-     * most recent check_in_events row rather than a cached column — see
+     * most recent check_in_events row rather than a cached column - see
      * App\Support\CheckInOccupancy for the equivalent count across everyone.
      * A check-in older than the longest plausible visit no longer counts.
      */

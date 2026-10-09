@@ -23,7 +23,7 @@ class FakeTime extends Command
 
         if ($this->option('clear')) {
             @unlink($path);
-            $this->info('Fake time cleared — the app is back to the real time.');
+            $this->info('Fake time cleared - the app is back to the real time.');
 
             return self::SUCCESS;
         }
@@ -34,14 +34,14 @@ class FakeTime extends Command
             if (is_file($path)) {
                 $this->info('Currently faking: '.trim(file_get_contents($path) ?: ''));
             } else {
-                $this->info('Not faking the time — the app is using the real time.');
+                $this->info('Not faking the time - the app is using the real time.');
             }
 
             return self::SUCCESS;
         }
 
         // A bare signed/unsigned integer (e.g. "+3") is ambiguous to Carbon's
-        // parser — it reads as a Unix timestamp rather than an offset. Treat
+        // parser - it reads as a Unix timestamp rather than an offset. Treat
         // it as hours, which is what anyone typing "+3" actually means.
         if (preg_match('/^[+-]?\d+$/', $when)) {
             $when .= ' hours';
@@ -51,7 +51,7 @@ class FakeTime extends Command
         file_put_contents($path, $fakeNow->toDateTimeString());
 
         $this->info("The app will now think it's {$fakeNow->toDateTimeString()}, until you run --clear.");
-        $this->comment('This only affects requests served by this app (web + artisan) — reload the page to see it take effect.');
+        $this->comment('This only affects requests served by this app (web + artisan) - reload the page to see it take effect.');
 
         return self::SUCCESS;
     }

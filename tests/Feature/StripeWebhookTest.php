@@ -6,8 +6,8 @@ use App\Models\User;
 use Illuminate\Testing\TestResponse;
 
 /*
-| A checkout a customer starts but never finishes — closes the tab instead
-| of clicking Stripe's own back/cancel link — left its Purchase or
+| A checkout a customer starts but never finishes - closes the tab instead
+| of clicking Stripe's own back/cancel link - left its Purchase or
 | Reservation row `pending` forever. checkout.session.expired is Stripe's
 | own signal that an unfinished session is truly dead, not just slow.
 */

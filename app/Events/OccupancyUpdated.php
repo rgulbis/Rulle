@@ -8,7 +8,7 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 
-// A plain (public) Channel, not PrivateChannel — the livestream page is
+// A plain (public) Channel, not PrivateChannel - the livestream page is
 // public too, and a headcount isn't sensitive the way who's inside is.
 class OccupancyUpdated implements ShouldBroadcastNow
 {

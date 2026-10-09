@@ -13,7 +13,7 @@ return new class extends Migration
     {
         // Redundant with check_in_events: "currently checked in" is now
         // derived from each user's latest event there instead of cached
-        // here — see User::isCurrentlyCheckedIn() and
+        // here - see User::isCurrentlyCheckedIn() and
         // App\Support\CheckInOccupancy::currentlyCheckedInCount().
         Schema::table('users', function (Blueprint $table) {
             $table->dropColumn('checked_in');
@@ -25,7 +25,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Restores the column's structure, not its historical values — the
+        // Restores the column's structure, not its historical values - the
         // per-user state isn't recorded anywhere but check_in_events once
         // this column is gone.
         Schema::table('users', function (Blueprint $table) {

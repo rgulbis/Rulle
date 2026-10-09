@@ -13,7 +13,7 @@ const TILTS = [
 /**
  * A pass drawn as a ticket: price up top, a dashed tear line with
  * punched-out notches, and the action on the stub. Tickets sit slightly
- * askew and lift on hover — deliberately not de-rotating too: animating a
+ * askew and lift on hover - deliberately not de-rotating too: animating a
  * rotated dashed border back to level makes the dashes visibly judder as
  * the rotation transitions, most noticeable on this long a line.
  */
@@ -24,7 +24,7 @@ export default function PassTicket({
     action,
 }: {
     plan: Plan;
-    /** Position in the row — picks the tilt so neighbours differ. */
+    /** Position in the row - picks the tilt so neighbours differ. */
     index: number;
     featured?: boolean;
     action: ReactNode;

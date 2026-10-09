@@ -29,7 +29,7 @@ export function TimelineSelects({
             {/* min-w-0 on each grid item + overflow-x-hidden around each
             native control: iOS Safari's own time/select chrome can ignore
             the width its CSS grid cell assigned it, otherwise overlapping
-            into the next column instead of shrinking to fit — the same
+            into the next column instead of shrinking to fit - the same
             WebKit quirk the date field above had. */}
             <div className="mb-3 grid grid-cols-2 gap-3">
                 <div className="flex min-w-0 flex-col gap-1.5">

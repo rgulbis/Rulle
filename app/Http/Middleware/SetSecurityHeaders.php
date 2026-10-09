@@ -157,7 +157,7 @@ class SetSecurityHeaders
      * are built into public/build and served from this origin.
      *
      * Vite often listens on an IPv6 literal (`http://[::1]:5173`), which CSP
-     * host-sources can't express — browsers never match it — so for those
+     * host-sources can't express - browsers never match it - so for those
      * the whole scheme is allowed instead. That only ever applies on a
      * machine with a public/hot file.
      *

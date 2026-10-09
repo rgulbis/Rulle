@@ -9,7 +9,7 @@ declare global {
 }
 
 // This module is also imported by the SSR bundle (via app.tsx), which runs
-// in Node.js and has no `window` — Echo only makes sense in a real browser.
+// in Node.js and has no `window` - Echo only makes sense in a real browser.
 if (typeof window !== 'undefined') {
     window.Pusher = Pusher;
 

@@ -22,7 +22,7 @@ class EditUser extends EditRecord
         ];
     }
 
-    // See CreateUser::handleRecordCreation — same reasoning: `role` is
+    // See CreateUser::handleRecordCreation - same reasoning: `role` is
     // deliberately not mass-assignable, so this admin-only path sets it via
     // forceFill instead of the default $record->update($data).
     //

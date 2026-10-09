@@ -76,7 +76,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('chat-send', fn (Request $request) => Limit::perMinute(20)->by('send:'.($request->user()->id ?? $request->ip())));
 
         // Looking up customers to invite: a search box that fires as someone
-        // types, so it gets a budget of its own, and a small one — it's also
+        // types, so it gets a budget of its own, and a small one - it's also
         // the only way to enumerate customers by name.
         RateLimiter::for('user-search', fn (Request $request) => Limit::perMinute(20)->by('user-search:'.($request->user()->id ?? $request->ip())));
 

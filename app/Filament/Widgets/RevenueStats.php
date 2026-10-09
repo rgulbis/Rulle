@@ -18,9 +18,9 @@ class RevenueStats extends StatsOverviewWidget
      * Money comes from three independent sources that nothing else
      * combines: one-time passes and reservations are local (`purchases`,
      * `reservations`), while recurring subscriptions are billed and
-     * invoiced entirely on Stripe's side — Cashier doesn't mirror invoice
+     * invoiced entirely on Stripe's side - Cashier doesn't mirror invoice
      * amounts into a local table, so that figure is fetched live (and
-     * cached — see StripeRevenue).
+     * cached - see StripeRevenue).
      *
      * Passes and reservations are counted from `payment_status`, not their
      * lifecycle `status`: revenue is what was paid minus what was refunded,

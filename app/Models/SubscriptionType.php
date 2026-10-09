@@ -149,7 +149,7 @@ class SubscriptionType extends Model
     }
 
     /**
-     * The plan that has actually sold the most — what the "most picked"
+     * The plan that has actually sold the most - what the "most picked"
      * badge on the pass cards points at. One-time passes count completed
      * purchases (not unfinished checkouts or refunds); subscriptions count
      * by Stripe product, so a plan keeps its sales across price changes.

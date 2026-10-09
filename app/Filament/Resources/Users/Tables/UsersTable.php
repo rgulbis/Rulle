@@ -26,7 +26,7 @@ class UsersTable
                     ->searchable(),
                 TextColumn::make('pending_name')
                     ->label(__('Requested name'))
-                    ->placeholder('—')
+                    ->placeholder('-')
                     ->color('warning')
                     ->searchable(),
                 TextColumn::make('email')

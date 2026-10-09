@@ -9,7 +9,7 @@ use App\Models\User;
 /**
  * Who may moderate what in a reservation's own group chat. Unlike the
  * global room ({@see ChatModeration}), everyone here is a customer, so
- * moderation isn't rank-based — it's ownership-based: the person who booked
+ * moderation isn't rank-based - it's ownership-based: the person who booked
  * the reservation moderates their own chat, and nobody moderates themselves.
  */
 class ReservationChatModeration

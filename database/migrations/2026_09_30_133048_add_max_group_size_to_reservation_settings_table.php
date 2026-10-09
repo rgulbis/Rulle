@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Previously unbounded — group_size only had a `min` validation
+        // Previously unbounded - group_size only had a `min` validation
         // rule, so a reservation could be submitted for any size at all
         // (e.g. a group of three million), which is nonsensical for a
         // single physical park and inflates its price calculation just as

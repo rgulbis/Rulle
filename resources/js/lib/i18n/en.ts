@@ -1,4 +1,4 @@
-// The canonical key list — every other language dictionary is typed against
+// The canonical key list - every other language dictionary is typed against
 // this one's keys, so a missing translation is a compile error, not a
 // silent fallback to English at runtime.
 const en = {
@@ -23,7 +23,7 @@ const en = {
     'livestream.noReservationsToday': 'No reservations today.',
     'livestream.reservedToday': 'Reserved today: {ranges}',
     'livestream.offline':
-        "Camera feed isn't available right now — check back later.",
+        "Camera feed isn't available right now - check back later.",
     'livestream.loading': 'Connecting to the camera…',
     'livestream.unsupportedBrowser': "Your browser can't play this stream.",
 
@@ -42,14 +42,14 @@ const en = {
     // Reservations (pages/reservations/index.tsx)
     'reservations.title': 'Reserve the park',
     'reservations.statusComplete':
-        'Reservation confirmed — the park is yours for that time.',
+        'Reservation confirmed - the park is yours for that time.',
     'reservations.statusIncomplete':
         "That checkout wasn't completed, so nothing was reserved.",
     'reservations.statusCancelled': 'Reservation cancelled.',
     'reservations.statusCancelledRefunded':
         'Reservation cancelled and refunded.',
     'reservations.statusCancelledRefundPending':
-        'Reservation cancelled. Your refund is on its way — it was not confirmed yet and will be retried automatically.',
+        'Reservation cancelled. Your refund is on its way - it was not confirmed yet and will be retried automatically.',
     'reservations.statusCancelledNoPayment':
         'Reservation cancelled. There was no online payment on record to refund.',
     'reservations.statusCancelledNoRefund':
@@ -57,7 +57,7 @@ const en = {
     'reservations.statusCannotCancel':
         'That reservation has already started and can no longer be cancelled.',
     'reservations.statusSlotTaken':
-        "Someone else booked that time first while you were paying — you've been refunded and the reservation was cancelled. Pick another time.",
+        "Someone else booked that time first while you were paying - you've been refunded and the reservation was cancelled. Pick another time.",
     'reservations.statusLeft': 'You left the reservation.',
     'reservations.statusInvited': 'Invitation sent.',
     'reservations.statusInvitationAccepted': 'You joined the reservation.',
@@ -73,12 +73,12 @@ const en = {
         '{min}–{max} minutes, in 15-minute steps. The dotted line shows typically busy hours; the red block is already reserved.',
     'reservations.groupSize': 'Group size (people)',
     'reservations.groupSizeHint':
-        '{min}–{max} people — priced per person, per hour.',
+        '{min}–{max} people - priced per person, per hour.',
     'reservations.price': 'Price: {amount}',
     'reservations.reserveAndPay': 'Reserve and pay',
     'reservations.upcoming': 'Upcoming reservations',
     'reservations.upcomingHint':
-        "The park is privately reserved during these times — everyone else's entry is paused until they end. Click a day to see its reserved times, or to book that day above.",
+        "The park is privately reserved during these times - everyone else's entry is paused until they end. Click a day to see its reserved times, or to book that day above.",
     'reservations.mine': 'My reservations',
     'reservations.noneUpcoming': "You don't have any upcoming reservations.",
     'reservations.peopleCount': '{count} people',
@@ -100,7 +100,7 @@ const en = {
     'reservations.confirmLeave':
         "Leave this reservation? You'll lose access to its group chat, and only the owner can add you back.",
     'reservations.groupFull':
-        "This reservation's group size is full — remove someone or make a new reservation for more people.",
+        "This reservation's group size is full - remove someone or make a new reservation for more people.",
     'reservations.searchPlaceholder': 'Search by name to invite a friend',
     'reservations.searching': 'Searching…',
     'reservations.add': 'Invite',
@@ -123,14 +123,14 @@ const en = {
 
     // Reservation group chat (pages/reservations/chat.tsx)
     'reservationChat.back': '← Back to reservations',
-    'reservationChat.title': 'Group chat — {range}',
+    'reservationChat.title': 'Group chat - {range}',
     'reservationChat.subtitle':
-        'Only visible to your group — the owner and the friends who accepted their invitation.',
+        'Only visible to your group - the owner and the friends who accepted their invitation.',
 
     // Subscriptions (pages/subscriptions/index.tsx)
     'subscriptions.title': 'Subscriptions',
     'subscriptions.statusPurchaseComplete':
-        'Purchase complete — your access is now active.',
+        'Purchase complete - your access is now active.',
     'subscriptions.statusPurchaseIncomplete':
         "That checkout wasn't completed, so nothing was activated.",
     'subscriptions.statusPurchaseCancelled': 'Checkout was cancelled.',
@@ -138,7 +138,7 @@ const en = {
         'Your subscription has been cancelled.',
     'subscriptions.statusPriceUpdated':
         'Your subscription now uses the new price.',
-    'subscriptions.cancelledUntil': 'Cancelled — access ends {date}.',
+    'subscriptions.cancelledUntil': 'Cancelled - access ends {date}.',
     'subscriptions.periodEnd': 'at period end',
     'subscriptions.active': 'Active subscription ({status})',
     'subscriptions.cancelSubscription': 'Cancel subscription',
@@ -176,7 +176,7 @@ const en = {
     'chatThread.unpin': 'Unpin',
     'chatThread.pin': 'Pin',
     'chatThread.moreActions': 'More actions',
-    'chatThread.noMessages': 'No messages yet — say something.',
+    'chatThread.noMessages': 'No messages yet - say something.',
     'chatThread.mute': 'Mute {duration}',
     'chatThread.muteCustom': 'Mute',
     'chatThread.muteCustomTitle': 'Mute {name}',
@@ -198,16 +198,16 @@ const en = {
     'chatThread.replyingTo': 'Replying to {name}',
     'chatThread.cancelReply': 'Cancel reply',
     'chatThread.delete': 'Delete',
-    'chatThread.slowModeStaff': "Slow mode is on — it doesn't apply to staff.",
+    'chatThread.slowModeStaff': "Slow mode is on - it doesn't apply to staff.",
     'chatThread.slowModeCustomer':
-        'Slow mode is on — one message every {seconds}s.',
+        'Slow mode is on - one message every {seconds}s.',
     'chatThread.mutedUntil': "You're muted from chat until {date}.",
     'chatThread.muted': "You're muted from chat.",
     'chatThread.readOnly':
         'This reservation is over, so its chat is read-only. It will close a week after the reservation ended.',
     'chatThread.placeholder': 'Say something…',
     'chatThread.slowModeWait':
-        'Slow mode is on — wait {seconds}s before sending another message.',
+        'Slow mode is on - wait {seconds}s before sending another message.',
     'chatThread.wait': 'Wait {seconds}s',
     'chatThread.send': 'Send',
     'chatThread.sendFailed': 'Could not send that message.',
@@ -230,11 +230,11 @@ const en = {
     'settings.password.confirm': 'Confirm new password',
     'settings.password.submit': 'Update password',
 
-    // Auth — shared
+    // Auth - shared
     'auth.email': 'Email',
     'auth.password': 'Password',
 
-    // Auth — login
+    // Auth - login
     'auth.login.title': 'Log in',
     'auth.login.description': 'Enter your email and password to sign in.',
     'auth.login.forgotPassword': 'Forgot password?',
@@ -243,7 +243,7 @@ const en = {
     'auth.login.noAccount': "Don't have an account?",
     'auth.login.signUp': 'Sign up',
 
-    // Auth — register
+    // Auth - register
     'auth.register.title': 'Create an account',
     'auth.register.description': 'Enter your details below to sign up.',
     'auth.register.name': 'Name',
@@ -252,7 +252,7 @@ const en = {
     'auth.register.haveAccount': 'Already have an account?',
     'auth.register.logIn': 'Log in',
 
-    // Auth — forgot password
+    // Auth - forgot password
     'auth.forgotPassword.title': 'Forgot password',
     'auth.forgotPassword.description':
         "Enter your email and we'll send you a link to reset your password.",
@@ -260,13 +260,13 @@ const en = {
     'auth.forgotPassword.remembered': 'Remembered your password?',
     'auth.forgotPassword.logIn': 'Log in',
 
-    // Auth — reset password
+    // Auth - reset password
     'auth.resetPassword.title': 'Reset password',
     'auth.resetPassword.description': 'Enter your new password below.',
     'auth.resetPassword.confirmPassword': 'Confirm new password',
     'auth.resetPassword.submit': 'Reset password',
 
-    // Auth — verify email
+    // Auth - verify email
     'auth.verifyEmail.title': 'Verify email',
     'auth.verifyEmail.description':
         'Thanks for signing up! Before getting started, please verify your email address by clicking the link we just emailed to you.',
@@ -320,7 +320,7 @@ const en = {
     'home.heroQueue': 'Queue',
     'home.heroHighlight': 'less.',
     'home.intro':
-        'Ramps, bowls and rails for every skill level — from your first jump to the hardest tricks. An indoor park in Cēsis, open every day whatever the weather.',
+        'Ramps, bowls and rails for every skill level - from your first jump to the hardest tricks. An indoor park in Cēsis, open every day whatever the weather.',
     'home.seePasses': 'See passes',
     'home.watchLive': 'Watch the park live',
     'home.parkRightNow': 'The park right now',
@@ -342,15 +342,15 @@ const en = {
     'home.step3.text': 'Questions? Message the staff in the chat any time.',
     'home.passesTitle': 'Passes',
     'home.passesIntro':
-        'Your account has one personal QR code that works for whichever pass you hold. Monthly and yearly passes renew automatically — cancel whenever.',
+        'Your account has one personal QR code that works for whichever pass you hold. Monthly and yearly passes renew automatically - cancel whenever.',
     'home.crewLead': 'Bring',
     'home.crewTail': 'the crew.',
     'home.crewText':
-        'Book the whole park for your group — birthdays, school classes, teams. {price} per person per hour, from {min} people.',
+        'Book the whole park for your group - birthdays, school classes, teams. {price} per person per hour, from {min} people.',
     'home.bookSlot': 'Book a slot',
     'home.todayTitle': 'Today at the park',
     'home.todayFree':
-        'No private bookings today — the park is open to everyone.',
+        'No private bookings today - the park is open to everyone.',
     'home.privatelyBooked': 'Booked',
 
     // Dashboard cards (pages/dashboard.tsx)
@@ -360,7 +360,7 @@ const en = {
     'dashboard.brightnessHint':
         'Turn your screen brightness up so it scans first try.',
     'dashboard.subscription': 'Subscription',
-    'dashboard.accessEnds': 'Cancelled — access ends {date}',
+    'dashboard.accessEnds': 'Cancelled - access ends {date}',
     'dashboard.renewsAutomatically': 'Renews automatically',
     'dashboard.renewsOn': 'Renews automatically on {date}',
     'dashboard.yourPass': 'Your pass',
@@ -410,7 +410,7 @@ const en = {
     'auth.forgotPassword.heroLead': 'Bailed on your',
     'auth.forgotPassword.heroHighlight': 'password?',
     'auth.forgotPassword.blurb':
-        "Happens to everyone. Get back up — we'll email you a link to set a new one.",
+        "Happens to everyone. Get back up - we'll email you a link to set a new one.",
     'auth.forgotPassword.note': 'The link lands in your inbox',
     'auth.resetPassword.heroLead': 'Fresh',
     'auth.resetPassword.heroHighlight': 'start.',
@@ -469,12 +469,12 @@ const en = {
     'settings.profile.submit': 'Save',
     'settings.profile.updated': 'Your name has been updated.',
     'settings.profile.pendingSubmitted':
-        "Name change submitted — it'll show up once an admin approves it.",
+        "Name change submitted - it'll show up once an admin approves it.",
     'settings.profile.pendingNotice':
         'Waiting on admin approval: "{name}". Your current name still shows everywhere until then.',
 
     // Toasts
-    'toast.tooManyRequests': "Slow down a little — that's a lot of clicks.",
+    'toast.tooManyRequests': "Slow down a little - that's a lot of clicks.",
     // Errors
     'error.403.heading': 'Off limits',
     'error.403.body':
@@ -490,7 +490,7 @@ const en = {
         'Too many requests in a short time. Give it a minute and try again.',
     'error.500.heading': 'Something broke',
     'error.500.body':
-        "That's on us, not you. Try again in a moment — if it keeps happening, let the park staff know.",
+        "That's on us, not you. Try again in a moment - if it keeps happening, let the park staff know.",
     'error.503.heading': 'Back soon',
     'error.503.body':
         "We're doing some maintenance. Try again in a few minutes.",

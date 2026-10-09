@@ -52,7 +52,7 @@ class ReservationSetting extends Model
     }
 
     /**
-     * Single-row settings — there's only ever one reservation pricing rate.
+     * Single-row settings - there's only ever one reservation pricing rate.
      */
     public static function current(): self
     {

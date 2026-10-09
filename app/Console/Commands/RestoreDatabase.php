@@ -32,7 +32,7 @@ class RestoreDatabase extends Command
             return self::FAILURE;
         }
 
-        $this->warn('This replaces the live database. Processes that already have it open keep the old file —');
+        $this->warn('This replaces the live database. Processes that already have it open keep the old file -');
         $this->warn('run it with the app stopped (docker compose stop app reverb scheduler).');
 
         if (! $this->option('force') && ! $this->confirm("Restore from [{$path}]?")) {

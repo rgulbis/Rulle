@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // A mute scoped to this one reservation's group chat, set by its
-        // owner — separate from users.chat_muted_until, which only affects
+        // owner - separate from users.chat_muted_until, which only affects
         // the global room. Living on the pivot means muting someone never
         // reaches into their other reservations, and it's cleared for free
         // if they're ever removed and re-added as a participant.

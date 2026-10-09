@@ -9,12 +9,12 @@ use Illuminate\Support\Carbon;
 /**
  * A read-only row from the `payments` database view (see its migration),
  * which unions one-time passes, reservations, and Stripe subscriptions into
- * a single ledger. Nothing ever saves one of these — there's no table to
+ * a single ledger. Nothing ever saves one of these - there's no table to
  * write to, only the view.
  *
  * A subscription row's amount is what the subscriber is billed
  * (`subscriptions.price_cents`, recorded from Stripe's subscription events),
- * not the plan's current price — repricing a plan doesn't rewrite history.
+ * not the plan's current price - repricing a plan doesn't rewrite history.
  *
  * @property string $id
  * @property string $type 'purchase' | 'reservation' | 'subscription'

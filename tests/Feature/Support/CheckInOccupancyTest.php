@@ -34,7 +34,7 @@ test('a rider already inside before the window counts from hour zero', function 
     $user = User::factory()->create();
 
     // Checked in well before the window we're asking about, never checked
-    // out — should already be counted as occupying the very first bucket.
+    // out - should already be counted as occupying the very first bucket.
     logEvent($user, true, $start->copy()->subDays(1));
 
     $series = CheckInOccupancy::hourly($start, 3);
@@ -61,7 +61,7 @@ test('never goes negative even with an unmatched check-out', function () {
     $user = User::factory()->create();
 
     // No prior check-in logged at all (e.g. it happened before this
-    // feature existed) — the checkout shouldn't drag the count negative.
+    // feature existed) - the checkout shouldn't drag the count negative.
     logEvent($user, false, $start->copy()->addHours(1));
 
     $series = CheckInOccupancy::hourly($start, 3);
@@ -87,7 +87,7 @@ test('currentlyCheckedInCount reflects only each user\'s latest event', function
 test('typicalCheckInsByHour collapses check-ins across dates into a 24-hour profile', function () {
     $user = User::factory()->create();
 
-    // Two different days, both with a 15:00 check-in — should collapse
+    // Two different days, both with a 15:00 check-in - should collapse
     // into hour 15 having a count of 2, regardless of the date.
     logEvent($user, true, Carbon::parse('2026-01-01 15:00:00'));
     logEvent($user, true, Carbon::parse('2026-01-02 15:30:00'));

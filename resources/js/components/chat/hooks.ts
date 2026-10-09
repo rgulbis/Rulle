@@ -137,7 +137,7 @@ export function useSlowMode(initial: SlowMode | undefined, isStaff: boolean) {
 export type SlowModeState = ReturnType<typeof useSlowMode>;
 
 /**
- * Only the message list scrolls — never the page. It follows new messages
+ * Only the message list scrolls - never the page. It follows new messages
  * while you're at the bottom (or when you sent one yourself), and otherwise
  * leaves you where you are and counts what you haven't seen.
  */
@@ -202,7 +202,7 @@ export function useMessageJump(onJump: () => void) {
     const [justJumpedTo, setJustJumpedTo] = useState<number | null>(null);
 
     // A pinned message can be much older than the ~100 recent ones this
-    // page loaded, in which case it simply isn't in the DOM to scroll to —
+    // page loaded, in which case it simply isn't in the DOM to scroll to -
     // silently doing nothing is the right fallback there rather than an
     // error, since there's nowhere sensible to jump.
     const jumpToMessage = (messageId: number) => {
@@ -277,7 +277,7 @@ export function useModerationActions(moderation: Moderation | undefined) {
                     ),
                 // Reachable in practice only via a stale UI (the buttons
                 // that lead here are already hidden for a disallowed
-                // target) — a generic message is enough for that edge case.
+                // target) - a generic message is enough for that edge case.
                 onError: () => setNotice(t('chatThread.muteFailed')),
             },
         );

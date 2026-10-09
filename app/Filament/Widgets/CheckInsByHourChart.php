@@ -83,13 +83,13 @@ class CheckInsByHourChart extends ChartWidget
             'scales' => [
                 'y' => [
                     'beginAtZero' => true,
-                    // A floor for the axis range, not a cap — real data
+                    // A floor for the axis range, not a cap - real data
                     // above this still grows the scale normally. Without
                     // it, a quiet chart (nothing above 1 rider) looks like
                     // a nearly-empty box with a single gridline.
                     'suggestedMax' => 10,
                     'ticks' => [
-                        // Occupancy is always a whole number of riders —
+                        // Occupancy is always a whole number of riders -
                         // without this, Chart.js picks fractional steps
                         // (0.2, 0.4, ...) for small ranges, which reads as
                         // if half a rider is inside.

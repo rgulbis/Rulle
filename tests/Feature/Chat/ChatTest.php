@@ -94,7 +94,7 @@ test('a muted user cannot post a message', function () {
 
     $response = $this->actingAs($user)->post('/chat', ['body' => 'still trying to post']);
 
-    // A redirect back with an inline error, not a hard abort — the
+    // A redirect back with an inline error, not a hard abort - the
     // composer is already hidden client-side while muted, so this is only
     // reachable if the mute landed after the page loaded, and it should
     // still be something the chat UI can show inline rather than a raw

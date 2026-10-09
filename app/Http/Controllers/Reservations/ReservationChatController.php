@@ -28,7 +28,7 @@ class ReservationChatController extends Controller
             // latest('id'), not plain latest(): SQLite only stores
             // created_at to the second, so two messages sent in the same
             // second (a quick reply, especially) tie on created_at and sort
-            // unpredictably — id is already strictly insertion-ordered and
+            // unpredictably - id is already strictly insertion-ordered and
             // never ties.
             ->latest('id')
             ->limit(100)
@@ -56,7 +56,7 @@ class ReservationChatController extends Controller
             'canModerate' => $isOwner && $reservation->chatIsWritable(),
             'muted' => $mutedUntil !== null && $mutedUntil->isFuture(),
             'mutedUntil' => $mutedUntil,
-            // Only for the owner — otherwise a participant muted with no
+            // Only for the owner - otherwise a participant muted with no
             // message in the visible window had no way to be found at all.
             'mutedParticipants' => $isOwner
                 ? ReservationParticipant::with('user:id,name')
@@ -90,7 +90,7 @@ class ReservationChatController extends Controller
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:500', new NoInappropriateContent],
-            // Scoped to this same reservation's room — a reply can't point
+            // Scoped to this same reservation's room - a reply can't point
             // at a message from the global chat or a different reservation.
             'reply_to_message_id' => [
                 'nullable',

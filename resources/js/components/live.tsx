@@ -9,7 +9,7 @@ const STREAM_URL = '/live-cam/index.m3u8';
 
 /**
  * The headcount the busy meter treats as "full". There's no capacity
- * setting in the app yet, so this is a display scale, not a limit —
+ * setting in the app yet, so this is a display scale, not a limit -
  * change it here if the park's real comfortable maximum differs.
  */
 export const BUSY_SCALE = 40;
@@ -17,7 +17,7 @@ export const BUSY_SCALE = 40;
 export function LiveVideo({ className = '' }: { className?: string }) {
     const { t } = useTranslation();
     const videoRef = useRef<HTMLVideoElement>(null);
-    // A key into the dictionary, not the formatted message itself — so
+    // A key into the dictionary, not the formatted message itself - so
     // switching language afterwards updates text that's already on screen,
     // without needing to re-run the effect below (which would needlessly
     // restart the stream) just because the locale changed.
@@ -25,7 +25,7 @@ export function LiveVideo({ className = '' }: { className?: string }) {
     // Bumped to restart the stream from scratch after it has gone offline.
     const [attempt, setAttempt] = useState(0);
     // False until frames are actually on screen, and again whenever playback
-    // stalls to rebuffer — the element is just a blank box before that, which
+    // stalls to rebuffer - the element is just a blank box before that, which
     // reads as broken rather than loading.
     const [playing, setPlaying] = useState(false);
 
@@ -66,7 +66,7 @@ export function LiveVideo({ className = '' }: { className?: string }) {
 
         // Browsers pause (or throttle) background and occluded video to save
         // power, and there are no controls here for a viewer to press play
-        // again — so without this the stream stays frozen until a refresh.
+        // again - so without this the stream stays frozen until a refresh.
         // Whatever time passed while paused is also gone from the live
         // playlist, so jump back to the live edge instead of resuming from
         // a position the server no longer has.
@@ -247,7 +247,7 @@ export function useOccupancy(initialCount: number): number {
     }, [initialCount]);
 
     useEffect(() => {
-        // Public channel — no auth needed, matching this being a public
+        // Public channel - no auth needed, matching this being a public
         // page. A headcount isn't sensitive the way who's inside is.
         const channel = window.Echo.channel('occupancy');
 

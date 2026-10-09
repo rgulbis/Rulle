@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
  * Reconstructs "how many riders were actually inside the park" at each hour
  * from the check_in_events log, rather than just counting check-ins. A
  * check-in without a matching check-out still counts as occupied for every
- * later hour, and a check-out drops the count — this is a running balance,
+ * later hour, and a check-out drops the count - this is a running balance,
  * not a per-hour tally.
  */
 class CheckInOccupancy
@@ -55,7 +55,7 @@ class CheckInOccupancy
 
     /**
      * How busy each hour of the day (0-23) typically is, collapsed across
-     * all historical dates — used as a "peak hours" reference line behind
+     * all historical dates - used as a "peak hours" reference line behind
      * the reservation timeline, not tied to any specific date. Returns raw
      * check-in counts, not normalized; callers scale for display.
      *
@@ -75,7 +75,7 @@ class CheckInOccupancy
     }
 
     /**
-     * How many riders are inside the park right now — the source of truth
+     * How many riders are inside the park right now - the source of truth
      * for the live headcount, derived from everyone's latest event rather
      * than a cached column on `users`.
      */
@@ -98,7 +98,7 @@ class CheckInOccupancy
     }
 
     /**
-     * Everyone whose latest event is a check-in, however long ago — the
+     * Everyone whose latest event is a check-in, however long ago - the
      * candidates checkins:close-stale looks through.
      *
      * @return Collection<int, \stdClass> rows with id, user_id and created_at
@@ -109,7 +109,7 @@ class CheckInOccupancy
     }
 
     /**
-     * How many riders were already inside, right before $moment — the
+     * How many riders were already inside, right before $moment - the
      * starting balance the hourly running total needs to build from.
      */
     private static function occupancyBefore(Carbon $moment): int

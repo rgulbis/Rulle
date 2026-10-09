@@ -76,13 +76,13 @@ test('unfinished checkouts and refunds do not count as sales', function () {
 test('subscriptions count by Stripe product, even on an old price', function () {
     $day = makeSubscriptionType(['name' => 'Day pass']);
     $monthly = makeSubscriptionType(['name' => 'Monthly', 'billing_interval' => 'month']);
-    // Not mass-assignable — normally set by the Stripe sync.
+    // Not mass-assignable - normally set by the Stripe sync.
     $monthly->forceFill(['stripe_product_id' => 'prod_monthly'])->saveQuietly();
 
     sellPurchase($day);
     sellSubscription('prod_monthly');
     sellSubscription('prod_monthly', 'canceled');
-    // Never finished paying — not a sale.
+    // Never finished paying - not a sale.
     sellSubscription('prod_monthly', 'incomplete');
 
     expect(SubscriptionType::mostPopularId())->toBe($monthly->id);

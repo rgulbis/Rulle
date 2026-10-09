@@ -31,6 +31,6 @@ test('does not flag ordinary text', function () {
 });
 
 test('does not flag innocent substrings that merely contain a banned word', function () {
-    // "Dickens" contains "dick" — word-boundary matching should let this through.
+    // "Dickens" contains "dick" - word-boundary matching should let this through.
     expect(failsNoInappropriateContent('Have you read any Dickens novels?'))->toBeFalse();
 });

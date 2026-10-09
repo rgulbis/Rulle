@@ -66,7 +66,7 @@ Route::get('sitemap.xml', function () {
 
 Route::post('stripe/webhook', [StripeWebhookController::class, 'handleWebhook'])->name('cashier.webhook');
 
-// Public, no auth — guests get general info and the livestream per the
+// Public, no auth - guests get general info and the livestream per the
 // project spec.
 Route::get('livestream', [LivestreamController::class, 'index'])->name('livestream.index');
 
@@ -90,8 +90,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('settings/account', [AccountController::class, 'destroy'])->middleware('throttle:5,1')->name('account.destroy');
 });
 
-// Open to every logged-in role (customer, employee, admin) — chat isn't
-// customer-only like reservations/subscriptions — but still requires a
+// Open to every logged-in role (customer, employee, admin) - chat isn't
+// customer-only like reservations/subscriptions - but still requires a
 // verified email, same bar as subscriptions/reservations.
 Route::middleware(['auth', 'verified', 'throttle:chat'])->group(function () {
     Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
@@ -104,7 +104,7 @@ Route::middleware(['auth', 'verified', 'throttle:chat'])->group(function () {
 });
 
 // Every route in here can end up calling Stripe's API synchronously
-// (subscription/price lookups, checkout sessions, refunds) — throttled as a
+// (subscription/price lookups, checkout sessions, refunds) - throttled as a
 // backstop against someone spam-clicking (or scripting) their way into
 // hammering Stripe, since production has no queue workers to absorb that
 // load and a burst of slow, network-bound requests can stall the single
@@ -147,7 +147,7 @@ Route::middleware(['auth', 'can-scan'])->group(function () {
 
 require __DIR__.'/auth.php';
 
-// The site's default landing page is public — the live camera, headcount,
-// passes and group booking info — not a login wall. Logging in is still one
+// The site's default landing page is public - the live camera, headcount,
+// passes and group booking info - not a login wall. Logging in is still one
 // click away via its own nav.
 Route::get('/', [HomeController::class, 'index'])->name('home');

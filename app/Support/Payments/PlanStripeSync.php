@@ -12,7 +12,7 @@ use Stripe\Exception\ApiErrorException;
  * Built to be repeated: each step is recorded on the plan as soon as Stripe
  * has confirmed it, so a failure halfway (the Product exists, the Price call
  * timed out) leaves the plan pointing at its Product and still marked as
- * needing a sync — the next run carries on from there instead of making a
+ * needing a sync - the next run carries on from there instead of making a
  * second Product, and nothing is left at Stripe that the plan doesn't know.
  *
  * A Stripe Price is immutable and carries no name, so renaming a plan only

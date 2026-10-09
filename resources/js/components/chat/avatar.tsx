@@ -1,6 +1,6 @@
 import type { ChatUser } from './types';
 
-// Boxy initials instead of photos — every rider gets a steady colour picked
+// Boxy initials instead of photos - every rider gets a steady colour picked
 // from their id; staff always get the black-and-yellow one.
 const AVATAR_COLOURS = [
     'bg-[#ffd400] text-[#16161a]',

@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // A single global chat room — no conversations/rooms table, since
+        // A single global chat room - no conversations/rooms table, since
         // everyone (customers, staff, admins) posts into the same feed.
         Schema::create('chat_messages', function (Blueprint $table) {
             $table->id();

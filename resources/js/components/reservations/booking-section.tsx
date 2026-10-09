@@ -48,7 +48,7 @@ export function BookingSection({ settings, peakHours, upcoming }: Props) {
         start: number | null;
         end: number | null;
     }>({ start: null, end: null });
-    // '' while the field is being edited (e.g. cleared to retype a value) —
+    // '' while the field is being edited (e.g. cleared to retype a value) -
     // coercing that straight to a number would snap the box to showing "0"
     // on every clear, which made retyping a value fiddly. It's clamped back
     // to a valid size on blur instead, and only ever sent to the server as
@@ -113,7 +113,7 @@ export function BookingSection({ settings, peakHours, upcoming }: Props) {
                         </Label>
                         {/* iOS Safari's native date control ignores
                         `width: 100%` unless its own appearance is
-                        stripped — clipping the overflow instead (an
+                        stripped - clipping the overflow instead (an
                         earlier attempt here) just clipped the box's
                         own border along with it. This is the same
                         fix already confirmed working for the

@@ -85,7 +85,7 @@ services:
         volumes: *app-volumes
 
     # Pulls the Reolink's RTSP feed and re-serves it as HLS for the
-    # livestream page — see the "Livestream" section of the README.
+    # livestream page - see the "Livestream" section of the README.
     #
     # The stock image is used as-is; its config is injected at runtime (an
     # inline compose config, not baked into an image layer). Compose
@@ -105,12 +105,12 @@ configs:
     mediamtx_config:
         content: |
             # MediaMTX pulls the camera's RTSP feed once and re-serves it as
-            # HLS, which every visitor's browser can play with hls.js — a raw
+            # HLS, which every visitor's browser can play with hls.js - a raw
             # RTSP feed isn't something a browser can open directly.
             hls: yes
             hlsAddress: :8888
             # MediaMTX's default HLS mode is low-latency (LL-HLS), which needs
-            # the camera to produce parts of a genuinely stable duration —
+            # the camera to produce parts of a genuinely stable duration -
             # RTSP cameras generally don't, so that duration drifts
             # constantly. hls.js (Windows/Android/most browsers) tolerates
             # that fine, but Safari's native HLS playback (macOS/iOS) doesn't,
@@ -122,7 +122,7 @@ configs:
             hlsAlwaysRemux: yes
             # Cloudflare's edge caches HTTP responses by default; a stale
             # cached segment would mean viewers see a frozen frame instead of
-            # a live feed — short segments keep that window small.
+            # a live feed - short segments keep that window small.
             hlsSegmentCount: 3
             hlsSegmentDuration: 1s
 

@@ -27,7 +27,7 @@ class ChatController extends Controller
             // latest('id'), not plain latest(): SQLite only stores
             // created_at to the second, so two messages sent in the same
             // second (a quick reply, especially) tie on created_at and sort
-            // unpredictably — id is already strictly insertion-ordered and
+            // unpredictably - id is already strictly insertion-ordered and
             // never ties.
             ->latest('id')
             ->limit(100)
@@ -45,14 +45,14 @@ class ChatController extends Controller
             'messages' => ChatMessage::shapeForClient($messages),
             'pinned' => ChatMessage::shapeForClient($pinned),
             'slowMode' => ChatSlowMode::state(),
-            // Admins moderate from the Filament admin panel instead — this
+            // Admins moderate from the Filament admin panel instead - this
             // page's inline moderation is for employees, who can't get into
             // Filament at all (User::canAccessPanel() is admin-only).
             'canModerate' => $user->isEmployee(),
             'muted' => $user->isChatMuted(),
             'mutedUntil' => $user->chat_muted_until,
             'chatGroups' => Reservation::chatGroupsFor($user),
-            // Only for employees, and only customers — the one case this
+            // Only for employees, and only customers - the one case this
             // page's moderation can actually unmute (ChatModeration::canMute
             // is rank-based: an employee can never touch a peer or admin's
             // mute regardless). Otherwise an unmuted account with no message
@@ -69,7 +69,7 @@ class ChatController extends Controller
     public function store(Request $request): RedirectResponse
     {
         // A plain abort() here would render Laravel's own error page rather
-        // than something Inertia can show inline — the composer is already
+        // than something Inertia can show inline - the composer is already
         // hidden client-side while muted, so this only fires if a mute
         // landed after the page loaded (no live push forces the composer
         // to hide mid-session); same shape of response as slow mode below.
@@ -99,7 +99,7 @@ class ChatController extends Controller
 
         if ($wait > 0) {
             return back()->withErrors([
-                'body' => __('Slow mode is on — wait :secondss before sending another message.', ['seconds' => $wait]),
+                'body' => __('Slow mode is on - wait :secondss before sending another message.', ['seconds' => $wait]),
                 // The bare number too, so the chat can count it down live
                 // instead of showing a fixed "wait 8 s" that goes stale.
                 'slow_mode_wait' => (string) $wait,
@@ -108,7 +108,7 @@ class ChatController extends Controller
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:500', new NoInappropriateContent],
-            // Scoped to this same room — a reply can't point at a message
+            // Scoped to this same room - a reply can't point at a message
             // from someone's private reservation chat, or vice versa.
             'reply_to_message_id' => [
                 'nullable',

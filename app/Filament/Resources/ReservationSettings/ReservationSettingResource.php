@@ -42,7 +42,7 @@ class ReservationSettingResource extends Resource
         return $schema
             ->components([
                 // A reservation is charged through Stripe, which refuses a
-                // payment under €0.50 — so the rate has to make even the
+                // payment under €0.50 - so the rate has to make even the
                 // smallest booking (shortest slot, smallest group) reach it.
                 TextInput::make('price_cents_per_person_per_hour')
                     ->label(__('Price per person, per hour (EUR)'))

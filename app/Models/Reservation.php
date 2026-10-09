@@ -168,7 +168,7 @@ class Reservation extends Model
     /**
      * Whether messages can be posted (and the chat moderated): only while
      * the reservation is paid for and has not ended. Before it starts is
-     * fine — that is when a group arranges things.
+     * fine - that is when a group arranges things.
      */
     public function chatIsWritable(): bool
     {
@@ -191,7 +191,7 @@ class Reservation extends Model
      * True if some other reservation already claimed (paid for) an
      * overlapping slot. Checked right when a payment completes, since two
      * people can both have a pending reservation for the same overlapping
-     * time — whoever's Stripe Checkout finishes first wins the slot, and
+     * time - whoever's Stripe Checkout finishes first wins the slot, and
      * this is how the other one's payment gets caught and refunded instead
      * of silently creating a second, conflicting active reservation.
      */
@@ -210,8 +210,8 @@ class Reservation extends Model
      * scanner to know whether the park is privately reserved right now.
      */
     /**
-     * The reservation group chats a user can open — ones they own or accepted
-     * an invitation to, that are paid for and not over for more than a week —
+     * The reservation group chats a user can open - ones they own or accepted
+     * an invitation to, that are paid for and not over for more than a week -
      * for the chat sidebar.
      *
      * @return Collection<int, self>
@@ -243,7 +243,7 @@ class Reservation extends Model
 
     /**
      * A reservation blocks its time slot while it's paid ("active"), or
-     * while it's still within a grace period of being created ("pending" —
+     * while it's still within a grace period of being created ("pending" -
      * mid-checkout). Without that grace window, someone who starts paying
      * but abandons Stripe Checkout would permanently lock the slot, since
      * nothing else ever flips their reservation to "cancelled".

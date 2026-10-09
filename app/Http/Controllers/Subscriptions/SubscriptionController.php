@@ -33,7 +33,7 @@ class SubscriptionController extends Controller
         $purchase = $user->activeOneTimePurchase();
 
         return Inertia::render('subscriptions/index', [
-            // Only what a price card needs — not the Stripe ids or sync
+            // Only what a price card needs - not the Stripe ids or sync
             // bookkeeping (same shape as the home page).
             'plans' => SubscriptionType::where('active', true)->get([
                 'id',
@@ -85,7 +85,7 @@ class SubscriptionController extends Controller
         }
 
         // This calls Stripe's API (twice, worst case) on every single load
-        // of /subscriptions for anyone with an active plan — cached briefly
+        // of /subscriptions for anyone with an active plan - cached briefly
         // so reloading or repeatedly clicking back into this page doesn't
         // re-trigger those network calls every time. Production runs a
         // single `php artisan serve` process with no queue workers, so a
@@ -93,7 +93,7 @@ class SubscriptionController extends Controller
         // stall the whole site for every visitor, not just the one doing it.
         // Wrapped in an array (not returned bare) because Cache::remember()
         // can't distinguish "cached null" from "not cached yet" otherwise,
-        // and a plan with no price change at all — the common case — would
+        // and a plan with no price change at all - the common case - would
         // never actually get cached.
         $cached = Cache::remember(
             "subscription-price-change:{$currentPriceId}",
@@ -157,8 +157,8 @@ class SubscriptionController extends Controller
 
     /**
      * Undoes a cancellation while the paid period is still running: the
-     * subscription renews as if it had never been cancelled. Idempotent — a
-     * subscription that isn't cancelled is simply left as it is — and
+     * subscription renews as if it had never been cancelled. Idempotent - a
+     * subscription that isn't cancelled is simply left as it is - and
      * refused once the period has ended (that one is over, subscribe again).
      */
     public function resumeSubscription(Request $request): RedirectResponse
@@ -186,7 +186,7 @@ class SubscriptionController extends Controller
         // One checkout at a time per customer. A double click, a second tab
         // or a script firing the request twice would otherwise each pass the
         // "already subscribed?" check before either has a subscription, and
-        // each open its own Stripe session — and two paid sessions mean two
+        // each open its own Stripe session - and two paid sessions mean two
         // subscriptions billed every month. The second request waits here
         // and then finds the first one's session to reuse.
         try {
@@ -229,7 +229,7 @@ class SubscriptionController extends Controller
         }
 
         // A pass that still has visits (or today's unlimited entry) left
-        // doesn't need a second one on top — and a second payment would
+        // doesn't need a second one on top - and a second payment would
         // mostly be somebody paying twice by accident.
         if ($user->activeOneTimePurchase() !== null) {
             return redirect()->route('subscriptions.index')->with('status', 'pass-already-active');
@@ -260,7 +260,7 @@ class SubscriptionController extends Controller
 
     /**
      * The URL of a Checkout Session that can still be paid, or null if it
-     * is unknown, finished or expired (or Stripe can't be asked right now —
+     * is unknown, finished or expired (or Stripe can't be asked right now -
      * then a fresh session is the safe choice).
      */
     private function openSessionUrl(mixed $sessionId): ?string

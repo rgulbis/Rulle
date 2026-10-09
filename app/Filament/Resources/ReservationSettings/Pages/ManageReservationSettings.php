@@ -11,7 +11,7 @@ class ManageReservationSettings extends ManageRecords
     protected static string $resource = ReservationSettingResource::class;
 
     // There's only ever the one pricing rate, seeded via
-    // ReservationSetting::current() — no create/delete, just editing it.
+    // ReservationSetting::current() - no create/delete, just editing it.
     protected function getHeaderActions(): array
     {
         return [];

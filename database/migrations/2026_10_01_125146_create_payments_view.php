@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration
 {
     /**
-     * A read-only view, not a table — nothing ever inserts into `payments`
+     * A read-only view, not a table - nothing ever inserts into `payments`
      * directly. Money is recorded in three genuinely separate places
      * (one-time passes, reservations, and Stripe-synced subscriptions), and
      * the admin "Payments" list needs to show all three as one ledger
@@ -14,7 +14,7 @@ return new class extends Migration
      *
      * The subscription branch resolves its plan (and so its price) by
      * joining subscription_items -> subscription_types on Stripe *product*
-     * id, the same join SubscriptionType::mostPopularId() already uses —
+     * id, the same join SubscriptionType::mostPopularId() already uses -
      * Stripe *prices* are immutable and get replaced whenever an admin
      * edits a plan, but the product id stays fixed for that plan's
      * lifetime. This assumes one item per subscription, true for every

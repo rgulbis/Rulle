@@ -38,7 +38,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                 </TapedNote>
             }
         >
-            {/* Already in the visitor's language — the server translates it. */}
+            {/* Already in the visitor's language - the server translates it. */}
             <StatusMessage status={status} className="-rotate-1" />
 
             <form

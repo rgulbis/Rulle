@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Event;
 /*
 | Reservation chat moderation (single source of truth:
 | App\Support\ReservationChatModeration) is ownership-based, not rank-based
-| like the global room — everyone here is a customer:
+| like the global room - everyone here is a customer:
 |
 |   owner        – may delete / pin any message in their own reservation's
 |                  chat, and mute / unmute any of their reservation's
@@ -163,7 +163,7 @@ test('the owner gets the list of currently muted participants of this reservatio
     $reservation->invitations()->attach($expired->id, ['status' => 'accepted', 'chat_muted_until' => now()->subHour()]);
     $reservation->invitations()->attach($fine->id, ['status' => 'accepted']);
 
-    // Muted in a different reservation — must not show up here.
+    // Muted in a different reservation - must not show up here.
     $elsewhere = makeReservation($owner, now()->addDays(2), now()->addDays(2)->addHour());
     $elsewhere->invitations()->attach($fine->id, ['status' => 'accepted', 'chat_muted_until' => now()->addHour()]);
 

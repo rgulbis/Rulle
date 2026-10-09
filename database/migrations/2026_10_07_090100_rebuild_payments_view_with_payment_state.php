@@ -11,8 +11,8 @@ return new class extends Migration
      * read from what was billed (`subscriptions.price_cents`) instead of
      * today's plan price. The plan join remains only for the display name.
      *
-     * A subscription has no per-row refund bookkeeping here — its payments
-     * live on Stripe invoices — so its `payment_status` is derived from the
+     * A subscription has no per-row refund bookkeeping here - its payments
+     * live on Stripe invoices - so its `payment_status` is derived from the
      * Stripe subscription status: anything Stripe is still waiting on is
      * `unpaid`, the rest has been paid for.
      */

@@ -12,7 +12,7 @@ class ActiveRidersStats extends StatsOverviewWidget
     protected static ?int $sort = 3;
 
     // Half-width (the dashboard grid is 2 columns) so this sits beside
-    // CheckInsByHourChart instead of on its own full-width row — the two
+    // CheckInsByHourChart instead of on its own full-width row - the two
     // are the same "what's happening right now" story told two ways.
     protected int|string|array $columnSpan = 1;
 

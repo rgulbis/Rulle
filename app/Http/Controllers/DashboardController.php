@@ -45,7 +45,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * What the customer currently has access through — a recurring
+     * What the customer currently has access through - a recurring
      * subscription takes precedence over a one-time purchase, matching the
      * order the scanner checks them in.
      *
@@ -86,12 +86,12 @@ class DashboardController extends Controller
     }
 
     /**
-     * When this subscription will next renew (and be charged) — Cashier
+     * When this subscription will next renew (and be charged) - Cashier
      * doesn't mirror this locally, so it's a live Stripe lookup, cached: the
      * dashboard loads on every visit, and production runs a single
      * `php artisan serve` process with no queue workers, the same reasoning
      * SubscriptionController::detectPriceChange() is cached for. Wrapped in
-     * an array for the same reason that one is too — Cache::remember()
+     * an array for the same reason that one is too - Cache::remember()
      * treats a cached `null` as "not cached" and would hit Stripe again on
      * every call otherwise.
      *
@@ -122,7 +122,7 @@ class DashboardController extends Controller
 
     /**
      * The soonest paid reservation the user is part of, as owner or accepted
-     * participant — only its time and size, same shape the rest of the app
+     * participant - only its time and size, same shape the rest of the app
      * shows a participant.
      *
      * @return array<string, mixed>|null

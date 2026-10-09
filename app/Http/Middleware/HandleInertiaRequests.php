@@ -43,7 +43,7 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 // checked_in isn't a column on `users` (see
-                // User::isCurrentlyCheckedIn()) — added back here explicitly
+                // User::isCurrentlyCheckedIn()) - added back here explicitly
                 // rather than via the model's global $appends, so it's only
                 // ever computed for the one logged-in user on every page
                 // load, not for every User serialized anywhere else in the

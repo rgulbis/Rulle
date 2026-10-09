@@ -26,7 +26,7 @@ class PurchasesTable
                     ->searchable(),
                 TextColumn::make('price_cents')
                     ->label(__('Paid'))
-                    ->formatStateUsing(fn (?int $state) => $state === null ? '—' : number_format($state / 100, 2).' €')
+                    ->formatStateUsing(fn (?int $state) => $state === null ? '-' : number_format($state / 100, 2).' €')
                     ->sortable(),
                 TextColumn::make('status')
                     ->label(__('Status'))
@@ -50,15 +50,15 @@ class PurchasesTable
                     }),
                 TextColumn::make('refunded_cents')
                     ->label(__('Refunded'))
-                    ->formatStateUsing(fn (int $state): string => $state === 0 ? '—' : number_format($state / 100, 2).' €')
+                    ->formatStateUsing(fn (int $state): string => $state === 0 ? '-' : number_format($state / 100, 2).' €')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('visits_remaining')
                     ->label(__('Visits left'))
-                    ->placeholder('—'),
+                    ->placeholder('-'),
                 TextColumn::make('valid_date')
                     ->label(__('Valid on'))
                     ->date()
-                    ->placeholder('—'),
+                    ->placeholder('-'),
                 TextColumn::make('created_at')
                     ->label(__('Purchased'))
                     ->dateTime('Y-m-d H:i')

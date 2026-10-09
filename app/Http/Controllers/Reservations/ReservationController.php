@@ -48,15 +48,15 @@ class ReservationController extends Controller
             ]),
             // A "typical day" busyness shape (hour => check-in count,
             // collapsed across all history) shown as a reference line
-            // behind the booking timeline — not tied to the selected date.
+            // behind the booking timeline - not tied to the selected date.
             'peakHours' => CheckInOccupancy::typicalCheckInsByHour(),
-            // Time ranges only — who booked a slot isn't anyone else's
+            // Time ranges only - who booked a slot isn't anyone else's
             // business, just that the park is unavailable then.
             'upcoming' => Reservation::where('status', 'active')
                 ->where('ends_at', '>', now())
                 ->orderBy('starts_at')
                 ->get(['id', 'starts_at', 'ends_at']),
-            // Reservations the user owns, or accepted an invitation to —
+            // Reservations the user owns, or accepted an invitation to -
             // shaped explicitly so a participant's view doesn't leak the
             // owner's raw user_id, just whether *they* are the owner. Only
             // the owner sees who is merely invited or declined; everyone
@@ -156,7 +156,7 @@ class ReservationController extends Controller
         // IMMEDIATE mode the write lock is taken at BEGIN, so a second request
         // for the same slot waits here and then sees the first one's row.
         // Checked outside it, two requests could both find the slot free. The
-        // Stripe call stays outside — the lock must not be held over a
+        // Stripe call stays outside - the lock must not be held over a
         // network round trip.
         $reservation = DB::transaction(function () use ($startsAt, $endsAt, $user, $validated, $priceCents) {
             // One unpaid hold at a time: otherwise a single account could
@@ -264,7 +264,7 @@ class ReservationController extends Controller
     }
 
     /**
-     * Stripe's cancel_url. Strictly read-only — a GET that changes state can
+     * Stripe's cancel_url. Strictly read-only - a GET that changes state can
      * be triggered by a link, a prefetch or a crawler.
      */
     public function checkoutCancelled(): RedirectResponse
@@ -398,7 +398,7 @@ class ReservationController extends Controller
     /**
      * A participant who accepted taking themselves off someone else's
      * reservation (an invitation not yet answered is declined instead). The
-     * owner can't leave their own booking — that's what cancelling is.
+     * owner can't leave their own booking - that's what cancelling is.
      */
     public function leave(Request $request, Reservation $reservation): RedirectResponse
     {

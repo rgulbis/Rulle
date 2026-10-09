@@ -21,7 +21,7 @@ function makeActiveReservation(User $owner, array $attributes = []): Reservation
 }
 
 // A fresh user has no check_in_events at all, which already reads as "not
-// checked in" — this is only needed to set up the opposite starting state.
+// checked in" - this is only needed to set up the opposite starting state.
 function checkUserIn(User $user): void
 {
     CheckInEvent::create(['user_id' => $user->id, 'checked_in' => true]);
@@ -122,7 +122,7 @@ test('a successful scan broadcasts the updated occupancy count for the livestrea
     $this->actingAs($staff)->postJson('/staff/scan', ['code' => qrTokenFor($client), 'mode' => 'entry']);
 
     Event::assertDispatched(OccupancyUpdated::class);
-    // The public headcount, not who's inside — broadcastWith() must never
+    // The public headcount, not who's inside - broadcastWith() must never
     // grow to include names or ids.
     expect((new OccupancyUpdated)->broadcastWith())->toBe(['count' => 1]);
 });
@@ -176,7 +176,7 @@ test('scanning a client with an unlimited-entries day pass allows repeated entri
         'valid_date' => now()->toDateString(),
     ]);
 
-    // Enter, then exit, then enter again — none of this should be blocked
+    // Enter, then exit, then enter again - none of this should be blocked
     // or decrement anything, since the pass is unlimited for the day.
     for ($i = 0; $i < 4; $i++) {
         $response = $this->actingAs($staff)->postJson('/staff/scan', [
@@ -337,7 +337,7 @@ test('staff can still enter during an active reservation', function () {
 
     // Staff still go through the normal (pre-existing, unrelated to
     // reservations) subscription check on entry, so they need access same
-    // as any other entry — what this test actually verifies is that they
+    // as any other entry - what this test actually verifies is that they
     // don't get the "privately reserved" rejection a customer would.
     $type = makeSubscriptionType(['unlimited_entries' => true, 'visit_limit' => null]);
     Purchase::create([

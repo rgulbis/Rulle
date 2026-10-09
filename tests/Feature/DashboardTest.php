@@ -54,7 +54,7 @@ test('the dashboard tolerates a Stripe lookup failure when fetching the renewal 
         'stripe_price' => 'price_test',
     ]);
     // An item that doesn't actually exist on Stripe, so looking it up fails
-    // the same way it would with no Stripe credentials configured at all —
+    // the same way it would with no Stripe credentials configured at all -
     // either way, the dashboard itself must still load.
     $subscription->items()->create([
         'stripe_id' => 'si_test_dashboard',
@@ -72,7 +72,7 @@ test('the dashboard tolerates a Stripe lookup failure when fetching the renewal 
 
 test('the dashboard reads a cached renewal date back from a serializing cache store', function () {
     // Production's file cache serializes values and, with
-    // `serializable_classes => false`, won't unserialize objects — the
+    // `serializable_classes => false`, won't unserialize objects - the
     // test suite's plain array store would hide that.
     config(['cache.stores.array.serialize' => true]);
     Cache::forgetDriver('array');

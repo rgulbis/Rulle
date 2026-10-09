@@ -9,7 +9,7 @@ use Illuminate\Support\Carbon;
 /**
  * The reservation_users pivot row: one person's invitation to a reservation
  * and what became of it (invited, accepted, declined). Given its own class
- * so chat_muted_until and responded_at cast to Carbon — plain ->withPivot()
+ * so chat_muted_until and responded_at cast to Carbon - plain ->withPivot()
  * leaves pivot attributes as raw strings, and there's no fluent way to cast a
  * pivot column from the relationship definition itself.
  *

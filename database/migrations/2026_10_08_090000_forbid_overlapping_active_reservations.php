@@ -12,7 +12,7 @@ return new class extends Migration
      * still not be able to double-book the park, so the database refuses it.
      *
      * Only `active` (paid) reservations are guarded: `pending` ones may
-     * legitimately overlap (two people mid-checkout for the same slot — the
+     * legitimately overlap (two people mid-checkout for the same slot - the
      * first payment wins and the other is refunded), and cancelled ones are
      * history. The datetimes are stored in one fixed `Y-m-d H:i:s` format, so
      * plain string comparison orders them correctly.

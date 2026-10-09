@@ -45,7 +45,7 @@ Schedule::command('plans:sync-stripe')
 // would otherwise count as inside indefinitely. Closing time is a setting an
 // admin can change, so rather than a fixed cron time this runs every few
 // minutes and checks out anyone whose park-closing or maximum visit length
-// has passed — stamped with that moment, not the time the job ran, so the
+// has passed - stamped with that moment, not the time the job ran, so the
 // occupancy chart comes out the same as if it had run at closing. Safe to
 // repeat, and catches up after the scheduler was down.
 Schedule::command('checkins:close-stale')

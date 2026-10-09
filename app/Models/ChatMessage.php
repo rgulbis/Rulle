@@ -38,8 +38,8 @@ class ChatMessage extends Model
     protected static function booted(): void
     {
         // Broadcasting here (rather than in the controller) means every
-        // creation/deletion path — the customer route, staff moderation,
-        // tinker — announces itself the same way, with nothing to forget.
+        // creation/deletion path - the customer route, staff moderation,
+        // tinker - announces itself the same way, with nothing to forget.
         static::created(function (ChatMessage $message) {
             ChatMessageSent::dispatch($message);
 
@@ -92,7 +92,7 @@ class ChatMessage extends Model
 
     /**
      * Shaped explicitly (not the raw model) so nothing beyond what the page
-     * actually renders — e.g. the raw user_id column — leaks into the
+     * actually renders - e.g. the raw user_id column - leaks into the
      * Inertia payload. Used for the initial page load and every broadcast,
      * so they always look identical.
      *
@@ -111,7 +111,7 @@ class ChatMessage extends Model
                 'role' => $this->user->role,
             ],
             // Null once the quoted message is deleted (reply_to_message_id
-            // is set-null-on-delete) — the reply just stops showing a quote
+            // is set-null-on-delete) - the reply just stops showing a quote
             // rather than breaking.
             'reply_to' => $this->replyTo ? [
                 'id' => $this->replyTo->id,
@@ -125,7 +125,7 @@ class ChatMessage extends Model
      * @param  Collection<int, self>  $messages
      * @return Collection<int, mixed>
      *
-     * Each element is actually shaped exactly like ClientMessage — see
+     * Each element is actually shaped exactly like ClientMessage - see
      * toClientArray(), which this just maps over and which PHPStan does
      * check precisely. `mixed` here isn't a loss of real precision: for a
      * nullable, nested @phpstan-type alias like this one, Collection's

@@ -6,7 +6,7 @@
 /*
  * Rullē's design tokens. Colours are semantic (ground/paper/ink…), not
  * literal, so the `.theme-dark` scope below can swap every one of them at
- * once — staff and admin pages, and the livestream, render dark from the
+ * once - staff and admin pages, and the livestream, render dark from the
  * same markup the light customer pages use.
  */
 @theme {
@@ -17,7 +17,7 @@
     --font-display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-    /* Page background — raw concrete. */
+    /* Page background - raw concrete. */
     --color-ground: #eceae4;
     /* Cards, inputs, anything sitting on the ground. */
     --color-paper: #f7f6f2;
@@ -95,7 +95,7 @@
     }
 }
 
-/* Scrolling status strip ("ticker") — duplicated content, shifted by half. */
+/* Scrolling status strip ("ticker") - duplicated content, shifted by half. */
 @keyframes ticker {
     to {
         transform: translateX(-50%);

@@ -404,7 +404,7 @@ test('a customer can cancel a paid reservation before it starts, and it frees th
 test('cancelling a paid reservation with no checkout session on record does not claim a refund happened', function () {
     makeReservationSettings(['cancellation_cutoff_hours' => 24]);
     $owner = User::factory()->create();
-    // No stripe_checkout_session_id set — nothing for the controller to
+    // No stripe_checkout_session_id set - nothing for the controller to
     // actually refund against, even though it's well outside the cutoff.
     $reservation = makeReservation($owner, now()->addDays(3), now()->addDays(3)->addHour(), ['status' => 'active']);
 

@@ -58,7 +58,7 @@ class ReservationsTable
                     }),
                 TextColumn::make('refunded_cents')
                     ->label(__('Refunded'))
-                    ->formatStateUsing(fn (int $state): string => $state === 0 ? '—' : number_format($state / 100, 2).' €')
+                    ->formatStateUsing(fn (int $state): string => $state === 0 ? '-' : number_format($state / 100, 2).' €')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('starts_at', 'desc')
@@ -91,7 +91,7 @@ class ReservationsTable
                         // Unlike a customer cancelling their own reservation,
                         // an admin cancellation is never the customer's
                         // fault (double-booking cleanup, park closure,
-                        // etc.) — so a still-upcoming paid booking is always
+                        // etc.) - so a still-upcoming paid booking is always
                         // refunded here, without the cancellation-cutoff
                         // grace window that only exists to discourage
                         // last-minute customer-initiated cancellations.

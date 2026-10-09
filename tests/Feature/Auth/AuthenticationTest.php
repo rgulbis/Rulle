@@ -51,7 +51,7 @@ test('employees are redirected to the scanner after login', function () {
 
 test('users can authenticate typing the Unicode form of a punycode email', function () {
     // A browser only converts a Unicode domain typed into the address bar,
-    // not into a form field — so someone whose account is stored as
+    // not into a form field - so someone whose account is stored as
     // "admin@xn--rull-eva.lv" typing "admin@rullē.lv" into the login form
     // must still match.
     $user = User::factory()->create(['email' => 'admin@xn--rull-eva.lv']);

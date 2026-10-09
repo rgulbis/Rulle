@@ -6,7 +6,7 @@
 #   1. Tag the image that is live now as :rollback.
 #   2. Build the new image.
 #   3. Snapshot the database (with the new image's `db:backup`, against the
-#      live data) — the entrypoint snapshots again right before migrating.
+#      live data) - the entrypoint snapshots again right before migrating.
 #   4. Only while FRESH_DB_ON_DEPLOY=true (the GitHub repository variable of
 #      that name; pre-launch only): stop the app and wipe + reseed the
 #      database with `db:fresh-deploy`. Unset or anything else = skipped.
@@ -101,7 +101,7 @@ docker tag "$APP_IMAGE:rollback" "$APP_IMAGE:latest"
 if docker compose up -d --no-build --force-recreate --wait --wait-timeout "$WAIT_TIMEOUT"; then
     fail "Deploy failed; the previous version is running again."
 else
-    fail "Deploy failed AND the rollback did not come up healthy — the site is probably down."
+    fail "Deploy failed AND the rollback did not come up healthy - the site is probably down."
 fi
 
 # The entrypoint restores its own snapshot when a migration fails. If the

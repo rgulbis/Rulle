@@ -40,7 +40,7 @@ trait HasPaymentState
     }
 
     /**
-     * Net money kept for this row — what it contributes to revenue.
+     * Net money kept for this row - what it contributes to revenue.
      */
     public function netPaidCents(): int
     {

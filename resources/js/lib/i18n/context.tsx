@@ -21,7 +21,7 @@ const dictionaries: Record<Locale, Record<TranslationKey, string>> = {
 };
 
 // The Intl-formatting equivalent of each locale, for toLocaleDateString()
-// etc. — passing this explicitly (instead of the browser's own default)
+// etc. - passing this explicitly (instead of the browser's own default)
 // keeps dates/times in step with the chosen language rather than whatever
 // the visitor's OS happens to be set to.
 const INTL_LOCALE: Record<Locale, string> = {
@@ -42,7 +42,7 @@ function readCookieLocale(): Locale | null {
 }
 
 function writeCookieLocale(locale: Locale): void {
-    // 1 year, available site-wide — a plain client-side preference, not
+    // 1 year, available site-wide - a plain client-side preference, not
     // anything the server needs to read.
     document.cookie = `${COOKIE_NAME}=${locale}; path=/; max-age=31536000; samesite=lax`;
 }
@@ -57,7 +57,7 @@ type TranslationContextValue = {
     ) => string;
     /**
      * Picks `${key}_one` when count === 1, `${key}_other` otherwise, and
-     * always makes {count} available to the string — English and Latvian
+     * always makes {count} available to the string - English and Latvian
      * both only really need this one/other split for the strings that use
      * it here (nothing in this app's copy hinges on Latvian's further
      * numeric-ending rules, e.g. 21 vs 25).
@@ -98,7 +98,7 @@ export function LocaleProvider({
         () => readCookieLocale() ?? initialLocale ?? DEFAULT_LOCALE,
     );
 
-    // Keep the cookie and <html lang> in step with what's on screen — the
+    // Keep the cookie and <html lang> in step with what's on screen - the
     // server reads the same cookie (SetLocale middleware) to pick the
     // language of validation errors and other server-side messages, so a
     // first-time visitor needs it written even before touching the toggle.

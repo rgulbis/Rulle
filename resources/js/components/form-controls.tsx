@@ -23,7 +23,7 @@ export function Label({
     );
 }
 
-// Boxy field that "lifts" onto a yellow hard shadow when focused — the
+// Boxy field that "lifts" onto a yellow hard shadow when focused - the
 // same pressed/raised language the buttons use.
 const inputClasses =
     'w-full rounded-none border-2 border-ink bg-paper px-4 py-3 text-base text-ink shorter:py-2 outline-none transition placeholder:text-faint focus:-translate-x-0.5 focus:-translate-y-0.5 focus:shadow-hard-accent disabled:opacity-50 aria-invalid:border-danger';
@@ -44,7 +44,7 @@ export function Select({
         <div className="relative">
             {/* A native <select> keeps its own OS chrome in Safari no matter
             what border/background is set on it (unlike Chromium, which
-            mostly defers to custom styles) — appearance-none drops that
+            mostly defers to custom styles) - appearance-none drops that
             chrome everywhere so the box actually looks like our other
             inputs, and this draws the dropdown arrow back in by hand. */}
             <select

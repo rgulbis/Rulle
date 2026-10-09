@@ -35,7 +35,7 @@ type Props = {
     /** The conversation is over: shown, but nothing more can be posted. */
     readOnly?: boolean;
     moderation?: Moderation;
-    /** Who this room's moderator can currently unmute — fed from the
+    /** Who this room's moderator can currently unmute - fed from the
      * server rather than derived from messages, since a muted account
      * with nothing in the visible message window would otherwise have no
      * way to be found and unmuted at all. */

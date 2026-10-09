@@ -102,7 +102,7 @@ export function Composer({
     };
 
     const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
-        // Enter sends, Shift+Enter inserts a newline — the usual chat
+        // Enter sends, Shift+Enter inserts a newline - the usual chat
         // convention, since this is a multi-line composer.
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();

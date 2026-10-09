@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedInteger('price_cents')->nullable()->after('subscription_type_id');
         });
 
-        // Backfill existing rows from their plan's current price — the exact
+        // Backfill existing rows from their plan's current price - the exact
         // price actually paid at the time wasn't recorded before this
         // column existed, so this is a best-effort estimate for past
         // purchases only; every purchase from here on stores its own.

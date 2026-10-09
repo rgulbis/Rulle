@@ -9,7 +9,7 @@ use Livewire\Livewire;
 
 /*
 | Revenue is what was paid minus what was refunded, read from
-| `payment_status` — not from whether a booking is still active.
+| `payment_status` - not from whether a booking is still active.
 */
 
 function revenuePurchase(array $attributes): Purchase

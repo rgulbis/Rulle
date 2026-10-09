@@ -14,7 +14,7 @@ type Props = {
     canModerate: boolean;
     /** Whether the viewer may delete/mute this message's author. Mirrors
      * App\Support\ChatModeration: the inline moderators are employees, who
-     * may only delete and mute customers — never staff or admins. */
+     * may only delete and mute customers - never staff or admins. */
     canPenalise: boolean;
     authorIsMuted: boolean;
     jumpedTo: boolean;
@@ -164,7 +164,7 @@ export function MessageRow({
                     </p>
                 </div>
 
-                {/* Reply is for everyone, so this bar always exists now —
+                {/* Reply is for everyone, so this bar always exists now -
                 pin/mute/delete are the only parts still gated by moderation
                 rights. The pin/mute/delete bar normally only reveals on
                 hover/focus; there's no hover on a touchscreen, so below the

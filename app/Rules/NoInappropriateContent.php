@@ -11,7 +11,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
  * abuse and is easy to get around (different spelling, spacing, another
  * language, anything not on the list), and it also has no idea of context. It
  * is not content moderation or content safety, and nothing should be built on
- * the assumption that text which passes it is acceptable — that is what the
+ * the assumption that text which passes it is acceptable - that is what the
  * mute/delete tools and the admin review of requested names are for.
  */
 class NoInappropriateContent implements ValidationRule

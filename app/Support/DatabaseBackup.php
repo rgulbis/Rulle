@@ -15,7 +15,7 @@ use RuntimeException;
  * can miss committed data that is still sitting in the -wal file).
  *
  * Restoring replaces the file on disk, so any process that already has the
- * database open keeps looking at the old one — stop the app first.
+ * database open keeps looking at the old one - stop the app first.
  */
 class DatabaseBackup
 {

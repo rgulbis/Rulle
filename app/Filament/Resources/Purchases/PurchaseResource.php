@@ -32,7 +32,7 @@ class PurchaseResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
-    // Customers create these through checkout — this resource is oversight
+    // Customers create these through checkout - this resource is oversight
     // (and refunding) only, not a way to manually create or edit one (which
     // wouldn't have gone through payment).
     public static function canCreate(): bool

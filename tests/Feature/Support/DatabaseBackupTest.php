@@ -164,7 +164,7 @@ test('the backup runs on a schedule', function () {
 });
 
 // A migration that writes through a second connection (so the write survives
-// the migration's own rollback) and then fails — the situation the snapshot
+// the migration's own rollback) and then fails - the situation the snapshot
 // exists for.
 function useFailingMigration(string $dir, string $dbPath): void
 {
@@ -274,7 +274,7 @@ test('the seeder refuses to create staff accounts in production without a seed p
 });
 
 // The same command as a real process, in production mode, against a throwaway
-// database file that has already been migrated and has data in it — the
+// database file that has already been migrated and has data in it - the
 // closest a test gets to what docker/deploy.sh does on the server. This is
 // also the only place the destructive-command guard (on in production) is
 // exercised for real.

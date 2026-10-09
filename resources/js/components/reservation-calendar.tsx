@@ -23,13 +23,13 @@ export default function ReservationCalendar({
     const { t, intlLocale } = useTranslation();
 
     // Derived from the locale rather than a hardcoded English list, so it
-    // automatically follows along whichever language is picked — including
+    // automatically follows along whichever language is picked - including
     // getting the Monday-first order right, which a plain array of labels
     // wouldn't on its own. 'narrow' (not 'short') on purpose: Latvian's
     // short weekday names ("ceturtd.", "piektd.") are long enough to
     // overflow a 7-column grid on a phone and run into each other.
     const weekdays = useMemo(() => {
-        // A known Monday (2024-01-01) — only its weekday position is used.
+        // A known Monday (2024-01-01) - only its weekday position is used.
         const monday = new Date(2024, 0, 1);
 
         return Array.from({ length: 7 }, (_, i) => {

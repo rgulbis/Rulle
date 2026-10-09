@@ -31,8 +31,8 @@ class Seo
     public static function description(?string $locale = null): string
     {
         return ($locale ?? app()->getLocale()) === 'lv'
-            ? 'Rullē (Rulle) — iekštelpu skeitparks Cēsīs (Cesis): caurlaides un abonementi, grupu rezervācijas, tiešraide no parka un ieeja ar QR kodu. Atvērts katru dienu.'
-            : 'Rullē (Rulle) — an indoor skatepark in Cēsis (Cesis), Latvia: day passes and memberships, group bookings, a live camera and QR code entry. Open every day.';
+            ? 'Rullē (Rulle) - iekštelpu skeitparks Cēsīs (Cesis): caurlaides un abonementi, grupu rezervācijas, tiešraide no parka un ieeja ar QR kodu. Atvērts katru dienu.'
+            : 'Rullē (Rulle) - an indoor skatepark in Cēsis (Cesis), Latvia: day passes and memberships, group bookings, a live camera and QR code entry. Open every day.';
     }
 
     public static function absoluteUrl(string $path = '/'): string

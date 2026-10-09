@@ -10,7 +10,7 @@ return new class extends Migration
      * one would stop anyone from ever re-subscribing, because the old,
      * cancelled row stays. What must never exist is two *live* rows for one
      * customer, and a partial index says exactly that. "Live" mirrors the
-     * checkout rule — no end date (a cancelled-but-still-running
+     * checkout rule - no end date (a cancelled-but-still-running
      * subscription has one, so re-subscribing is allowed) and a status that
      * is still being billed.
      *
@@ -34,7 +34,7 @@ return new class extends Migration
         if ($duplicates !== []) {
             $who = collect($duplicates)->map(fn ($row) => "user {$row->user_id} ({$row->type}: {$row->live})")->implode(', ');
 
-            throw new RuntimeException("Cannot add the one-live-subscription index: these customers already have several live subscriptions — cancel the extras at Stripe and in the subscriptions table first: {$who}");
+            throw new RuntimeException("Cannot add the one-live-subscription index: these customers already have several live subscriptions - cancel the extras at Stripe and in the subscriptions table first: {$who}");
         }
 
         DB::statement(<<<'SQL'

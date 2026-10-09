@@ -33,7 +33,7 @@ function NavLink({
         url.startsWith(`${href}/`) ||
         (activePrefix !== undefined && url.startsWith(`${activePrefix}/`));
     // The row itself stays full-width so mobile keeps a generous tap target,
-    // but the underline sits on an inner inline element — otherwise a
+    // but the underline sits on an inner inline element - otherwise a
     // column-flex mobile menu stretches every link to the container's width
     // and the indicator runs edge-to-edge under the label instead of hugging
     // it like it does in the row-flex desktop nav.
@@ -91,11 +91,11 @@ export default function AppLayout({
     fullHeight = false,
 }: PropsWithChildren<{
     // Pages can force a theme (the livestream is always dark). Otherwise
-    // staff and admins get the dark theme everywhere — their side of the
-    // site matches the Filament admin panel — and customers get light.
+    // staff and admins get the dark theme everywhere - their side of the
+    // site matches the Filament admin panel - and customers get light.
     theme?: 'light' | 'dark';
     // App-style pages (chat) fill exactly one screen: no footer, no page
-    // scroll — their own panels scroll instead.
+    // scroll - their own panels scroll instead.
     fullHeight?: boolean;
 }>) {
     // Wider than the app-wide `Auth` type on purpose: guests land on this
