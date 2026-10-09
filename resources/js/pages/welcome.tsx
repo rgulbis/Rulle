@@ -97,7 +97,7 @@ export default function Welcome({
                         </div>
                     </div>
 
-                    <div className="relative pt-5 lg:col-span-5">
+                    <div data-nosnippet className="relative pt-5 lg:col-span-5">
                         <div className="border-ink shadow-hard-lg relative flex rotate-[1.5deg] flex-col border-2 transition duration-200 hover:rotate-0">
                             <span
                                 aria-hidden="true"
@@ -151,7 +151,10 @@ export default function Welcome({
 
                 {/* Ticker — decorative repeat of real info, so hidden from
                     screen readers after the first copy. */}
-                <div className="border-accent text-accent relative z-10 -mx-6 my-4 -rotate-[1.5deg] overflow-hidden border-y-[3px] bg-[#16161a]">
+                <div
+                    data-nosnippet
+                    className="border-accent text-accent relative z-10 -mx-6 my-4 -rotate-[1.5deg] overflow-hidden border-y-[3px] bg-[#16161a]"
+                >
                     <div className="animate-ticker font-display flex w-max py-3.5 text-2xl font-extrabold tracking-wide uppercase hover:[animation-play-state:paused] lg:text-3xl">
                         {[0, 1].map((copy) => (
                             <ul
@@ -265,7 +268,10 @@ export default function Welcome({
                                 {t('home.bookSlot')}
                             </LinkButton>
                         </div>
-                        <div className="flex rotate-2 flex-col self-start border-2 border-[#16161a] bg-[#f7f6f2] text-[#16161a] shadow-[8px_8px_0_#16161a] transition duration-200 hover:rotate-0 lg:col-span-5 lg:col-start-8">
+                        <div
+                            data-nosnippet
+                            className="flex rotate-2 flex-col self-start border-2 border-[#16161a] bg-[#f7f6f2] text-[#16161a] shadow-[8px_8px_0_#16161a] transition duration-200 hover:rotate-0 lg:col-span-5 lg:col-start-8"
+                        >
                             <div className="flex items-center justify-between gap-4 border-b-2 border-[#16161a] px-6 py-5">
                                 <h3 className="text-lg font-semibold">
                                     {t('home.todayTitle')}

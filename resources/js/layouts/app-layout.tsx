@@ -224,7 +224,7 @@ export default function AppLayout({
                     content={chromeColor}
                 />
             </Head>
-            <header className="border-ink border-b-2">
+            <header data-nosnippet className="border-ink border-b-2">
                 <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-4 lg:px-10">
                     <div className="flex items-center gap-10">
                         <Link
@@ -299,7 +299,11 @@ export default function AppLayout({
             </main>
 
             {!fullHeight && (
-                <footer ref={footerRef} className="bg-[#16161a] text-[#f7f6f2]">
+                <footer
+                    ref={footerRef}
+                    data-nosnippet
+                    className="bg-[#16161a] text-[#f7f6f2]"
+                >
                     <div className="mx-auto grid max-w-7xl gap-8 px-5 py-12 sm:grid-cols-3 lg:px-10">
                         <p className="font-display text-5xl font-black uppercase">
                             {t('nav.brand')}
