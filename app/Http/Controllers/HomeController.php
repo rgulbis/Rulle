@@ -28,20 +28,7 @@ class HomeController extends Controller
                 ->whereDate('starts_at', today())
                 ->orderBy('starts_at')
                 ->get(['starts_at', 'ends_at']),
-            // Only what a price card needs - not the Stripe ids.
-            'plans' => SubscriptionType::where('active', true)
-                ->orderBy('price_cents')
-                ->get([
-                    'id',
-                    'name',
-                    'name_lv',
-                    'description',
-                    'description_lv',
-                    'price_cents',
-                    'billing_interval',
-                    'visit_limit',
-                    'unlimited_entries',
-                ]),
+            'plans' => SubscriptionType::forPublicDisplay(),
             'mostPopularPlanId' => SubscriptionType::mostPopularId(),
             'groupBooking' => $settings->only([
                 'price_cents_per_person_per_hour',

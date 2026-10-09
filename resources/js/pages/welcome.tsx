@@ -216,7 +216,10 @@ export default function Welcome({
                             {t('subscriptions.none')}
                         </p>
                     ) : (
-                        <div className="grid gap-8 px-2 md:grid-cols-2 xl:grid-cols-3">
+                        <div
+                            data-nosnippet
+                            className="grid gap-8 px-2 md:grid-cols-2 xl:grid-cols-3"
+                        >
                             {plans.map((plan, i) => (
                                 <PassTicket
                                     key={plan.id}

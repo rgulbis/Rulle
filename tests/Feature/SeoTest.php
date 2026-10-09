@@ -23,6 +23,27 @@ test('the livestream page can be indexed but has no structured data block', func
         ->not->toContain('application/ld+json');
 });
 
+test('the passes and groups pages are public, indexable and have their own description', function () {
+    makeSubscriptionType(['name' => 'Day pass', 'price_cents' => 500]);
+
+    $passes = $this->get('/passes')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('passes/index')->has('plans', 1)->missing('plans.0.stripe_price_id'))
+        ->getContent();
+    $groups = $this->get('/groups')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('groups/index')->has('groupBooking.min_group_size'))
+        ->getContent();
+
+    expect($passes)
+        ->toContain('<meta name="robots" content="index, follow">')
+        ->toContain('passes and memberships in')
+        ->not->toContain('application/ld+json')
+        ->and($groups)
+        ->toContain('<meta name="robots" content="index, follow">')
+        ->toContain('for your group');
+});
+
 test('private and sign-in pages are marked noindex', function () {
     expect($this->get('/login')->getContent())
         ->toContain('<meta name="robots" content="noindex, nofollow">');
@@ -65,6 +86,8 @@ test('the sitemap lists the public pages only', function () {
     expect($body)
         ->toContain("<loc>{$base}/</loc>")
         ->toContain("<loc>{$base}/livestream</loc>")
+        ->toContain("<loc>{$base}/passes</loc>")
+        ->toContain("<loc>{$base}/groups</loc>")
         ->not->toContain('/dashboard')
         ->not->toContain('/admin');
 });

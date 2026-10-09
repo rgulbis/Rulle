@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
@@ -146,6 +147,29 @@ class SubscriptionType extends Model
             || $this->stripe_synced_name !== $this->name
             || $this->stripe_synced_price_cents !== $this->price_cents
             || $this->stripe_synced_interval !== $this->billing_interval;
+    }
+
+    /**
+     * The active plans a price card shows to anyone, cheapest first - only
+     * what the card needs, not the Stripe ids.
+     *
+     * @return Collection<int, self>
+     */
+    public static function forPublicDisplay(): Collection
+    {
+        return static::where('active', true)
+            ->orderBy('price_cents')
+            ->get([
+                'id',
+                'name',
+                'name_lv',
+                'description',
+                'description_lv',
+                'price_cents',
+                'billing_interval',
+                'visit_limit',
+                'unlimited_entries',
+            ]);
     }
 
     /**

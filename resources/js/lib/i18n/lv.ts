@@ -9,6 +9,8 @@ const lv: Record<TranslationKey, string> = {
     'nav.scan': 'Skenēt',
     'nav.chat': 'Čats',
     'nav.livestream': 'Tiešraide',
+    'nav.passes': 'Caurlaides',
+    'nav.groups': 'Grupām',
     'nav.admin': 'Administrācija',
     'nav.changePassword': 'Mainīt paroli',
     'nav.logOut': 'Izrakstīties',
@@ -351,6 +353,8 @@ const lv: Record<TranslationKey, string> = {
     'home.crewText':
         'Rezervējiet visu parku savai grupai - dzimšanas dienām, skolas klasēm, komandām. {price} par cilvēku stundā, no {min} cilvēkiem.',
     'home.bookSlot': 'Rezervēt laiku',
+    'passes.title': 'Caurlaides un abonementi',
+    'groups.title': 'Grupu rezervācijas',
     'home.todayTitle': 'Šodien parkā',
     'home.todayFree': 'Šodien nav privātu rezervāciju - parks atvērts visiem.',
     'home.privatelyBooked': 'Rezervēts',

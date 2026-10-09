@@ -177,6 +177,12 @@ export default function AppLayout({
                     </NavLink>
                 </>
             )}
+            {!user && (
+                <>
+                    <NavLink href="/passes">{t('nav.passes')}</NavLink>
+                    <NavLink href="/groups">{t('nav.groups')}</NavLink>
+                </>
+            )}
             {isStaff && <NavLink href="/staff/scan">{t('nav.scan')}</NavLink>}
             {user && <NavLink href="/chat">{t('nav.chat')}</NavLink>}
             <NavLink href="/livestream">
@@ -332,16 +338,24 @@ export default function AppLayout({
                             {!isStaff && (
                                 <>
                                     <Link
-                                        href="/subscriptions"
+                                        href={
+                                            user ? '/subscriptions' : '/passes'
+                                        }
                                         className="hover:text-accent"
                                     >
-                                        {t('nav.subscriptions')}
+                                        {user
+                                            ? t('nav.subscriptions')
+                                            : t('nav.passes')}
                                     </Link>
                                     <Link
-                                        href="/reservations"
+                                        href={
+                                            user ? '/reservations' : '/groups'
+                                        }
                                         className="hover:text-accent"
                                     >
-                                        {t('nav.reservations')}
+                                        {user
+                                            ? t('nav.reservations')
+                                            : t('nav.groups')}
                                     </Link>
                                 </>
                             )}

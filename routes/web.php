@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GroupsController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LivestreamController;
+use App\Http\Controllers\PassesController;
 use App\Http\Controllers\Reservations\ReservationChatController;
 use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\Reservations\ReservationInvitationController;
@@ -69,6 +71,12 @@ Route::post('stripe/webhook', [StripeWebhookController::class, 'handleWebhook'])
 // Public, no auth - guests get general info and the livestream per the
 // project spec.
 Route::get('livestream', [LivestreamController::class, 'index'])->name('livestream.index');
+
+// Public price list and group-booking info (what search results link to);
+// buying and booking themselves stay on the login-only /subscriptions and
+// /reservations pages.
+Route::get('passes', [PassesController::class, 'index'])->name('passes.index');
+Route::get('groups', [GroupsController::class, 'index'])->name('groups.index');
 
 Route::middleware(['auth', 'customer-only'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');

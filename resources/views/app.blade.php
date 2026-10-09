@@ -8,7 +8,7 @@
             $component = $page['component'] ?? '';
             $indexable = \App\Support\Seo::isIndexable($component);
             $locale = app()->getLocale();
-            $description = \App\Support\Seo::description();
+            $description = \App\Support\Seo::description($component);
             $canonical = \App\Support\Seo::absoluteUrl(request()->getPathInfo());
             $shareImage = \App\Support\Seo::absoluteUrl('/og-image.png');
         @endphp

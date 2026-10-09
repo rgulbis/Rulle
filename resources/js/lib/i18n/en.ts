@@ -10,6 +10,8 @@ const en = {
     'nav.scan': 'Scan',
     'nav.chat': 'Chat',
     'nav.livestream': 'Livestream',
+    'nav.passes': 'Passes',
+    'nav.groups': 'Groups',
     'nav.admin': 'Admin',
     'nav.changePassword': 'Change password',
     'nav.logOut': 'Log out',
@@ -348,6 +350,8 @@ const en = {
     'home.crewText':
         'Book the whole park for your group - birthdays, school classes, teams. {price} per person per hour, from {min} people.',
     'home.bookSlot': 'Book a slot',
+    'passes.title': 'Passes and memberships',
+    'groups.title': 'Group bookings',
     'home.todayTitle': 'Today at the park',
     'home.todayFree':
         'No private bookings today - the park is open to everyone.',
