@@ -24,6 +24,7 @@ const en = {
     'livestream.reservedToday': 'Reserved today: {ranges}',
     'livestream.offline':
         "Camera feed isn't available right now — check back later.",
+    'livestream.loading': 'Connecting to the camera…',
     'livestream.unsupportedBrowser': "Your browser can't play this stream.",
 
     // Dashboard (pages/dashboard.tsx)

@@ -24,6 +24,7 @@ const lv: Record<TranslationKey, string> = {
     'livestream.reservedToday': 'Šodien rezervēts: {ranges}',
     'livestream.offline':
         'Kameras signāls pašlaik nav pieejams — mēģiniet vēlāk.',
+    'livestream.loading': 'Savienojas ar kameru…',
     'livestream.unsupportedBrowser':
         'Jūsu pārlūkprogramma nevar atskaņot šo straumi.',
 

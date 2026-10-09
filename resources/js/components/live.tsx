@@ -24,6 +24,10 @@ export function LiveVideo({ className = '' }: { className?: string }) {
     const [error, setError] = useState<'offline' | 'unsupported' | null>(null);
     // Bumped to restart the stream from scratch after it has gone offline.
     const [attempt, setAttempt] = useState(0);
+    // False until frames are actually on screen, and again whenever playback
+    // stalls to rebuffer — the element is just a blank box before that, which
+    // reads as broken rather than loading.
+    const [playing, setPlaying] = useState(false);
 
     // A deploy or a camera hiccup takes the stream down for a short while;
     // without this, anyone with the page open would be stuck on the
@@ -49,6 +53,13 @@ export function LiveVideo({ className = '' }: { className?: string }) {
         }
 
         setError(null);
+        setPlaying(false);
+
+        const handlePlaying = () => setPlaying(true);
+        const handleWaiting = () => setPlaying(false);
+
+        video.addEventListener('playing', handlePlaying);
+        video.addEventListener('waiting', handleWaiting);
 
         let hls: Hls | null = null;
         let cancelled = false;
@@ -97,6 +108,8 @@ export function LiveVideo({ className = '' }: { className?: string }) {
             window.removeEventListener('focus', resume);
             window.removeEventListener('pageshow', resume);
             video.removeEventListener('pause', handlePause);
+            video.removeEventListener('playing', handlePlaying);
+            video.removeEventListener('waiting', handleWaiting);
         };
 
         // Native HLS is only a fallback. Chrome 142+ also answers "maybe" to
@@ -194,16 +207,32 @@ export function LiveVideo({ className = '' }: { className?: string }) {
                     )}
                 </p>
             ) : (
-                <video
-                    ref={videoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    disablePictureInPicture
-                    disableRemotePlayback
-                    onContextMenu={(e) => e.preventDefault()}
-                    className="pointer-events-none h-full w-full object-cover"
-                />
+                <>
+                    <video
+                        ref={videoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        disablePictureInPicture
+                        disableRemotePlayback
+                        onContextMenu={(e) => e.preventDefault()}
+                        className="pointer-events-none h-full w-full object-cover"
+                    />
+                    {!playing && (
+                        <div
+                            role="status"
+                            className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#2a2a2e]/80 text-[#b9b8b2]"
+                        >
+                            <span
+                                aria-hidden="true"
+                                className="size-10 animate-spin rounded-full border-4 border-current border-t-transparent"
+                            />
+                            <span className="text-base">
+                                {t('livestream.loading')}
+                            </span>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );
