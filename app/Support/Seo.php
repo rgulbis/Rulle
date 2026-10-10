@@ -51,8 +51,8 @@ class Seo
         }
 
         return $lv
-            ? 'Rullē - iekštelpu skeitparks Cēsīs (Cesis). Rampas visiem līmeņiem, atvērts katru dienu neatkarīgi no laikapstākļiem. Caurlaides, abonementi, tiešraide.'
-            : 'Rullē - an indoor skatepark in Cēsis (Cesis), Latvia. Ramps for every level, open every day whatever the weather. Day passes, memberships, live camera.';
+            ? 'Rullē - iekštelpu skeitparks Cēsīs. Rampas visiem līmeņiem, atvērts katru dienu neatkarīgi no laikapstākļiem. Caurlaides, abonementi, tiešraide.'
+            : 'Rullē - an indoor skatepark in Cēsis, Latvia. Ramps for every level, open every day whatever the weather. Day passes, memberships, live camera.';
     }
 
     public static function absoluteUrl(string $path = '/'): string
@@ -73,9 +73,13 @@ class Seo
             '@context' => 'https://schema.org',
             '@type' => 'SportsActivityLocation',
             'name' => config('app.name'),
-            // People type the name without diacritics (and in either
-            // language's word for the place), so say those spellings out loud.
-            'alternateName' => ['Rulle', 'Rulle skeitparks', 'Rulle skatepark', 'Rullē skeitparks'],
+            // People type the name without diacritics, with a single "l" or
+            // with the wrong macron (and in either language's word for the
+            // place), so say those spellings out loud.
+            'alternateName' => [
+                'Rulle', 'Rulle skeitparks', 'Rulle skatepark', 'Rullē skeitparks',
+                'Rule', 'Rule skeitparks', 'Rule skatepark', 'Rulē', 'Rulē skeitparks', 'Rulē skatepark',
+            ],
             'url' => self::absoluteUrl('/'),
             'image' => self::absoluteUrl('/og-image.png'),
             'description' => self::description('welcome', 'en'),
