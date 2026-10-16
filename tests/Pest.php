@@ -24,7 +24,7 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->in('Feature');
+    ->in('Feature', 'Browser');
 
 // No RefreshDatabase: these tests build their own on-disk SQLite file, which
 // separate PHP processes can share (an in-memory database can't be).
@@ -118,4 +118,33 @@ function makeSubscriptionType(array $attributes = []): SubscriptionType
 function qrTokenFor(User $user): string
 {
     return QrToken::issue($user)['token'];
+}
+
+// A customer with an active monthly subscription on the given Stripe price.
+function makeSubscriber(string $stripePrice, int $priceCents = 2000): User
+{
+    $user = User::factory()->create(['stripe_id' => 'cus_test']);
+
+    $subscription = $user->subscriptions()->create([
+        'type' => 'default', 'stripe_id' => 'sub_test', 'stripe_status' => 'active',
+        'stripe_price' => $stripePrice, 'quantity' => 1, 'price_cents' => $priceCents,
+    ]);
+    $subscription->items()->create([
+        'stripe_id' => 'si_test', 'stripe_product' => 'prod_test', 'stripe_price' => $stripePrice, 'quantity' => 1,
+    ]);
+
+    return $user;
+}
+
+// A monthly plan that is on sale and already synced to the given Stripe price.
+function makeMonthlyPlan(string $stripePrice, int $priceCents = 2000): SubscriptionType
+{
+    return SubscriptionType::withoutEvents(function () use ($stripePrice, $priceCents) {
+        $type = SubscriptionType::create([
+            'name' => 'Monthly', 'price_cents' => $priceCents, 'billing_interval' => 'month', 'active' => true,
+        ]);
+        $type->forceFill(['stripe_product_id' => 'prod_test', 'stripe_price_id' => $stripePrice])->save();
+
+        return $type;
+    });
 }

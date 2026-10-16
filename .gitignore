@@ -28,3 +28,7 @@ yarn-error.log
 /.zed
 /test-results
 /tests/e2e/.auth
+
+# Pest browser test failure screenshots
+/tests/Browser/Screenshots
+/Tests/Browser/Screenshots

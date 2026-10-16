@@ -626,6 +626,10 @@ composer ci:check                       # the full CI run
   (webhook-only fulfilment, foreign session IDs, refunds), account closure, and
   chat access over a reservation's lifetime, and the legacy reconciliation command.
   Stripe is replaced by `tests/Support/FakeStripeGateway` (`fakeStripe()` in tests).
+- `tests/Browser` - browser tests (Pest + Playwright/Chromium) that click through the
+  six main features like a visitor. Not part of `ci:check`; run them with
+  `./vendor/bin/pest tests/Browser`. First time on a machine: `npm install` then
+  `npx playwright install chromium`.
 - `tests/Parallel` - starts several PHP processes against one on-disk SQLite file and
   releases them at the same instant to prove that double bookings, double scans,
   over-full groups, duplicate checkouts and chat-cooldown bypasses can't happen.
