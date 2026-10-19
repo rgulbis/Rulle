@@ -50,6 +50,22 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
+        // Customers for the exam demo: verified, no pass, a fixed password so
+        // they can be handed to the jury. Customer role only, so unlike the
+        // staff accounts above they don't need SEED_PASSWORD.
+        foreach (range(1, 4) as $number) {
+            User::firstOrCreate(
+                ['email' => "user{$number}@xn--rull-eva.lv"],
+                [
+                    'name' => "user{$number}",
+                    'password' => 'password123@',
+                    'role' => 'user',
+                    'qr_code' => (string) Str::uuid(),
+                    'email_verified_at' => now(),
+                ],
+            );
+        }
+
         $this->call(SubscriptionTypeSeeder::class);
     }
 }

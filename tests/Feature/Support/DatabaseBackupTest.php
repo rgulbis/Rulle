@@ -347,7 +347,7 @@ test('db:fresh-deploy as a process wipes and reseeds production, past the destru
     $pdo = new PDO('sqlite:'.$this->workdir.'/deployed.sqlite');
     $hash = $pdo->query("SELECT password FROM users WHERE email = 'admin@xn--rull-eva.lv'")->fetchColumn();
 
-    expect($pdo->query('SELECT COUNT(*) FROM users')->fetchColumn())->toBe(2)
+    expect($pdo->query('SELECT COUNT(*) FROM users')->fetchColumn())->toBe(6)
         ->and(Hash::check('a-long-seed-secret', $hash))->toBeTrue()
         ->and(Hash::check('password', $hash))->toBeFalse()
         ->and(glob($this->workdir.'/proc-storage/app/backups/*-pre-fresh.sqlite'))->toHaveCount(1);
