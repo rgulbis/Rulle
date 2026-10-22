@@ -37,7 +37,9 @@ if docker image inspect "$APP_IMAGE:latest" >/dev/null 2>&1; then
 fi
 
 log "Building"
-docker compose build
+# --pull: the Dockerfile's `php:8.5-cli-bookworm` tag floats to the newest 8.5.x;
+# without it the runner reuses its cached base image and never gets PHP patches.
+docker compose build --pull
 
 predeploy_snapshot=""
 if [ -n "$had_previous" ]; then
